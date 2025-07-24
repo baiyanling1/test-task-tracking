@@ -218,6 +218,7 @@
             :max="100"
             placeholder="请输入投入人数"
             style="width: 100%"
+            @change="calculateManDays"
           />
         </el-form-item>
         <el-form-item label="开始日期" prop="startDate">
@@ -227,6 +228,7 @@
             placeholder="选择开始日期"
             value-format="YYYY-MM-DD"
             style="width: 100%"
+            @change="calculateManDays"
           />
         </el-form-item>
         <el-form-item label="预计结束时间" prop="expectedEndDate">
@@ -236,7 +238,34 @@
             placeholder="选择预计结束时间"
             value-format="YYYY-MM-DD"
             style="width: 100%"
+            @change="calculateManDays"
           />
+        </el-form-item>
+        <el-form-item label="工时(人天)" prop="manDays">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <el-input-number
+              v-model="taskForm.manDays"
+              :min="0"
+              :precision="1"
+              :step="0.5"
+              placeholder="工时"
+              style="flex: 1"
+            />
+            <el-button 
+              type="primary" 
+              size="small" 
+              @click="calculateManDays"
+              :disabled="!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount"
+            >
+              自动计算
+            </el-button>
+            <el-tooltip content="根据时间区间和参与人数自动计算工时" placement="top">
+              <el-icon><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            提示：自动计算后可根据实际情况手动调整
+          </div>
         </el-form-item>
         <el-form-item label="实际结束时间" prop="actualEndDate">
           <el-date-picker
@@ -356,7 +385,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, QuestionFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi } from '@/api/tasks'
 import { getUsers } from '@/api/users'
@@ -400,7 +429,8 @@ const taskForm = reactive({
   actualEndDate: '',
   progressPercentage: 0,
   status: 'PLANNED',
-  delayReason: ''
+  delayReason: '',
+  manDays: 0
 })
 
 // 表单验证规则
@@ -442,6 +472,10 @@ const taskRules = {
   ],
   delayReason: [
     { required: false, message: '请输入延期原因和说明', trigger: 'blur' }
+  ],
+  manDays: [
+    { required: true, message: '请输入工时', trigger: 'blur' },
+    { type: 'number', min: 0, message: '工时必须大于等于0', trigger: 'blur' }
   ]
 }
 
@@ -562,7 +596,8 @@ const editTask = (task) => {
     actualEndDate: task.actualEndDate,
     progressPercentage: task.progressPercentage || 0,
     status: task.status,
-    delayReason: task.delayReason || ''
+    delayReason: task.delayReason || '',
+    manDays: task.manDays || 0
   })
   showCreateDialog.value = true
 }
@@ -658,7 +693,8 @@ const resetForm = () => {
     actualEndDate: '',
     progressPercentage: 0,
     status: 'PLANNED',
-    delayReason: ''
+    delayReason: '',
+    manDays: 0
   })
   if (taskFormRef.value) {
     taskFormRef.value.resetFields()
@@ -720,6 +756,21 @@ const formatDateTime = (date) => {
     minute: '2-digit'
   })
 }
+
+const calculateManDays = () => {
+  if (!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount) {
+    taskForm.manDays = 0;
+    return;
+  }
+
+  const start = new Date(taskForm.startDate);
+  const end = new Date(taskForm.expectedEndDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 计算总天数，加1是因为包含开始日期
+
+  // 工时 = 天数 × 参与人数
+  taskForm.manDays = parseFloat((diffDays * taskForm.participantCount).toFixed(1));
+};
 
 // 生命周期
 onMounted(() => {

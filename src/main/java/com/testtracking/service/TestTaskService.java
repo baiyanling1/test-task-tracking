@@ -65,8 +65,13 @@ public class TestTaskService {
             task.setAssignedTo(assignedTo);
         }
         
-        // 计算人天
-        task.calculateManDays();
+        // 设置工时 - 如果前端提供了工时，使用前端值；否则自动计算
+        if (taskDto.getManDays() != null && taskDto.getManDays() > 0) {
+            task.setManDays(taskDto.getManDays());
+        } else {
+            // 只有在工时为空或0时才自动计算
+            task.calculateManDays();
+        }
         
         // 检查是否超时
         task.checkOverdue();
@@ -129,8 +134,11 @@ public class TestTaskService {
             task.setAssignedTo(assignedTo);
         }
         
-        // 重新计算人天
-        task.calculateManDays();
+        // 更新工时 - 如果前端提供了工时，使用前端值；否则保持原值
+        if (taskDto.getManDays() != null && taskDto.getManDays() >= 0) {
+            task.setManDays(taskDto.getManDays());
+        }
+        // 如果没有提供工时，保持原有的工时值不变
         
         // 检查是否超时
         task.checkOverdue();
