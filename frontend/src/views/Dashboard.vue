@@ -119,7 +119,7 @@
         <el-card class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>本周周任务趋势</span>
+              <span>本周任务趋势</span>
             </div>
           </template>
           <div class="chart-container">

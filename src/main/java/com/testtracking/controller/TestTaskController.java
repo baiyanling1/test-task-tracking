@@ -233,8 +233,20 @@ public class TestTaskController {
             stats.put("overdueTasks", overdueTasks);
             
             // 人天统计
-            Double totalManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.IN_PROGRESS);
-            stats.put("totalManDays", totalManDays != null ? totalManDays : 0.0);
+            Double plannedManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.PLANNED);
+            Double inProgressManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.IN_PROGRESS);
+            Double completedManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.COMPLETED);
+            Double onHoldManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.ON_HOLD);
+            Double cancelledManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.CANCELLED);
+            
+            // 计算总人天（所有状态的人天总和）
+            double totalManDays = (plannedManDays != null ? plannedManDays : 0.0) +
+                                 (inProgressManDays != null ? inProgressManDays : 0.0) +
+                                 (completedManDays != null ? completedManDays : 0.0) +
+                                 (onHoldManDays != null ? onHoldManDays : 0.0) +
+                                 (cancelledManDays != null ? cancelledManDays : 0.0);
+            
+            stats.put("totalManDays", totalManDays);
             
             // 部门统计
             List<Object[]> departmentStats = testTaskRepository.countByDepartment();

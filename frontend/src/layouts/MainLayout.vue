@@ -3,7 +3,7 @@
     <!-- 侧边栏 -->
     <el-aside width="250px" class="sidebar">
       <div class="logo">
-        <h2>测试任务跟踪</h2>
+        <h2>测试任务跟踪系统</h2>
       </div>
       
       <el-menu
@@ -16,7 +16,7 @@
       >
         <el-menu-item index="/">
           <el-icon><DataBoard /></el-icon>
-          <span>仪表板</span>
+          <span>仪表盘</span>
         </el-menu-item>
         
         <el-menu-item index="/tasks">
