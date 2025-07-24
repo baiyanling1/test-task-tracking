@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # MySQL数据库服务
+  mysql:
+    image: mysql:5.7
+    container_name: test_tracking_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: TestTracking@2024
+      MYSQL_DATABASE: test_tracking
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: TestUser@2024
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+      - ./mysql/conf:/etc/mysql/conf.d
+    networks:
+      - test_tracking_network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # Redis缓存服务（可选，用于会话管理）
+  redis:
+    image: redis:7-alpine
+    container_name: test_tracking_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - test_tracking_network
+    command: redis-server --appendonly yes
+
+  # 应用服务
+  app:
+    build: .
+    container_name: test_tracking_app
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/test_tracking?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: testuser
+      SPRING_DATASOURCE_PASSWORD: TestUser@2024
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JWT_SECRET: TestTrackingSecretKey2024ProductionEnvironmentWithEnhancedSecurityForHS512Algorithm
+      JWT_EXPIRATION: 86400000
+      DINGTALK_ENABLED: false
+      DINGTALK_WEBHOOK_URL: https://oapi.dingtalk.com/robot/send?access_token=your_access_token
+      DINGTALK_SECRET: your_secret
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - test_tracking_network
+    volumes:
+      - app_logs:/app/logs
+
+  # Nginx反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: test_tracking_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+      - frontend
+    networks:
+      - test_tracking_network
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: test_tracking_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+    networks:
+      - test_tracking_network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  test_tracking_network:
+    driver: bridge 

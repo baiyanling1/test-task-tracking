@@ -1,0 +1,93 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: test-task-tracking
+  
+  # 数据源配置
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/test_tracking?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:testuser}
+    password: ${SPRING_DATASOURCE_PASSWORD:TestUser@2024}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL57Dialect
+        format_sql: false
+        use_sql_comments: false
+  
+  # Redis配置
+  redis:
+    host: ${SPRING_REDIS_HOST:localhost}
+    port: ${SPRING_REDIS_PORT:6379}
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+  
+  # 任务调度配置
+  task:
+    scheduling:
+      pool:
+        size: 10
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:TestTrackingSecretKey2024ProductionEnvironmentWithEnhancedSecurityForHS512Algorithm}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# 钉钉通知配置
+dingtalk:
+  enabled: ${DINGTALK_ENABLED:false}
+  webhook:
+    url: ${DINGTALK_WEBHOOK_URL:https://oapi.dingtalk.com/robot/send?access_token=your_access_token}
+  secret: ${DINGTALK_SECRET:your_secret}
+
+# 日志配置
+logging:
+  level:
+    com.testtracking: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized 

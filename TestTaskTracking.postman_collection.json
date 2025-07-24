@@ -1,0 +1,318 @@
+{
+	"info": {
+		"_postman_id": "test-task-tracking-collection",
+		"name": "测试任务跟踪系统 API",
+		"description": "测试任务跟踪系统的完整API测试集合",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "认证",
+			"item": [
+				{
+					"name": "用户登录",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取当前用户信息",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "任务管理",
+			"item": [
+				{
+					"name": "获取任务列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks?page=0&size=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "创建任务",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"taskName\": \"API接口测试\",\n  \"taskDescription\": \"测试用户管理相关API接口\",\n  \"startDate\": \"2024-01-01\",\n  \"expectedEndDate\": \"2024-01-05\",\n  \"participantCount\": 2,\n  \"priority\": \"HIGH\",\n  \"projectName\": \"用户系统\",\n  \"moduleName\": \"用户管理\",\n  \"testType\": \"FUNCTIONAL\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "更新任务进度",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"progressPercentage\": 50\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/1/progress",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "1", "progress"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取超时任务",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/overdue",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "overdue"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "通知管理",
+			"item": [
+				{
+					"name": "获取通知列表",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取未读通知数量",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/unread-count",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "unread-count"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "标记通知为已读",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/1/read",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "1", "read"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "获取Dashboard数据",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dashboard"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取本周统计",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/dashboard/weekly",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dashboard", "weekly"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "获取任务状态统计",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/dashboard/task-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "dashboard", "task-status"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+} 

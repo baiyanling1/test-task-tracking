@@ -1,0 +1,75 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: test-task-tracking
+  
+  # 数据库配置 - 连接虚拟机MySQL
+  datasource:
+    url: jdbc:mysql://10.18.40.48:3306/test_tracking?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: testuser
+    password: TestUser@2024
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # Redis配置 - 连接虚拟机Redis
+  redis:
+    host: 10.18.40.48
+    port: 6379
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+  
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+# JWT配置
+jwt:
+  secret: TestTrackingSecretKey2024DevelopmentEnvironmentWithEnhancedSecurityForHS256Algorithm
+  expiration: 86400000 # 24小时
+
+# 日志配置
+logging:
+  level:
+    com.testtracking: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# 管理端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+  endpoint:
+    health:
+      show-details: always
+
+# 钉钉通知配置
+dingtalk:
+  enabled: false  # 本地开发时关闭钉钉通知
+  webhook:
+    url: https://oapi.dingtalk.com/robot/send?access_token=your_access_token
+  secret: your_secret
+
+# 定时任务配置
+task:
+  scheduling:
+    pool:
+      size: 5 
