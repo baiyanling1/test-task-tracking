@@ -1,12 +1,16 @@
 <template>
   <div class="tasks-container">
-    <div class="page-header">
-      <h1>测试任务管理</h1>
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>
-        新建任务
-      </el-button>
-    </div>
+         <div class="page-header">
+       <h1>测试任务管理</h1>
+               <el-button 
+          v-if="canCreateTask()" 
+          type="primary" 
+          @click="createNewTask"
+        >
+         <el-icon><Plus /></el-icon>
+         新建任务
+       </el-button>
+     </div>
 
     <!-- 搜索和筛选 -->
     <div class="search-section">
@@ -63,6 +67,18 @@
             <el-option label="低" value="LOW" />
           </el-select>
         </el-col>
+                 <el-col :span="4">
+           <el-date-picker
+             v-model="startDateRange"
+             type="daterange"
+             range-separator="至"
+             start-placeholder="开始日期（起）"
+             end-placeholder="开始日期（止）"
+             value-format="YYYY-MM-DD"
+             @change="handleSearch"
+             style="width: 100%"
+           />
+         </el-col>
         <el-col :span="2">
           <el-button type="primary" @click="loadTasks">刷新</el-button>
         </el-col>
@@ -78,7 +94,17 @@
         style="width: 100%"
       >
         <el-table-column prop="taskName" label="任务名称" min-width="200" />
-        <el-table-column prop="taskDescription" label="描述" min-width="200" show-overflow-tooltip />
+                         <el-table-column prop="taskDescription" label="描述" min-width="200">
+          <template #default="{ row }">
+            <div 
+              style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;"
+              @mouseenter="showTooltip($event, row.taskDescription)"
+              @mouseleave="hideTooltip"
+            >
+              {{ row.taskDescription }}
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="department" label="部门" width="120" />
         <el-table-column prop="assignedToName" label="负责人" width="120" />
         <el-table-column prop="status" label="状态" width="100">
@@ -100,7 +126,7 @@
             {{ formatDate(row.startDate) }}
           </template>
         </el-table-column>
-        <el-table-column prop="expectedEndDate" label="预计结束" width="100">
+        <el-table-column prop="expectedEndDate" label="预计结束日期" width="160">
           <template #default="{ row }">
             {{ formatDate(row.expectedEndDate) }}
           </template>
@@ -116,7 +142,7 @@
             <el-progress :percentage="row.progressPercentage || 0" />
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="超时状态" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.isOverdue" type="danger" size="small">
               超时{{ row.overdueDays }}天
@@ -126,9 +152,9 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdTime" label="创建时间" width="160">
+        <el-table-column prop="actualEndDate" label="实际结束时间" width="160">
           <template #default="{ row }">
-            {{ formatDateTime(row.createdTime) }}
+            {{ formatDate(row.actualEndDate) }}
           </template>
         </el-table-column>
         <el-table-column prop="updatedTime" label="修改时间" width="160">
@@ -136,15 +162,25 @@
             {{ formatDateTime(row.updatedTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button size="small" @click="editTask(row)">编辑</el-button>
-              <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
-              <el-button size="small" type="danger" @click="deleteTask(row)">删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
+                 <el-table-column label="操作" width="280" fixed="right" align="center">
+           <template #default="{ row }">
+             <div class="action-buttons">
+               <el-button 
+                 v-if="canEditTask(row)" 
+                 size="small" 
+                 @click="editTask(row)"
+               >编辑</el-button>
+               <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
+               <el-button size="small" type="warning" @click="viewProgress(row)">进度</el-button>
+               <el-button 
+                 v-if="canDeleteTask(row)" 
+                 size="small" 
+                 type="danger" 
+                 @click="deleteTask(row)"
+               >删除</el-button>
+             </div>
+           </template>
+         </el-table-column>
       </el-table>
     </div>
 
@@ -166,6 +202,7 @@
       v-model="showCreateDialog"
       :title="editingTask ? '编辑任务' : '新建任务'"
       width="600px"
+      @close="handleDialogClose"
     >
       <el-form
         ref="taskFormRef"
@@ -221,16 +258,17 @@
             @change="calculateManDays"
           />
         </el-form-item>
-        <el-form-item label="开始日期" prop="startDate">
-          <el-date-picker
-            v-model="taskForm.startDate"
-            type="date"
-            placeholder="选择开始日期"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-            @change="calculateManDays"
-          />
-        </el-form-item>
+                 <el-form-item label="开始日期" prop="startDate">
+           <el-date-picker
+             v-model="taskForm.startDate"
+             type="date"
+             placeholder="选择开始日期"
+             value-format="YYYY-MM-DD"
+             style="width: 100%"
+             @change="calculateManDays"
+             :disabled="!!editingTask"
+           />
+         </el-form-item>
         <el-form-item label="预计结束时间" prop="expectedEndDate">
           <el-date-picker
             v-model="taskForm.expectedEndDate"
@@ -239,33 +277,40 @@
             value-format="YYYY-MM-DD"
             style="width: 100%"
             @change="calculateManDays"
+            :disabled="!!editingTask"
           />
         </el-form-item>
-        <el-form-item label="工时(人天)" prop="manDays">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <el-input-number
-              v-model="taskForm.manDays"
-              :min="0"
-              :precision="1"
-              :step="0.5"
-              placeholder="工时"
-              style="flex: 1"
-            />
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="calculateManDays"
-              :disabled="!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount"
-            >
-              自动计算
-            </el-button>
-            <el-tooltip content="根据时间区间和参与人数自动计算工时" placement="top">
-              <el-icon><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-            提示：自动计算后可根据实际情况手动调整
-          </div>
+        <el-form-item label="工时(人/天)" prop="manDays">
+          <el-input-number
+            v-model="taskForm.manDays"
+            :min="0"
+            :precision="1"
+            placeholder="自动计算"
+            style="width: 100%"
+            :disabled="!!editingTask"
+          />
+        </el-form-item>
+        
+        <!-- 任务进度模块 -->
+        <el-form-item label="当前进度" prop="progressPercentage">
+          <el-slider
+            v-model="taskForm.progressPercentage"
+            :min="0"
+            :max="100"
+            :step="5"
+            show-input
+            style="width: 100%"
+          />
+        </el-form-item>
+        
+        <el-form-item label="进度描述" prop="progressNotes">
+          <el-input
+            v-model="taskForm.progressNotes"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入本次进度更新的详细描述"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="实际结束时间" prop="actualEndDate">
           <el-date-picker
@@ -273,15 +318,6 @@
             type="date"
             placeholder="选择实际结束时间（可选）"
             value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="进度" prop="progressPercentage">
-          <el-input-number
-            v-model="taskForm.progressPercentage"
-            :min="0"
-            :max="100"
-            placeholder="请输入进度百分比"
             style="width: 100%"
           />
         </el-form-item>
@@ -304,81 +340,211 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
+        <div class="dialog-footer">
           <el-button @click="showCreateDialog = false">取消</el-button>
           <el-button type="primary" @click="saveTask" :loading="saving">
             {{ editingTask ? '更新' : '创建' }}
           </el-button>
-        </span>
+        </div>
       </template>
     </el-dialog>
 
     <!-- 任务详情对话框 -->
     <el-dialog
       v-model="showProgressDialog"
-      title="任务详情"
-      width="800px"
+      :title="activeTab === 'basic' ? '任务详情' : '任务进度'"
+      width="1000px"
     >
       <div v-if="selectedTask">
-        <h3>{{ selectedTask.taskName }}</h3>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="任务描述">
-            {{ selectedTask.taskDescription }}
-          </el-descriptions-item>
-          <el-descriptions-item label="部门">
-            {{ selectedTask.department }}
-          </el-descriptions-item>
-          <el-descriptions-item label="负责人">
-            {{ selectedTask.assignedToName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="任务状态">
-            <el-tag :type="getStatusType(selectedTask.status)">
-              {{ getStatusText(selectedTask.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="优先级">
-            <el-tag :type="getPriorityType(selectedTask.priority)">
-              {{ getPriorityText(selectedTask.priority) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="当前进度">
-            <el-progress :percentage="selectedTask.progressPercentage || 0" />
-          </el-descriptions-item>
-          <el-descriptions-item label="投入人数">
-            {{ selectedTask.participantCount }}人
-          </el-descriptions-item>
-          <el-descriptions-item label="工时(人/天)">
-            {{ selectedTask.manDays ? selectedTask.manDays.toFixed(1) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="开始日期">
-            {{ formatDate(selectedTask.startDate) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="预计结束日期">
-            {{ formatDate(selectedTask.expectedEndDate) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="实际结束日期">
-            {{ formatDate(selectedTask.actualEndDate) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">
-            {{ formatDateTime(selectedTask.createdTime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="更新时间">
-            {{ formatDateTime(selectedTask.updatedTime) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="超时状态" v-if="selectedTask.isOverdue">
-            <el-tag type="danger">超时{{ selectedTask.overdueDays }}天</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="延期完成" v-if="selectedTask.isDelayedCompletion">
-            <el-tag type="warning">延期完成</el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-        
-        <div v-if="selectedTask.delayReason" class="delay-reason">
-          <h4>延期原因</h4>
-          <p>{{ selectedTask.delayReason }}</p>
-        </div>
+        <el-tabs v-model="activeTab">
+                     <el-tab-pane label="基本信息" name="basic" v-if="activeTab === 'basic'">
+             <h3>{{ selectedTask.taskName }}</h3>
+             <el-descriptions :column="2" border>
+                               <el-descriptions-item label="任务描述">
+                  <div style="white-space: pre-wrap;">{{ selectedTask.taskDescription }}</div>
+                </el-descriptions-item>
+               <el-descriptions-item label="部门">
+                 {{ selectedTask.department }}
+               </el-descriptions-item>
+               <el-descriptions-item label="负责人">
+                 {{ selectedTask.assignedToName }}
+               </el-descriptions-item>
+               <el-descriptions-item label="任务状态">
+                 <el-tag :type="getStatusType(selectedTask.status)">
+                   {{ getStatusText(selectedTask.status) }}
+                 </el-tag>
+               </el-descriptions-item>
+               <el-descriptions-item label="优先级">
+                 <el-tag :type="getPriorityType(selectedTask.priority)">
+                   {{ getPriorityText(selectedTask.priority) }}
+                 </el-tag>
+               </el-descriptions-item>
+               <el-descriptions-item label="当前进度">
+                 <el-progress :percentage="selectedTask.progressPercentage || 0" />
+               </el-descriptions-item>
+               <el-descriptions-item label="投入人数">
+                 {{ selectedTask.participantCount }}人
+               </el-descriptions-item>
+               <el-descriptions-item label="工时(人/天)">
+                 {{ selectedTask.manDays ? selectedTask.manDays.toFixed(1) : '-' }}
+               </el-descriptions-item>
+               <el-descriptions-item label="开始日期">
+                 {{ formatDate(selectedTask.startDate) }}
+               </el-descriptions-item>
+               <el-descriptions-item label="预计结束日期">
+                 {{ formatDate(selectedTask.expectedEndDate) }}
+               </el-descriptions-item>
+               <el-descriptions-item label="实际结束日期">
+                 {{ formatDate(selectedTask.actualEndDate) }}
+               </el-descriptions-item>
+               <el-descriptions-item label="创建时间">
+                 {{ formatDateTime(selectedTask.createdTime) }}
+               </el-descriptions-item>
+               <el-descriptions-item label="更新时间">
+                 {{ formatDateTime(selectedTask.updatedTime) }}
+               </el-descriptions-item>
+               <el-descriptions-item label="超时状态" v-if="selectedTask.isOverdue">
+                 <el-tag type="danger">超时{{ selectedTask.overdueDays }}天</el-tag>
+               </el-descriptions-item>
+               <el-descriptions-item label="延期完成" v-if="selectedTask.isDelayedCompletion">
+                 <el-tag type="warning">延期完成</el-tag>
+               </el-descriptions-item>
+             </el-descriptions>
+             
+             <div v-if="selectedTask.delayReason" class="delay-reason">
+               <h4>延期原因</h4>
+               <p>{{ selectedTask.delayReason }}</p>
+             </div>
+             
+             <!-- 进度历史显示 -->
+             <div class="progress-section" style="margin-top: 30px;">
+               <h4>进度更新历史</h4>
+               
+               <div v-if="progressHistory.length === 0" class="no-progress">
+                 <el-empty description="暂无进度记录" />
+               </div>
+               
+               <div v-else class="progress-timeline">
+                 <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">
+                   <div class="progress-header">
+                     <div class="progress-info">
+                       <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
+                       <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
+                     </div>
+                     <div class="progress-user">
+                       更新人: {{ progress.updatedByUserName }}
+                     </div>
+                   </div>
+                   
+                   <div v-if="progress.progressNotes" class="progress-notes">
+                     <strong>进度描述:</strong>
+                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </el-tab-pane>
+          
+          <el-tab-pane label="进度历史" name="progress" v-if="activeTab === 'progress'">
+            <div class="progress-section">
+              <div class="progress-header">
+                <h4>进度更新历史</h4>
+                <el-button type="primary" size="small" @click="showProgressUpdateDialog">
+                  添加进度更新
+                </el-button>
+              </div>
+              
+              <div v-if="progressHistory.length === 0" class="no-progress">
+                <el-empty description="暂无进度记录" />
+              </div>
+              
+              <div v-else class="progress-timeline">
+                <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">
+                  <div class="progress-header">
+                    <div class="progress-info">
+                      <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
+                      <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
+                    </div>
+                    <div class="progress-user">
+                      更新人: {{ progress.updatedByUserName }}
+                    </div>
+                  </div>
+                  
+                  <div v-if="progress.progressNotes" class="progress-notes">
+                    <strong>进度描述:</strong>
+                    <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-dialog>
+    
+    <!-- 添加进度对话框 -->
+    <el-dialog
+      v-model="showAddProgressDialog"
+      title="添加进度更新"
+      width="600px"
+    >
+      <el-form
+        ref="progressFormRef"
+        :model="progressForm"
+        :rules="progressFormRules"
+        label-width="120px"
+      >
+        <el-form-item label="进度百分比" prop="progressPercentage">
+          <el-slider
+            v-model="progressForm.progressPercentage"
+            :min="0"
+            :max="100"
+            :step="5"
+            show-input
+            style="width: 100%"
+          />
+        </el-form-item>
+        
+                 <el-form-item label="进度描述" prop="progressNotes">
+           <el-input
+             v-model="progressForm.progressNotes"
+             type="textarea"
+             :rows="4"
+             placeholder="请输入本次进度更新的详细描述"
+             style="width: 100%"
+           />
+         </el-form-item>
+         
+         <el-form-item label="实际结束时间" prop="actualEndDate" v-if="progressForm.progressPercentage === 100">
+           <el-date-picker
+             v-model="progressForm.actualEndDate"
+             type="date"
+             placeholder="选择实际结束时间（必填）"
+             value-format="YYYY-MM-DD"
+             style="width: 100%"
+           />
+         </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showAddProgressDialog = false">取消</el-button>
+          <el-button type="primary" @click="addProgress">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
+    
+    <!-- 自定义tooltip -->
+    <div 
+      v-if="tooltipVisible" 
+      class="custom-tooltip"
+      :style="{
+        left: tooltipPosition.x + 'px',
+        top: tooltipPosition.y + 'px'
+      }"
+    >
+      <div class="tooltip-content" style="white-space: pre-wrap;">{{ tooltipContent }}</div>
+    </div>
   </div>
 </template>
 
@@ -387,9 +553,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, QuestionFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi } from '@/api/tasks'
+import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress } from '@/api/tasks'
 import { getUsers } from '@/api/users'
 import { getDepartments } from '@/api/departments'
+import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
 
@@ -404,16 +571,65 @@ const assignedToFilter = ref('')
 const departmentFilter = ref('')
 const statusFilter = ref('')
 const priorityFilter = ref('')
+const startDateRange = ref([]) // 新增：开始日期范围
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalTasks = ref(0)
 
+
+
 // 对话框状态
 const showCreateDialog = ref(false)
+const showEditDialog = ref(false)
 const showProgressDialog = ref(false)
+const showAddProgressDialog = ref(false)
 const editingTask = ref(null)
 const selectedTask = ref(null)
-const progressUpdates = ref([])
+const activeTab = ref('basic')
+const progressHistory = ref([])
+
+// 进度表单
+const progressForm = ref({
+  progressPercentage: 0,
+  progressNotes: '',
+  actualEndDate: ''
+})
+
+// 进度表单验证规则
+const progressFormRules = {
+  progressPercentage: [
+    { required: true, message: '请输入进度百分比', trigger: 'blur' },
+    { type: 'number', min: 0, max: 100, message: '进度百分比必须在0-100之间', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        const currentProgress = selectedTask.value?.progressPercentage || 0
+        if (value < currentProgress) {
+          callback(new Error(`进度不能小于当前进度 ${currentProgress}%`))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+  progressNotes: [
+    { required: true, message: '请输入进度描述', trigger: 'blur' }
+  ],
+  actualEndDate: [
+    { 
+      required: true, 
+      message: '进度为100%时，结束时间是必填的', 
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (progressForm.value.progressPercentage === 100 && !value) {
+          callback(new Error('进度为100%时，结束时间是必填的'))
+        } else {
+          callback()
+        }
+      }
+    }
+  ]
+}
 
 // 表单数据
 const taskFormRef = ref()
@@ -430,7 +646,8 @@ const taskForm = reactive({
   progressPercentage: 0,
   status: 'PLANNED',
   delayReason: '',
-  manDays: 0
+  manDays: 0,
+  progressNotes: ''
 })
 
 // 表单验证规则
@@ -455,10 +672,30 @@ const taskRules = {
     { required: true, message: '请选择优先级', trigger: 'change' }
   ],
   startDate: [
-    { required: true, message: '请选择开始日期', trigger: 'change' }
+    { required: true, message: '请选择开始日期', trigger: 'change' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value && taskForm.expectedEndDate && value >= taskForm.expectedEndDate) {
+          callback(new Error('开始时间必须小于预计结束时间'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
   ],
   expectedEndDate: [
-    { required: true, message: '请选择预计结束时间', trigger: 'change' }
+    { required: true, message: '请选择预计结束时间', trigger: 'change' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value && taskForm.startDate && value <= taskForm.startDate) {
+          callback(new Error('预计结束时间必须大于开始时间'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
   ],
   actualEndDate: [
     { required: false, message: '请选择实际结束时间', trigger: 'change' }
@@ -476,6 +713,9 @@ const taskRules = {
   manDays: [
     { required: true, message: '请输入工时', trigger: 'blur' },
     { type: 'number', min: 0, message: '工时必须大于等于0', trigger: 'blur' }
+  ],
+  progressNotes: [
+    { required: false, message: '请输入进度描述', trigger: 'blur' }
   ]
 }
 
@@ -505,6 +745,16 @@ const filteredTasks = computed(() => {
 
   if (priorityFilter.value) {
     filtered = filtered.filter(task => task.priority === priorityFilter.value)
+  }
+
+  if (startDateRange.value && startDateRange.value.length === 2) {
+    const [startDate, endDate] = startDateRange.value
+    filtered = filtered.filter(task => {
+      const taskStartDate = new Date(task.startDate).getTime()
+      const start = new Date(startDate).getTime()
+      const end = new Date(endDate).getTime()
+      return taskStartDate >= start && taskStartDate <= end
+    })
   }
 
   return filtered
@@ -540,7 +790,9 @@ const loadTasks = async () => {
       assignedToName: assignedToFilter.value || undefined,
       department: departmentFilter.value || undefined,
       status: statusFilter.value || undefined,
-      priority: priorityFilter.value || undefined
+      priority: priorityFilter.value || undefined,
+      startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,
+      startDateTo: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[1] : undefined
     }
     
     const response = await getTasks(params)
@@ -580,6 +832,50 @@ const handleSizeChange = (size) => {
 
 const handleCurrentChange = (page) => {
   currentPage.value = page
+  loadTasks()
+}
+
+const createNewTask = () => {
+  editingTask.value = null
+  // 确保表单完全重置
+  Object.assign(taskForm, {
+    taskName: '',
+    taskDescription: '',
+    department: authStore.user?.department || '',
+    assignedToName: authStore.user?.realName || authStore.user?.username || '',
+    participantCount: 1,
+    priority: 'MEDIUM',
+    startDate: '',
+    expectedEndDate: '',
+    actualEndDate: '',
+    progressPercentage: 0,
+    status: 'PLANNED',
+    delayReason: '',
+    manDays: 0,
+    progressNotes: ''
+  })
+  showCreateDialog.value = true
+}
+
+const handleDialogClose = () => {
+  editingTask.value = null
+  // 确保表单完全重置
+  Object.assign(taskForm, {
+    taskName: '',
+    taskDescription: '',
+    department: authStore.user?.department || '',
+    assignedToName: authStore.user?.realName || authStore.user?.username || '',
+    participantCount: 1,
+    priority: 'MEDIUM',
+    startDate: '',
+    expectedEndDate: '',
+    actualEndDate: '',
+    progressPercentage: 0,
+    status: 'PLANNED',
+    delayReason: '',
+    manDays: 0,
+    progressNotes: ''
+  })
 }
 
 const editTask = (task) => {
@@ -597,7 +893,8 @@ const editTask = (task) => {
     progressPercentage: task.progressPercentage || 0,
     status: task.status,
     delayReason: task.delayReason || '',
-    manDays: task.manDays || 0
+    manDays: task.manDays || 0,
+    progressNotes: task.progressNotes || ''
   })
   showCreateDialog.value = true
 }
@@ -619,17 +916,61 @@ const saveTask = async () => {
       // 如果实际结束时间大于预计结束时间，自动标记为延期完成
       taskForm.status = 'COMPLETED'
     }
+    
+    // 检查进度为100%时是否填写了实际结束时间
+    if (taskForm.progressPercentage === 100 && !taskForm.actualEndDate) {
+      ElMessage.error('进度为100%时，实际结束时间是必填的')
+      return
+    }
 
     if (editingTask.value) {
       await updateTask(editingTask.value.id, taskForm)
       ElMessage.success('任务更新成功')
     } else {
-      await createTask(taskForm)
+      // 新建任务
+      const response = await createTask(taskForm)
       ElMessage.success('任务创建成功')
+      
+      // 如果新建任务时有进度描述，自动创建进度历史记录
+      if (taskForm.progressNotes && taskForm.progressNotes.trim()) {
+        try {
+          const progressData = {
+            progressPercentage: taskForm.progressPercentage || 0,
+            progressNotes: taskForm.progressNotes,
+            actualEndDate: taskForm.actualEndDate || '',
+            updatedByUserId: authStore.user.id
+          }
+          
+          // 获取新创建的任务ID
+          const newTaskId = response?.id
+          if (newTaskId) {
+            await addTaskProgress(newTaskId, progressData)
+          }
+        } catch (progressError) {
+          console.error('创建进度历史失败:', progressError)
+          // 不显示错误消息，因为任务已经创建成功
+        }
+      }
     }
 
     showCreateDialog.value = false
-    resetForm()
+    // 确保表单完全重置
+    Object.assign(taskForm, {
+      taskName: '',
+      taskDescription: '',
+      department: authStore.user?.department || '',
+      assignedToName: authStore.user?.realName || authStore.user?.username || '',
+      participantCount: 1,
+      priority: 'MEDIUM',
+      startDate: '',
+      expectedEndDate: '',
+      actualEndDate: '',
+      progressPercentage: 0,
+      status: 'PLANNED',
+      delayReason: '',
+      manDays: 0,
+      progressNotes: ''
+    })
     loadTasks()
   } catch (error) {
     // 检查是否是权限不足的错误
@@ -669,15 +1010,123 @@ const deleteTask = async (task) => {
 
 const viewProgress = (task) => {
   selectedTask.value = task
-  // TODO: 从后端API获取进度更新数据
-  progressUpdates.value = []
+  activeTab.value = 'progress'
   showProgressDialog.value = true
+  loadProgressHistory(task.id)
 }
 
 const viewDetails = (task) => {
   selectedTask.value = task
+  activeTab.value = 'basic'
   showProgressDialog.value = true
+  // 详情页面也加载进度历史
+  loadProgressHistory(task.id)
 }
+
+const loadProgressHistory = async (taskId) => {
+  try {
+    const response = await getTaskProgress(taskId, { page: 0, size: 100 })
+    progressHistory.value = response?.content || []
+  } catch (error) {
+    console.error('加载进度历史失败:', error)
+    progressHistory.value = []
+  }
+}
+
+const addProgress = async () => {
+  try {
+    // 验证进度不能小于当前进度
+    const currentProgress = selectedTask.value?.progressPercentage || 0
+    if (progressForm.value.progressPercentage < currentProgress) {
+      ElMessage.error(`进度不能小于当前进度 ${currentProgress}%`)
+      return
+    }
+    
+    // 验证进度为100%时结束时间是否填写
+    if (progressForm.value.progressPercentage === 100 && !progressForm.value.actualEndDate) {
+      ElMessage.error('进度为100%时，结束时间是必填的')
+      return
+    }
+    
+    const progressData = {
+      ...progressForm.value,
+      updatedByUserId: authStore.user.id
+    }
+    
+    await addTaskProgress(selectedTask.value.id, progressData)
+    ElMessage.success('进度更新成功')
+    showAddProgressDialog.value = false
+    loadProgressHistory(selectedTask.value.id)
+    
+    // 重新加载任务列表
+    await loadTasks()
+    
+    // 重置表单
+    progressForm.value = {
+      progressPercentage: 0,
+      progressNotes: '',
+      actualEndDate: ''
+    }
+  } catch (error) {
+    ElMessage.error('进度更新失败')
+    console.error('Add progress error:', error)
+  }
+}
+
+// 显示进度更新对话框时，设置当前进度
+const showProgressUpdateDialog = () => {
+  // 设置当前任务进度作为默认值
+  progressForm.value.progressPercentage = selectedTask.value.progressPercentage || 0
+  showAddProgressDialog.value = true
+}
+
+// 自定义tooltip功能
+const tooltipVisible = ref(false)
+const tooltipContent = ref('')
+const tooltipPosition = ref({ x: 0, y: 0 })
+
+const showTooltip = (event, content) => {
+  if (!content || content.trim() === '') return
+  
+  const rect = event.target.getBoundingClientRect()
+  const isOverflow = event.target.scrollWidth > event.target.clientWidth
+  
+  if (isOverflow) {
+    tooltipContent.value = content
+    tooltipPosition.value = {
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    }
+    tooltipVisible.value = true
+  }
+}
+
+const hideTooltip = () => {
+  tooltipVisible.value = false
+}
+
+
+
+// 权限检查方法
+const canEditTask = (task) => {
+  const userRole = authStore.user?.role
+  // 只有管理员和测试经理可以编辑任务
+  return userRole === 'ADMIN' || userRole === 'MANAGER'
+}
+
+const canDeleteTask = (task) => {
+  const userRole = authStore.user?.role
+  // 只有管理员可以删除
+  return userRole === 'ADMIN'
+}
+
+const canCreateTask = () => {
+  const userRole = authStore.user?.role
+  // 所有角色都可以创建任务
+  return true
+}
+
+
 
 const resetForm = () => {
   editingTask.value = null
@@ -694,7 +1143,8 @@ const resetForm = () => {
     progressPercentage: 0,
     status: 'PLANNED',
     delayReason: '',
-    manDays: 0
+    manDays: 0,
+    progressNotes: ''
   })
   if (taskFormRef.value) {
     taskFormRef.value.resetFields()
@@ -743,18 +1193,12 @@ const getPriorityText = (priority) => {
 
 const formatDate = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('zh-CN')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD')
 }
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 const calculateManDays = () => {
@@ -768,8 +1212,28 @@ const calculateManDays = () => {
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 计算总天数，加1是因为包含开始日期
 
-  // 工时 = 天数 × 参与人数
-  taskForm.manDays = parseFloat((diffDays * taskForm.participantCount).toFixed(1));
+  // 排除节假日的工作日计算
+  const workDays = calculateWorkDays(start, end);
+  
+  // 工时 = 工作日 × 参与人数
+  taskForm.manDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+};
+
+// 计算工作日（排除周末和节假日）
+const calculateWorkDays = (startDate, endDate) => {
+  let workDays = 0;
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay();
+    // 排除周末（周六=6，周日=0）
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workDays++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return workDays;
 };
 
 // 生命周期
@@ -867,20 +1331,136 @@ onMounted(() => {
 .delay-reason {
   margin-top: 20px;
   padding: 15px;
-  background-color: #fdf6ec;
-  border: 1px solid #faecd8;
-  border-radius: 4px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
 }
 
 .delay-reason h4 {
-  margin-bottom: 10px;
+  margin: 0 0 10px 0;
   color: #e6a23c;
-  font-size: 16px;
 }
 
-.delay-reason p {
-  color: #f56c6c;
+.progress-section {
+  margin-top: 20px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.progress-header h4 {
+  margin: 0;
+  color: #303133;
+}
+
+.progress-timeline {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.progress-item {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #fafafa;
+}
+
+.progress-item .progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.progress-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.progress-percentage {
+  font-size: 18px;
+  font-weight: bold;
+  color: #409eff;
+}
+
+.progress-time {
+  color: #909399;
   font-size: 14px;
-  line-height: 1.6;
+}
+
+.progress-user {
+  color: #606266;
+  font-size: 14px;
+}
+
+.progress-notes,
+.progress-risk,
+.progress-risk-desc,
+.progress-blockers,
+.progress-next {
+  margin-bottom: 10px;
+}
+
+.progress-notes strong,
+.progress-risk strong,
+.progress-risk-desc strong,
+.progress-blockers strong,
+.progress-next strong {
+  color: #303133;
+  margin-right: 8px;
+}
+
+.progress-notes p,
+.progress-risk-desc p,
+.progress-blockers p,
+.progress-next p {
+  margin: 5px 0 0 0;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.no-progress {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px 0 0 0;
+  border-top: 1px solid #e4e7ed;
+  margin-top: 20px;
+}
+
+.dialog-footer .el-button {
+  min-width: 80px;
+}
+
+/* 自定义tooltip样式 */
+.custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background-color: #303133;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 300px;
+  word-wrap: break-word;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.tooltip-content {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style> 

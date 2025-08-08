@@ -31,15 +31,10 @@ public class TaskProgressDto {
 
     private TestTask.TaskStatus taskStatus;
 
-    private TestTask.RiskLevel riskLevel;
-
-    private String riskDescription;
-
-    private String blockers;
-
-    private String nextSteps;
-
     private LocalDateTime createdTime;
+    
+    // 实际结束时间（可选）
+    private String actualEndDate;
 
     // 从实体转换为DTO
     public static TaskProgressDto fromEntity(TaskProgress progress) {
@@ -53,11 +48,8 @@ public class TaskProgressDto {
         dto.setProgressNotes(progress.getProgressNotes());
         dto.setUpdateTime(progress.getUpdateTime());
         dto.setTaskStatus(progress.getTaskStatus());
-        dto.setRiskLevel(progress.getRiskLevel());
-        dto.setRiskDescription(progress.getRiskDescription());
-        dto.setBlockers(progress.getBlockers());
-        dto.setNextSteps(progress.getNextSteps());
         dto.setCreatedTime(progress.getCreatedTime());
+        dto.setActualEndDate(progress.getActualEndDate());
         return dto;
     }
 } 

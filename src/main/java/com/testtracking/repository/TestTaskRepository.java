@@ -59,7 +59,9 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "(:status IS NULL OR t.status = :status) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:projectName IS NULL OR t.projectName = :projectName) AND " +
-           "(:testType IS NULL OR t.testType = :testType)")
+           "(:testType IS NULL OR t.testType = :testType) AND " +
+           "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
+           "(:startDateTo IS NULL OR t.startDate <= :startDateTo)")
     Page<TestTask> findByFilters(@Param("assignedTo") User assignedTo,
                                  @Param("assignedToName") String assignedToName,
                                  @Param("department") String department,
@@ -67,6 +69,8 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
                                  @Param("priority") TestTask.TaskPriority priority,
                                  @Param("projectName") String projectName,
                                  @Param("testType") TestTask.TestType testType,
+                                 @Param("startDateFrom") LocalDate startDateFrom,
+                                 @Param("startDateTo") LocalDate startDateTo,
                                  Pageable pageable);
 
     // 统计查询

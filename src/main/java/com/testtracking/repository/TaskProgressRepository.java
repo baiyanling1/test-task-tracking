@@ -42,6 +42,10 @@ public interface TaskProgressRepository extends JpaRepository<TaskProgress, Long
     @Query("SELECT tp FROM TaskProgress tp WHERE tp.task = :task ORDER BY tp.updateTime DESC")
     List<TaskProgress> findLatestProgressByTaskLimit1(@Param("task") TestTask task);
 
+    // 分页查询最新进度
+    @Query("SELECT tp FROM TaskProgress tp WHERE tp.task = :task ORDER BY tp.updateTime DESC")
+    Page<TaskProgress> findByTaskOrderByUpdateTimeDesc(@Param("task") TestTask task, Pageable pageable);
+
     // 进度变化查询
     @Query("SELECT tp FROM TaskProgress tp WHERE tp.task = :task AND tp.progressPercentage > :minProgress ORDER BY tp.updateTime DESC")
     List<TaskProgress> findByTaskAndProgressGreaterThan(@Param("task") TestTask task, @Param("minProgress") Integer minProgress);

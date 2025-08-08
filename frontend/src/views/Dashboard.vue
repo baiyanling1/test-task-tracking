@@ -19,20 +19,6 @@
       <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon pending">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-number">{{ stats.pendingTasks }}</div>
-              <div class="stats-label">待处理</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
-        <el-card class="stats-card">
-          <div class="stats-content">
             <div class="stats-icon in-progress">
               <el-icon><Loading /></el-icon>
             </div>
@@ -53,6 +39,20 @@
             <div class="stats-info">
               <div class="stats-number">{{ stats.completedTasks }}</div>
               <div class="stats-label">已完成</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      
+      <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
+        <el-card class="stats-card">
+          <div class="stats-content">
+            <div class="stats-icon pending">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stats-info">
+              <div class="stats-number">{{ stats.onHoldTasks }}</div>
+              <div class="stats-label">已暂停</div>
             </div>
           </div>
         </el-card>
@@ -140,7 +140,10 @@
             </div>
           </template>
           <div class="task-list">
-            <div v-for="task in recentTasks" :key="task.id" class="task-item">
+            <div v-if="recentTasks.length === 0" class="no-tasks">
+              <el-empty description="暂无最近任务" />
+            </div>
+            <div v-else v-for="task in recentTasks" :key="task.id" class="task-item">
               <div class="task-info">
                 <div class="task-header">
                   <div class="task-name" :title="task.taskName">{{ task.taskName }}</div>
@@ -172,7 +175,10 @@
             </div>
           </template>
           <div class="task-list">
-            <div v-for="task in overdueTasks" :key="task.id" class="task-item overdue">
+            <div v-if="overdueTasks.length === 0" class="no-tasks">
+              <el-empty description="暂无超时任务" />
+            </div>
+            <div v-else v-for="task in overdueTasks" :key="task.id" class="task-item overdue">
               <div class="task-info">
                 <div class="task-header">
                   <div class="task-name" :title="task.taskName">{{ task.taskName }}</div>
@@ -412,9 +418,10 @@ const userTaskChartOption = computed(() => {
 // 获取状态类型
 const getStatusType = (status) => {
   const types = {
-    PENDING: 'warning',
-    IN_PROGRESS: 'primary',
+    PLANNED: 'info',
+    IN_PROGRESS: 'warning',
     COMPLETED: 'success',
+    ON_HOLD: 'danger',
     CANCELLED: 'info'
   }
   return types[status] || 'info'
@@ -423,9 +430,10 @@ const getStatusType = (status) => {
 // 获取状态文本
 const getStatusText = (status) => {
   const texts = {
-    PENDING: '待处理',
+    PLANNED: '计划中',
     IN_PROGRESS: '进行中',
     COMPLETED: '已完成',
+    ON_HOLD: '已暂停',
     CANCELLED: '已取消'
   }
   return texts[status] || status
@@ -433,13 +441,13 @@ const getStatusText = (status) => {
 
 // 格式化时间
 const formatTime = (time) => {
-  return dayjs(time).format('MM-DD HH:mm')
+  return dayjs.utc(time).tz('Asia/Shanghai').format('MM-DD HH:mm')
 }
 
 // 格式化日期时间
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 // 获取提醒类型
@@ -502,7 +510,9 @@ const loadData = async () => {
     // 加载最近任务
     try {
       const tasksResponse = await getTasks({ page: 0, size: 5 })
+      console.log('最近任务API响应:', tasksResponse)
       recentTasks.value = tasksResponse?.content || []
+      console.log('最近任务数据:', recentTasks.value)
     } catch (error) {
       console.error('加载最近任务失败:', error)
       recentTasks.value = []
@@ -780,5 +790,10 @@ onMounted(() => {
 
 .task-item.overdue:hover {
   background-color: #fde2e2;
+}
+
+.no-tasks {
+  text-align: center;
+  padding: 40px 0;
 }
 </style> 

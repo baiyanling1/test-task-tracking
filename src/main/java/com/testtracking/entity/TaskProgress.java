@@ -42,19 +42,9 @@ public class TaskProgress extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "task_status")
     private TestTask.TaskStatus taskStatus;
-
-    @Column(name = "risk_level")
-    @Enumerated(EnumType.STRING)
-    private TestTask.RiskLevel riskLevel;
-
-    @Column(name = "risk_description")
-    private String riskDescription;
-
-    @Column(name = "blockers")
-    private String blockers;
-
-    @Column(name = "next_steps")
-    private String nextSteps;
+    
+    @Column(name = "actual_end_date")
+    private String actualEndDate;
 
     @PrePersist
     protected void onCreate() {

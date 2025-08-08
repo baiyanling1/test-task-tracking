@@ -104,6 +104,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAllDepartments, createDepartment, updateDepartment, deleteDepartment as deleteDepartmentApi } from '@/api/departments'
+import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
 
@@ -271,7 +272,7 @@ const resetForm = () => {
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 // 生命周期

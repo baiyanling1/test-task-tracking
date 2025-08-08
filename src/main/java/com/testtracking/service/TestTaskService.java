@@ -210,8 +210,12 @@ public class TestTaskService {
     public Page<TestTaskDto> getTasksWithFilters(User assignedTo, String assignedToName, String department,
                                                 TestTask.TaskStatus status, 
                                                 TestTask.TaskPriority priority, String projectName, 
-                                                TestTask.TestType testType, Pageable pageable) {
-        Page<TestTask> tasks = testTaskRepository.findByFilters(assignedTo, assignedToName, department, status, priority, projectName, testType, pageable);
+                                                TestTask.TestType testType, 
+                                                LocalDate startDateFrom, LocalDate startDateTo,
+                                                Pageable pageable) {
+        Page<TestTask> tasks = testTaskRepository.findByFilters(assignedTo, assignedToName, department, 
+                                                               status, priority, projectName, testType, 
+                                                               startDateFrom, startDateTo, pageable);
         return tasks.map(TestTaskDto::fromEntity);
     }
 

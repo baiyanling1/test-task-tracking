@@ -40,6 +40,12 @@ dingtalk:
     url: https://oapi.dingtalk.com/robot/send?access_token=your_access_token  # 钉钉机器人webhook地址
   secret: your_secret  # 钉钉机器人签名密钥（可选）
 
+# 数据库备份配置
+backup:
+  path: /backup  # 备份文件存储路径
+  retention:
+    days: 30  # 备份文件保留天数
+
 # 定时任务配置
   task:
     scheduling:

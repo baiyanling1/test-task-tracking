@@ -48,6 +48,17 @@ html, body {
 
 .el-menu-item.is-active {
   background-color: #1890ff !important;
+  color: #ffffff !important;
+}
+
+.el-menu-item.is-active:hover {
+  background-color: #40a9ff !important;
+  color: #ffffff !important;
+}
+
+.el-menu-item:hover {
+  background-color: #263445 !important;
+  color: #ffffff !important;
 }
 
 .el-card {

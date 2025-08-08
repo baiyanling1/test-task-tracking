@@ -242,6 +242,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Check } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getAlerts, createAlert, updateAlert, deleteAlert as deleteAlertApi, markAlertAsRead, markAlertsAsRead } from '@/api/alerts'
+import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
 
@@ -498,7 +499,7 @@ const getStatusText = (status) => {
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 // 生命周期

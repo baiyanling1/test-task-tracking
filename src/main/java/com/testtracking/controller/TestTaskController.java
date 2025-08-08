@@ -43,7 +43,7 @@ public class TestTaskController {
      * 创建测试任务
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
     public ResponseEntity<?> createTask(@Valid @RequestBody TestTaskDto taskDto) {
         try {
             String currentUsername = getCurrentUsername();
@@ -59,7 +59,7 @@ public class TestTaskController {
      * 更新测试任务
      */
     @PutMapping("/{taskId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> updateTask(@PathVariable Long taskId, @Valid @RequestBody TestTaskDto taskDto) {
         try {
             String currentUsername = getCurrentUsername();
@@ -71,21 +71,7 @@ public class TestTaskController {
         }
     }
 
-    /**
-     * 更新任务进度
-     */
-    @PutMapping("/{taskId}/progress")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') or @testTaskService.isTaskAssignee(#taskId, authentication.name)")
-    public ResponseEntity<?> updateTaskProgress(@PathVariable Long taskId, @RequestBody ProgressUpdateRequest request) {
-        try {
-            String currentUsername = getCurrentUsername();
-            TestTaskDto updatedTask = testTaskService.updateTaskProgress(taskId, request.getProgressPercentage(), currentUsername);
-            return ResponseEntity.ok(updatedTask);
-        } catch (Exception e) {
-            log.error("更新任务进度失败: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
+
 
     /**
      * 根据ID获取任务
@@ -134,7 +120,9 @@ public class TestTaskController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String projectName,
-            @RequestParam(required = false) String testType) {
+            @RequestParam(required = false) String testType,
+            @RequestParam(required = false) String startDateFrom,
+            @RequestParam(required = false) String startDateTo) {
         
         try {
             Pageable pageable = PageRequest.of(page, size, 
@@ -150,8 +138,19 @@ public class TestTaskController {
             TestTask.TaskPriority taskPriority = priority != null ? TestTask.TaskPriority.valueOf(priority.toUpperCase()) : null;
             TestTask.TestType taskTestType = testType != null ? TestTask.TestType.valueOf(testType.toUpperCase()) : null;
             
+            // 解析开始时间范围
+            LocalDate startFrom = null;
+            LocalDate startTo = null;
+            if (startDateFrom != null && !startDateFrom.isEmpty()) {
+                startFrom = LocalDate.parse(startDateFrom);
+            }
+            if (startDateTo != null && !startDateTo.isEmpty()) {
+                startTo = LocalDate.parse(startDateTo);
+            }
+            
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
-                    assignedTo, assignedToName, department, taskStatus, taskPriority, projectName, taskTestType, pageable);
+                    assignedTo, assignedToName, department, taskStatus, taskPriority, 
+                    projectName, taskTestType, startFrom, startTo, pageable);
             
             return ResponseEntity.ok(tasks);
         } catch (Exception e) {
@@ -365,16 +364,5 @@ public class TestTaskController {
         return authentication.getName();
     }
 
-    // 内部类
-    public static class ProgressUpdateRequest {
-        private Integer progressPercentage;
 
-        public Integer getProgressPercentage() {
-            return progressPercentage;
-        }
-
-        public void setProgressPercentage(Integer progressPercentage) {
-            this.progressPercentage = progressPercentage;
-        }
-    }
 } 

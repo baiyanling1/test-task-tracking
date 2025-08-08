@@ -162,6 +162,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { getProfile, changePassword as changePasswordApi } from '@/api/auth'
+import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
 
@@ -384,7 +385,7 @@ const getRoleText = (role) => {
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 // 生命周期

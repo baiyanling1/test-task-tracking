@@ -194,6 +194,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getUsers, createUser, updateUser, deleteUser as deleteUserApi, disableUser, enableUser } from '@/api/users'
 import { getDepartments } from '@/api/departments'
+import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
 
@@ -464,7 +465,7 @@ const getRoleText = (role) => {
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN')
+  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
 }
 
 // 生命周期

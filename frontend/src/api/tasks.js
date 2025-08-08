@@ -58,4 +58,24 @@ export const batchUpdateTasks = (data) => {
     method: 'put',
     data
   })
+}
+
+// 获取任务进度列表
+export const getTaskProgress = async (taskId, params = {}) => {
+  return request.get(`/tasks/${taskId}/progress`, { params })
+}
+
+// 添加任务进度
+export const addTaskProgress = async (taskId, data) => {
+  return request.post(`/tasks/${taskId}/progress`, data)
+}
+
+// 更新任务进度
+export const updateTaskProgress = async (taskId, progressId, data) => {
+  return request.put(`/tasks/${taskId}/progress/${progressId}`, data)
+}
+
+// 删除任务进度
+export const deleteTaskProgress = async (taskId, progressId) => {
+  return request.delete(`/tasks/${taskId}/progress/${progressId}`)
 } 
