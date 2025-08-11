@@ -16,6 +16,7 @@ public class TestTaskDto {
     private LocalDate actualEndDate;
     private Integer participantCount;
     private Double manDays;
+    private Double actualManDays;
     private TestTask.TaskStatus status;
     private TestTask.TaskPriority priority;
     private Integer progressPercentage;
@@ -45,6 +46,7 @@ public class TestTaskDto {
         dto.setActualEndDate(task.getActualEndDate());
         dto.setParticipantCount(task.getParticipantCount());
         dto.setManDays(task.getManDays());
+        dto.setActualManDays(task.getActualManDays());
         dto.setStatus(task.getStatus());
         dto.setPriority(task.getPriority());
         dto.setProgressPercentage(task.getProgressPercentage());

@@ -45,6 +45,9 @@ public class TaskProgress extends BaseEntity {
     
     @Column(name = "actual_end_date")
     private String actualEndDate;
+    
+    @Column(name = "actual_man_days")
+    private Double actualManDays;
 
     @PrePersist
     protected void onCreate() {

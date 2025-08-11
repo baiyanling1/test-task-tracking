@@ -35,6 +35,9 @@ public class TaskProgressDto {
     
     // 实际结束时间（可选）
     private String actualEndDate;
+    
+    // 实际工时（可选）
+    private Double actualManDays;
 
     // 从实体转换为DTO
     public static TaskProgressDto fromEntity(TaskProgress progress) {
@@ -50,6 +53,7 @@ public class TaskProgressDto {
         dto.setTaskStatus(progress.getTaskStatus());
         dto.setCreatedTime(progress.getCreatedTime());
         dto.setActualEndDate(progress.getActualEndDate());
+        dto.setActualManDays(progress.getActualManDays());
         return dto;
     }
 } 

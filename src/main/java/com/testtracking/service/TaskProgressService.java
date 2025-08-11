@@ -65,6 +65,7 @@ public class TaskProgressService {
         progress.setProgressNotes(progressDto.getProgressNotes());
         progress.setTaskStatus(progressDto.getTaskStatus());
         progress.setActualEndDate(progressDto.getActualEndDate());
+        progress.setActualManDays(progressDto.getActualManDays());
         progress.setUpdateTime(LocalDateTime.now());
 
         TaskProgress savedProgress = taskProgressRepository.save(progress);
@@ -83,6 +84,10 @@ public class TaskProgressService {
                 } catch (Exception e) {
                     log.warn("无法解析实际结束时间: {}", progressDto.getActualEndDate());
                 }
+            }
+            // 当进度为100%时，更新任务的实际工时
+            if (progressDto.getActualManDays() != null && progressDto.getActualManDays() > 0) {
+                task.setActualManDays(progressDto.getActualManDays());
             }
         } else if (progressDto.getProgressPercentage() > 0) {
             task.setStatus(TestTask.TaskStatus.IN_PROGRESS);

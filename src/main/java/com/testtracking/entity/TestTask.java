@@ -47,6 +47,9 @@ public class TestTask extends BaseEntity {
     @Column(name = "man_days")
     private Double manDays;
 
+    @Column(name = "actual_man_days")
+    private Double actualManDays;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "task_status", nullable = false)
     private TaskStatus status = TaskStatus.PLANNED;

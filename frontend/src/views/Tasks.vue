@@ -132,9 +132,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="participantCount" label="投入人数" width="100" />
-        <el-table-column prop="manDays" label="工时(人/天)" width="120">
+        <el-table-column prop="manDays" label="工时(人/天)" width="160">
           <template #default="{ row }">
-            {{ row.manDays ? row.manDays.toFixed(1) : '-' }}
+            <div>
+              <div>预计: {{ row.manDays ? row.manDays.toFixed(1) : '-' }}</div>
+              <div>实际: {{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="progressPercentage" label="进度" width="120">
@@ -386,7 +389,10 @@
                  {{ selectedTask.participantCount }}人
                </el-descriptions-item>
                <el-descriptions-item label="工时(人/天)">
-                 {{ selectedTask.manDays ? selectedTask.manDays.toFixed(1) : '-' }}
+                 <div>
+                   <div>预计: {{ selectedTask.manDays ? selectedTask.manDays.toFixed(1) : '-' }}</div>
+                   <div>实际: {{ selectedTask.actualManDays ? selectedTask.actualManDays.toFixed(1) : '-' }}</div>
+                 </div>
                </el-descriptions-item>
                <el-descriptions-item label="开始日期">
                  {{ formatDate(selectedTask.startDate) }}
@@ -524,6 +530,17 @@
              style="width: 100%"
            />
          </el-form-item>
+         
+         <el-form-item label="实际工时(人天)" prop="actualManDays" v-if="progressForm.progressPercentage === 100">
+           <el-input-number
+             v-model="progressForm.actualManDays"
+             :min="0"
+             :precision="1"
+             :step="0.5"
+             placeholder="请输入实际工时（必填）"
+             style="width: 100%"
+           />
+         </el-form-item>
       </el-form>
       
       <template #footer>
@@ -592,7 +609,8 @@ const progressHistory = ref([])
 const progressForm = ref({
   progressPercentage: 0,
   progressNotes: '',
-  actualEndDate: ''
+  actualEndDate: '',
+  actualManDays: null
 })
 
 // 进度表单验证规则
@@ -623,6 +641,20 @@ const progressFormRules = {
       validator: (rule, value, callback) => {
         if (progressForm.value.progressPercentage === 100 && !value) {
           callback(new Error('进度为100%时，结束时间是必填的'))
+        } else {
+          callback()
+        }
+      }
+    }
+  ],
+  actualManDays: [
+    { 
+      required: true, 
+      message: '进度为100%时，实际工时是必填的', 
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (progressForm.value.progressPercentage === 100 && (value === null || value === undefined || value <= 0)) {
+          callback(new Error('进度为100%时，实际工时是必填的且必须大于0'))
         } else {
           callback()
         }
@@ -1048,6 +1080,12 @@ const addProgress = async () => {
       return
     }
     
+    // 验证进度为100%时实际工时是否填写
+    if (progressForm.value.progressPercentage === 100 && (progressForm.value.actualManDays === null || progressForm.value.actualManDays === undefined || progressForm.value.actualManDays <= 0)) {
+      ElMessage.error('进度为100%时，实际工时是必填的且必须大于0')
+      return
+    }
+    
     const progressData = {
       ...progressForm.value,
       updatedByUserId: authStore.user.id
@@ -1065,7 +1103,8 @@ const addProgress = async () => {
     progressForm.value = {
       progressPercentage: 0,
       progressNotes: '',
-      actualEndDate: ''
+      actualEndDate: '',
+      actualManDays: null
     }
   } catch (error) {
     ElMessage.error('进度更新失败')
