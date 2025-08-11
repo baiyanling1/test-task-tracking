@@ -236,7 +236,7 @@ import { getTaskStats, getTasks } from '@/api/tasks'
 import { getAlerts } from '@/api/alerts'
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
-import { User } from '@element-plus/icons-vue'
+import { User, Warning, List, Loading, Check, Clock } from '@element-plus/icons-vue'
 
 use([
   CanvasRenderer,
@@ -614,6 +614,14 @@ onMounted(() => {
 
 .stats-icon.completed {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.stats-icon.overdue {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+}
+
+.stats-icon.man-days {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
 }
 
 .stats-info {

@@ -171,7 +171,7 @@
                  @click="editTask(row)"
                >编辑</el-button>
                <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
-               <el-button size="small" type="warning" @click="viewProgress(row)">进度</el-button>
+               <el-button size="small" type="warning" @click="viewProgress(row)">进度更新</el-button>
                <el-button 
                  v-if="canDeleteTask(row)" 
                  size="small" 

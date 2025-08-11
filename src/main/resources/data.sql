@@ -44,10 +44,10 @@ VALUES (4, 4, 30, '完成iOS设备测试，Android设备测试暂停', '2023-12-
 
 -- 初始化示例通知
 INSERT INTO notifications (title, content, notification_type, priority, is_read, recipient_id, related_task_id, related_entity_type, related_entity_id, action_url, created_time, updated_time) 
-VALUES ('任务超时提醒', '任务「移动端兼容性测试」已超时5天，请及时处理', 'TASK_OVERDUE', 'HIGH', false, 4, 4, 'TestTask', 4, '/tasks/4', NOW(), NOW());
+VALUES ('任务超时提醒', '任务「移动端兼容性测试」已超时5天，请及时处理', 'TASK_OVERDUE', 'HIGH', false, 1, 4, 'TestTask', 4, '/tasks/4', NOW(), NOW());
 
 INSERT INTO notifications (title, content, notification_type, priority, is_read, recipient_id, related_task_id, related_entity_type, related_entity_id, action_url, created_time, updated_time) 
-VALUES ('任务完成通知', '任务「支付接口安全测试」已完成', 'TASK_COMPLETED', 'NORMAL', false, 3, 3, 'TestTask', 3, '/tasks/3', NOW(), NOW());
+VALUES ('任务完成通知', '任务「支付接口安全测试」已完成', 'TASK_COMPLETED', 'NORMAL', false, 1, 3, 'TestTask', 3, '/tasks/3', NOW(), NOW());
 
 INSERT INTO notifications (title, content, notification_type, priority, is_read, recipient_id, related_task_id, related_entity_type, related_entity_id, action_url, created_time, updated_time) 
-VALUES ('进度更新通知', '任务「用户登录功能测试」进度已更新为60%', 'TASK_PROGRESS_UPDATE', 'LOW', false, 3, 1, 'TestTask', 1, '/tasks/1', NOW(), NOW()); 
+VALUES ('进度更新通知', '任务「用户登录功能测试」进度已更新为60%', 'TASK_PROGRESS_UPDATE', 'LOW', false, 1, 1, 'TestTask', 1, '/tasks/1', NOW(), NOW()); 

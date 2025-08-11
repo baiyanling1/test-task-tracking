@@ -84,12 +84,12 @@ public class NotificationService {
         createNotification(notificationDto);
         
         // 发送钉钉通知
-        dingTalkNotificationService.sendTaskOverdueNotification(
-                task.getTaskName(),
-                task.getAssignedTo().getRealName(),
-                task.getOverdueDays(),
-                task.getProjectName()
-        );
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -111,11 +111,12 @@ public class NotificationService {
         createNotification(notificationDto);
         
         // 发送钉钉通知
-        dingTalkNotificationService.sendTaskCompletedNotification(
-                task.getTaskName(),
-                completedBy,
-                task.getProjectName()
-        );
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -141,12 +142,12 @@ public class NotificationService {
         createNotification(notificationDto);
         
         // 发送钉钉通知
-        dingTalkNotificationService.sendTaskAssignedNotification(
-                task.getTaskName(),
-                task.getAssignedTo().getRealName(),
-                assignedBy,
-                task.getProjectName()
-        );
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -173,12 +174,12 @@ public class NotificationService {
         createNotification(notificationDto);
         
         // 发送钉钉通知
-        dingTalkNotificationService.sendProgressUpdateNotification(
-                task.getTaskName(),
-                progressPercentage,
-                updatedBy,
-                task.getProjectName()
-        );
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -205,20 +206,36 @@ public class NotificationService {
         createNotification(notificationDto);
         
         // 发送钉钉通知
-        dingTalkNotificationService.sendRiskAlertNotification(
-                task.getTaskName(),
-                task.getRiskLevel().getDescription(),
-                task.getRiskDescription(),
-                task.getAssignedTo().getRealName()
-        );
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
      * 发送系统告警通知
      */
     public void sendSystemAlertNotification(String alertType, String message, String details) {
+        // 创建系统内部通知
+        NotificationDto notificationDto = new NotificationDto();
+        notificationDto.setTitle("系统告警");
+        notificationDto.setContent(String.format("告警类型: %s\n告警信息: %s\n详细信息: %s", alertType, message, details));
+        notificationDto.setType(Notification.NotificationType.SYSTEM_ALERT);
+        notificationDto.setPriority(Notification.NotificationPriority.HIGH);
+        notificationDto.setRelatedEntityType("System");
+        notificationDto.setActionUrl("/alerts");
+        
+        createNotification(notificationDto);
+        
         // 发送钉钉通知
-        dingTalkNotificationService.sendSystemAlertNotification(alertType, message, details);
+        try {
+            Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
+            dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+        } catch (Exception e) {
+            log.error("发送钉钉通知失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -287,5 +304,74 @@ public class NotificationService {
         log.info("开始检查超时任务");
         // 这里需要注入TestTaskService来获取超时任务
         // 实际使用时需要完善
+    }
+
+    /**
+     * 删除通知
+     */
+    public void deleteNotification(Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("通知不存在"));
+        
+        notificationRepository.delete(notification);
+        log.info("删除通知: notificationId={}", notificationId);
+    }
+
+    /**
+     * 批量删除通知
+     */
+    public void deleteNotifications(List<Long> notificationIds) {
+        notificationRepository.deleteAllById(notificationIds);
+        log.info("批量删除通知: notificationIds={}", notificationIds);
+    }
+
+    /**
+     * 根据状态获取通知
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getNotificationsByStatus(Long userId, String status, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        boolean isRead = "READ".equalsIgnoreCase(status);
+        Page<Notification> notifications = notificationRepository.findByRecipientAndIsRead(user, isRead, pageable);
+        return notifications.map(NotificationDto::fromEntity);
+    }
+
+    /**
+     * 根据优先级获取通知
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getNotificationsByPriority(Long userId, String priority, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Notification.NotificationPriority notificationPriority = Notification.NotificationPriority.valueOf(priority.toUpperCase());
+        Page<Notification> notifications = notificationRepository.findByRecipientAndPriority(user, notificationPriority, pageable);
+        return notifications.map(NotificationDto::fromEntity);
+    }
+
+    /**
+     * 搜索通知
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> searchNotifications(Long userId, String keyword, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Page<Notification> notifications = notificationRepository.findByRecipientAndTitleContainingOrContentContaining(user, keyword, keyword, pageable);
+        return notifications.map(NotificationDto::fromEntity);
+    }
+
+    /**
+     * 获取超时任务通知
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getOverdueTaskNotifications(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Page<Notification> notifications = notificationRepository.findByRecipientAndType(user, Notification.NotificationType.TASK_OVERDUE, pageable);
+        return notifications.map(NotificationDto::fromEntity);
     }
 } 

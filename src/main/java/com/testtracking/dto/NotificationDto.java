@@ -74,4 +74,24 @@ public class NotificationDto {
         
         return dto;
     }
+
+    // 从DTO转换为实体
+    public Notification toEntity() {
+        Notification notification = new Notification();
+        notification.setId(this.id);
+        notification.setTitle(this.title);
+        notification.setContent(this.content);
+        notification.setType(this.type);
+        notification.setPriority(this.priority);
+        notification.setIsRead(this.isRead);
+        notification.setReadTime(this.readTime);
+        notification.setRelatedEntityType(this.relatedEntityType);
+        notification.setRelatedEntityId(this.relatedEntityId);
+        notification.setActionUrl(this.actionUrl);
+        notification.setExpireTime(this.expireTime);
+        notification.setCreatedTime(this.createdTime);
+        notification.setUpdatedTime(this.updatedTime);
+        
+        return notification;
+    }
 } 

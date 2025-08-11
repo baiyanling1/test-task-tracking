@@ -85,7 +85,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getUnreadCount } from '@/api/alerts'
+import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
 import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding } from '@element-plus/icons-vue'
 
@@ -142,7 +142,8 @@ const loadUnreadCount = async () => {
   }
   
   try {
-    const count = await getUnreadCount()
+    const response = await getUnreadAlertCount()
+    const count = response.unreadCount || 0
     unreadCount.value = count
   } catch (error) {
     console.error('加载未读提醒数量失败:', error)

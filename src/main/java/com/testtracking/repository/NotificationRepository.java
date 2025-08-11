@@ -5,6 +5,7 @@ import com.testtracking.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -58,10 +59,25 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByRelatedTaskIdOrderByCreatedTimeDesc(Long taskId);
 
     // 批量标记已读
+    @Modifying
     @Query("UPDATE Notification n SET n.isRead = true, n.readTime = :readTime WHERE n.recipient = :recipient AND n.isRead = false")
     void markAllAsReadByRecipient(@Param("recipient") User recipient, @Param("readTime") LocalDateTime readTime);
 
     // 删除过期通知
     @Query("DELETE FROM Notification n WHERE n.expireTime IS NOT NULL AND n.expireTime < :now")
     void deleteExpiredNotifications(@Param("now") LocalDateTime now);
+
+    // 根据优先级查询
+    Page<Notification> findByRecipientAndPriority(User recipient, Notification.NotificationPriority priority, Pageable pageable);
+
+    // 搜索查询
+    @Query("SELECT n FROM Notification n WHERE n.recipient = :recipient AND (n.title LIKE %:keyword% OR n.content LIKE %:keyword%)")
+    Page<Notification> findByRecipientAndTitleContainingOrContentContaining(
+            @Param("recipient") User recipient, 
+            @Param("keyword") String keyword, 
+            @Param("keyword") String keyword2, 
+            Pageable pageable);
+
+    // 根据类型查询
+    Page<Notification> findByRecipientAndType(User recipient, Notification.NotificationType type, Pageable pageable);
 } 

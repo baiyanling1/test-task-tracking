@@ -3,407 +3,409 @@
     <div class="page-header">
       <h1>告警管理</h1>
       <div class="header-actions">
-        <el-button type="warning" @click="markAllAsRead">
-          <el-icon><Check /></el-icon>
+        <el-button type="warning" @click="markAllAsRead" :disabled="unreadCount === 0">
           全部标记为已读
         </el-button>
-        <el-button type="primary" @click="showCreateDialog = true">
-          <el-icon><Plus /></el-icon>
-          新建告警
+        <el-button type="primary" @click="showDingTalkConfig = true">
+          钉钉配置
+        </el-button>
+        <el-button type="info" @click="handleTestDingTalkConnection">
+          测试钉钉连接
         </el-button>
       </div>
     </div>
 
+    <!-- 钉钉配置对话框 -->
+    <el-dialog
+      v-model="showDingTalkConfig"
+      title="钉钉通知配置"
+      width="600px"
+      @close="closeDingTalkConfig"
+    >
+      <el-form :model="dingTalkConfig" label-width="120px">
+        <el-form-item label="启用钉钉通知">
+          <el-switch v-model="dingTalkConfig.enabled" />
+        </el-form-item>
+        <el-form-item label="Webhook地址">
+          <el-input
+            v-model="dingTalkConfig.webhookUrl"
+            placeholder="https://oapi.dingtalk.com/robot/send?access_token=your_token"
+            :disabled="!dingTalkConfig.enabled"
+          />
+        </el-form-item>
+        <el-form-item label="签名密钥">
+          <el-input
+            v-model="dingTalkConfig.secret"
+            placeholder="钉钉机器人签名密钥（可选）"
+            :disabled="!dingTalkConfig.enabled"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="closeDingTalkConfig">取消</el-button>
+                 <el-button type="primary" @click="handleSaveDingTalkConfig">保存配置</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 搜索和筛选 -->
-    <div class="search-section">
+    <el-card class="search-card">
       <el-row :gutter="20">
         <el-col :span="6">
           <el-input
-            v-model="searchQuery"
-            placeholder="搜索告警内容"
+            v-model="searchForm.keyword"
+            placeholder="搜索告警标题、内容或任务名称"
             clearable
-            @input="handleSearch"
+            @keyup.enter="handleSearch"
           >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
+            <template #append>
+              <el-button @click="handleSearch">
+                <el-icon><Search /></el-icon>
+              </el-button>
             </template>
           </el-input>
         </el-col>
         <el-col :span="4">
-          <el-select v-model="levelFilter" placeholder="级别筛选" clearable @change="handleSearch">
-            <el-option label="全部" value="" />
-            <el-option label="严重" value="CRITICAL" />
-            <el-option label="警告" value="WARNING" />
-            <el-option label="信息" value="INFO" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch">
-            <el-option label="全部" value="" />
+          <el-select v-model="searchForm.status" placeholder="告警状态" clearable @change="handleSearch">
             <el-option label="未读" value="UNREAD" />
             <el-option label="已读" value="READ" />
-            <el-option label="已处理" value="RESOLVED" />
           </el-select>
         </el-col>
         <el-col :span="4">
-          <el-button type="primary" @click="loadAlerts">刷新</el-button>
+          <el-select v-model="searchForm.priority" placeholder="告警级别" clearable @change="handleSearch">
+            <el-option label="低" value="LOW" />
+            <el-option label="中" value="NORMAL" />
+            <el-option label="高" value="HIGH" />
+            <el-option label="紧急" value="URGENT" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="resetSearch">重置</el-button>
         </el-col>
       </el-row>
-    </div>
+    </el-card>
 
-    <!-- 告警统计 -->
-    <div class="alerts-stats">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-card class="stat-card critical">
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.critical }}</div>
-              <div class="stat-label">严重告警</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card warning">
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.warning }}</div>
-              <div class="stat-label">警告告警</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card info">
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.info }}</div>
-              <div class="stat-label">信息告警</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card unread">
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.unread }}</div>
-              <div class="stat-label">未读告警</div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+    <!-- 告警统计卡片 -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col :span="6">
+        <el-card class="stats-card urgent">
+          <div class="stats-content">
+            <div class="stats-number">{{ urgentCount }}</div>
+            <div class="stats-label">紧急告警</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stats-card high">
+          <div class="stats-content">
+            <div class="stats-number">{{ highCount }}</div>
+            <div class="stats-label">高级告警</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stats-card normal">
+          <div class="stats-content">
+            <div class="stats-number">{{ normalCount }}</div>
+            <div class="stats-label">普通告警</div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stats-card unread">
+          <div class="stats-content">
+            <div class="stats-number">{{ unreadCount }}</div>
+            <div class="stats-label">未读告警</div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- 告警列表 -->
-    <div class="alerts-table">
+    <el-card class="alerts-card">
+      <template #header>
+        <div class="card-header">
+          <span>告警列表 (共 {{ total }} 条)</span>
+          <div class="header-info">
+            <el-tag type="warning">未读: {{ unreadCount }}</el-tag>
+          </div>
+        </div>
+      </template>
+
       <el-table
-        :data="filteredAlerts"
-        v-loading="loading"
+        :data="alerts"
         stripe
-        style="width: 100%"
+        @selection-change="handleSelectionChange"
+        v-loading="loading"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="告警标题" min-width="200" />
-        <el-table-column prop="message" label="告警内容" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="level" label="级别" width="100">
+        <el-table-column type="selection" width="55" />
+        
+        <el-table-column prop="title" label="告警标题" min-width="200">
           <template #default="{ row }">
-            <el-tag :type="getLevelType(row.level)">
-              {{ getLevelText(row.level) }}
+            <div class="alert-title">
+              <span :class="{ 'unread': !row.isRead }">{{ row.title }}</span>
+              <el-tag v-if="!row.isRead" type="danger" size="small">未读</el-tag>
+            </div>
+          </template>
+        </el-table-column>
+        
+        <el-table-column prop="content" label="告警内容" min-width="200">
+          <template #default="{ row }">
+            <span v-if="row.content">{{ row.content }}</span>
+            <span v-else class="text-muted">无内容</span>
+          </template>
+        </el-table-column>
+        
+        <el-table-column prop="priority" label="级别" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getLevelType(row.priority)" size="small">
+              {{ getLevelText(row.priority) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        
+        <el-table-column prop="isRead" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
+            <el-tag :type="row.isRead ? 'success' : 'danger'" size="small">
+              {{ row.isRead ? '已读' : '未读' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="来源" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180">
+        
+        <el-table-column prop="relatedTaskName" label="来源" min-width="150">
           <template #default="{ row }">
-            {{ formatDateTime(row.createTime) }}
+            <span v-if="row.relatedTaskName">{{ row.relatedTaskName }}</span>
+            <span v-else-if="row.relatedEntityId" class="text-muted">任务ID: {{ row.relatedEntityId }}</span>
+            <span v-else class="text-muted">系统通知</span>
           </template>
         </el-table-column>
+        
+        <el-table-column prop="createdTime" label="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createdTime) }}
+          </template>
+        </el-table-column>
+        
         <el-table-column prop="readTime" label="阅读时间" width="180">
           <template #default="{ row }">
-            {{ formatDateTime(row.readTime) }}
+            {{ row.readTime ? formatDateTime(row.readTime) : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="viewAlert(row)">查看</el-button>
-            <el-button 
-              v-if="row.status === 'UNREAD'"
-              size="small" 
-              type="success" 
-              @click="markAsRead(row)"
-            >
-              标记已读
-            </el-button>
-            <el-button 
-              v-if="row.status === 'READ'"
-              size="small" 
-              type="warning" 
-              @click="resolveAlert(row)"
-            >
-              标记已处理
-            </el-button>
-            <el-button size="small" type="danger" @click="deleteAlert(row)">删除</el-button>
+            <div class="action-buttons">
+              <el-button size="small" type="primary" @click="viewDetails(row)">详情</el-button>
+              <el-button 
+                v-if="!row.isRead" 
+                size="small" 
+                type="success" 
+                @click="markAsRead(row)"
+              >
+                标记已读
+              </el-button>
+              <el-button size="small" type="danger" @click="handleDeleteAlert(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
-    </div>
 
-    <!-- 分页 -->
-    <div class="pagination-section">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="totalAlerts"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
-    </div>
-
-    <!-- 创建告警对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
-      title="新建告警"
-      width="500px"
-    >
-      <el-form
-        ref="alertFormRef"
-        :model="alertForm"
-        :rules="alertRules"
-        label-width="100px"
-      >
-        <el-form-item label="告警标题" prop="title">
-          <el-input v-model="alertForm.title" placeholder="请输入告警标题" />
-        </el-form-item>
-        <el-form-item label="告警内容" prop="message">
-          <el-input
-            v-model="alertForm.message"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入告警内容"
-          />
-        </el-form-item>
-        <el-form-item label="告警级别" prop="level">
-          <el-select v-model="alertForm.level" placeholder="请选择告警级别">
-            <el-option label="严重" value="CRITICAL" />
-            <el-option label="警告" value="WARNING" />
-            <el-option label="信息" value="INFO" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="告警来源" prop="source">
-          <el-input v-model="alertForm.source" placeholder="请输入告警来源" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showCreateDialog = false">取消</el-button>
-          <el-button type="primary" @click="saveAlert" :loading="saving">
-            创建
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- 告警详情对话框 -->
-    <el-dialog
-      v-model="showDetailDialog"
-      title="告警详情"
-      width="600px"
-    >
-      <div v-if="selectedAlert">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="告警标题">{{ selectedAlert.title }}</el-descriptions-item>
-          <el-descriptions-item label="告警内容">{{ selectedAlert.message }}</el-descriptions-item>
-          <el-descriptions-item label="告警级别">
-            <el-tag :type="getLevelType(selectedAlert.level)">
-              {{ getLevelText(selectedAlert.level) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="告警状态">
-            <el-tag :type="getStatusType(selectedAlert.status)">
-              {{ getStatusText(selectedAlert.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="告警来源">{{ selectedAlert.source }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ formatDateTime(selectedAlert.createTime) }}</el-descriptions-item>
-          <el-descriptions-item label="阅读时间">{{ formatDateTime(selectedAlert.readTime) }}</el-descriptions-item>
-        </el-descriptions>
+      <!-- 分页 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.size"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
       </div>
-    </el-dialog>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Check } from '@element-plus/icons-vue'
-import { useAuthStore } from '@/stores/auth'
-import { getAlerts, createAlert, updateAlert, deleteAlert as deleteAlertApi, markAlertAsRead, markAlertsAsRead } from '@/api/alerts'
+import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-
-const authStore = useAuthStore()
+import {
+  getAlerts,
+  getAlertsByStatus,
+  getAlertsByPriority,
+  searchAlerts,
+  markAlertAsRead,
+  markAllAlertsAsRead,
+  deleteAlert,
+  deleteAlerts,
+  getUnreadAlertCount,
+  testDingTalkConnection,
+  getDingTalkConfig,
+  saveDingTalkConfig
+} from '@/api/alerts'
 
 // 响应式数据
 const loading = ref(false)
-const saving = ref(false)
 const alerts = ref([])
-const searchQuery = ref('')
-const levelFilter = ref('')
-const statusFilter = ref('')
-const currentPage = ref(1)
-const pageSize = ref(20)
-const totalAlerts = ref(0)
+const selectedAlerts = ref([])
+const total = ref(0)
+const unreadCount = ref(0)
+const showDingTalkConfig = ref(false)
 
-// 对话框状态
-const showCreateDialog = ref(false)
-const showDetailDialog = ref(false)
-const selectedAlert = ref(null)
-
-// 表单数据
-const alertFormRef = ref()
-const alertForm = reactive({
-  title: '',
-  message: '',
-  level: 'WARNING',
-  source: ''
+// 钉钉配置
+const dingTalkConfig = reactive({
+  enabled: false,
+  webhookUrl: '',
+  secret: ''
 })
 
-// 表单验证规则
-const alertRules = {
-  title: [
-    { required: true, message: '请输入告警标题', trigger: 'blur' }
-  ],
-  message: [
-    { required: true, message: '请输入告警内容', trigger: 'blur' }
-  ],
-  level: [
-    { required: true, message: '请选择告警级别', trigger: 'change' }
-  ],
-  source: [
-    { required: true, message: '请输入告警来源', trigger: 'blur' }
-  ]
-}
-
-// 统计信息
-const stats = computed(() => {
-  const critical = alerts.value.filter(a => a.level === 'CRITICAL').length
-  const warning = alerts.value.filter(a => a.level === 'WARNING').length
-  const info = alerts.value.filter(a => a.level === 'INFO').length
-  const unread = alerts.value.filter(a => a.status === 'UNREAD').length
-  
-  return { critical, warning, info, unread }
+// 搜索表单
+const searchForm = reactive({
+  keyword: '',
+  status: '',
+  priority: ''
 })
 
-// 计算属性
-const filteredAlerts = computed(() => {
-  let filtered = alerts.value
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(alert => 
-      alert.title.toLowerCase().includes(query) ||
-      alert.message.toLowerCase().includes(query)
-    )
-  }
-
-  if (levelFilter.value) {
-    filtered = filtered.filter(alert => alert.level === levelFilter.value)
-  }
-
-  if (statusFilter.value) {
-    filtered = filtered.filter(alert => alert.status === statusFilter.value)
-  }
-
-  return filtered
+// 分页
+const pagination = reactive({
+  page: 0,
+  size: 10
 })
 
-// 方法
+// 计算统计数量
+const urgentCount = computed(() => {
+  const urgentAlerts = alerts.value.filter(alert => alert.priority === 'URGENT')
+  const count = urgentAlerts.length
+  console.log('紧急告警数量:', count, urgentAlerts)
+  return count
+})
+
+const highCount = computed(() => {
+  const highAlerts = alerts.value.filter(alert => alert.priority === 'HIGH')
+  const count = highAlerts.length
+  console.log('高级告警数量:', count, highAlerts)
+  return count
+})
+
+const normalCount = computed(() => {
+  const normalAlerts = alerts.value.filter(alert => alert.priority === 'NORMAL' || alert.priority === 'LOW')
+  const count = normalAlerts.length
+  console.log('普通告警数量:', count, normalAlerts)
+  return count
+})
+
+// 获取告警列表
 const loadAlerts = async () => {
-  loading.value = true
   try {
-    const response = await getAlerts({
-      page: currentPage.value - 1,
-      size: pageSize.value
-    })
+    loading.value = true
+    
+    let response
+    if (searchForm.keyword) {
+      response = await searchAlerts(searchForm.keyword, {
+        page: pagination.page,
+        size: pagination.size
+      })
+    } else if (searchForm.status) {
+      response = await getAlertsByStatus(searchForm.status, {
+        page: pagination.page,
+        size: pagination.size
+      })
+    } else if (searchForm.priority) {
+      response = await getAlertsByPriority(searchForm.priority, {
+        page: pagination.page,
+        size: pagination.size
+      })
+    } else {
+      response = await getAlerts({
+        page: pagination.page,
+        size: pagination.size
+      })
+    }
+    
+    console.log('API响应:', response) // 调试信息
     alerts.value = response.content || []
-    totalAlerts.value = response.totalElements || 0
+    total.value = response.totalElements || 0
+    
+    console.log('告警数据:', alerts.value) // 调试信息
+    
+    // 加载未读数量
+    await loadUnreadCount()
   } catch (error) {
+    console.error('加载告警列表失败:', error)
     ElMessage.error('加载告警列表失败')
-    console.error('Load alerts error:', error)
   } finally {
     loading.value = false
   }
 }
 
-const handleSearch = () => {
-  currentPage.value = 1
+// 加载未读数量
+const loadUnreadCount = async () => {
+  try {
+    const response = await getUnreadAlertCount()
+    unreadCount.value = response.unreadCount || 0
+  } catch (error) {
+    console.error('加载未读数量失败:', error)
+  }
 }
 
+// 搜索
+const handleSearch = () => {
+  pagination.page = 0
+  loadAlerts()
+}
+
+// 重置搜索
+const resetSearch = () => {
+  searchForm.keyword = ''
+  searchForm.status = ''
+  searchForm.priority = ''
+  pagination.page = 0
+  loadAlerts()
+}
+
+// 分页处理
 const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
+  pagination.size = size
+  pagination.page = 0
+  loadAlerts()
 }
 
 const handleCurrentChange = (page) => {
-  currentPage.value = page
+  pagination.page = page - 1 // 后端从0开始
+  loadAlerts()
 }
 
-const saveAlert = async () => {
-  if (!alertFormRef.value) return
-  
+// 选择处理
+const handleSelectionChange = (selection) => {
+  selectedAlerts.value = selection
+}
+
+// 查看详情
+const viewDetails = async (alert) => {
   try {
-    await alertFormRef.value.validate()
-    saving.value = true
-
-    await createAlert(alertForm)
-    ElMessage.success('告警创建成功')
-
-    showCreateDialog.value = false
-    resetForm()
-    loadAlerts()
+    ElMessage.info('告警详情功能开发中...')
   } catch (error) {
-    ElMessage.error('创建告警失败')
-    console.error('Save alert error:', error)
-  } finally {
-    saving.value = false
+    console.error('获取告警详情失败:', error)
+    ElMessage.error('获取告警详情失败')
   }
 }
 
-const viewAlert = (alert) => {
-  selectedAlert.value = alert
-  showDetailDialog.value = true
-  
-  // 如果未读，标记为已读
-  if (alert.status === 'UNREAD') {
-    markAsRead(alert)
-  }
-}
-
+// 标记已读
 const markAsRead = async (alert) => {
   try {
     await markAlertAsRead(alert.id)
-    alert.status = 'READ'
-    alert.readTime = new Date()
     ElMessage.success('已标记为已读')
+    loadAlerts() // 重新加载列表
   } catch (error) {
-    ElMessage.error('操作失败')
-    console.error('Mark as read error:', error)
+    console.error('标记已读失败:', error)
+    ElMessage.error('标记已读失败')
   }
 }
 
-const resolveAlert = async (alert) => {
-  try {
-    alert.status = 'RESOLVED'
-    ElMessage.success('已标记为已处理')
-  } catch (error) {
-    ElMessage.error('操作失败')
-    console.error('Resolve alert error:', error)
-  }
-}
-
+// 全部标记为已读
 const markAllAsRead = async () => {
   try {
     await ElMessageBox.confirm(
@@ -415,21 +417,23 @@ const markAllAsRead = async () => {
         type: 'warning'
       }
     )
-
-    await markAlertsAsRead()
-    ElMessage.success('所有告警已标记为已读')
+    
+    await markAllAlertsAsRead()
+    ElMessage.success('全部标记为已读成功')
+    loadAlerts()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('操作失败')
-      console.error('Mark all as read error:', error)
+      console.error('批量标记已读失败:', error)
+      ElMessage.error('批量标记已读失败')
     }
   }
 }
 
-const deleteAlert = async (alert) => {
+// 删除告警
+const handleDeleteAlert = async (alert) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除告警 "${alert.title}" 吗？`,
+      `确定要删除告警"${alert.title}"吗？`,
       '确认删除',
       {
         confirmButtonText: '确定',
@@ -437,74 +441,115 @@ const deleteAlert = async (alert) => {
         type: 'warning'
       }
     )
-
-    await deleteAlertApi(alert.id)
-    ElMessage.success('告警删除成功')
+    
+    await deleteAlert(alert.id)
+    ElMessage.success('删除成功')
     loadAlerts()
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('删除告警失败:', error)
       ElMessage.error('删除告警失败')
-      console.error('Delete alert error:', error)
     }
   }
 }
 
-const resetForm = () => {
-  Object.assign(alertForm, {
-    title: '',
-    message: '',
-    level: 'WARNING',
-    source: ''
-  })
-  if (alertFormRef.value) {
-    alertFormRef.value.resetFields()
+// 批量删除
+const batchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedAlerts.value.length} 个告警吗？`,
+      '确认批量删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const alertIds = selectedAlerts.value.map(alert => alert.id)
+    await deleteAlerts(alertIds)
+    ElMessage.success('批量删除成功')
+    loadAlerts()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量删除失败:', error)
+      ElMessage.error('批量删除失败')
+    }
   }
 }
 
-const getLevelType = (level) => {
+// 测试钉钉连接
+const handleTestDingTalkConnection = async () => {
+  try {
+    await testDingTalkConnection()
+    ElMessage.success('钉钉连接测试成功')
+  } catch (error) {
+    console.error('钉钉连接测试失败:', error)
+    ElMessage.error('钉钉连接测试失败')
+  }
+}
+
+// 钉钉配置相关
+const loadDingTalkConfig = async () => {
+  try {
+    const config = await getDingTalkConfig()
+    dingTalkConfig.enabled = config.enabled || false
+    dingTalkConfig.webhookUrl = config.webhookUrl || ''
+    dingTalkConfig.secret = config.secret || ''
+  } catch (error) {
+    console.error('加载钉钉配置失败:', error)
+  }
+}
+
+const closeDingTalkConfig = () => {
+  showDingTalkConfig.value = false
+}
+
+const handleSaveDingTalkConfig = async () => {
+  try {
+    await saveDingTalkConfig(dingTalkConfig)
+    ElMessage.success('钉钉配置保存成功')
+    showDingTalkConfig.value = false
+    // 重新加载配置以确保显示最新状态
+    await loadDingTalkConfig()
+  } catch (error) {
+    console.error('保存钉钉配置失败:', error)
+    ElMessage.error('保存钉钉配置失败')
+  }
+}
+
+// 工具方法
+const getLevelType = (priority) => {
+  console.log('获取级别类型:', priority)
   const types = {
-    'CRITICAL': 'danger',
-    'WARNING': 'warning',
-    'INFO': 'info'
+    'LOW': 'success',
+    'NORMAL': 'warning',
+    'HIGH': 'danger',
+    'URGENT': 'danger'
   }
-  return types[level] || 'info'
+  return types[priority] || 'info'
 }
 
-const getLevelText = (level) => {
+const getLevelText = (priority) => {
+  console.log('获取级别文本:', priority)
   const texts = {
-    'CRITICAL': '严重',
-    'WARNING': '警告',
-    'INFO': '信息'
+    'LOW': '低',
+    'NORMAL': '中',
+    'HIGH': '高',
+    'URGENT': '紧急'
   }
-  return texts[level] || level
-}
-
-const getStatusType = (status) => {
-  const types = {
-    'UNREAD': 'danger',
-    'READ': 'warning',
-    'RESOLVED': 'success'
-  }
-  return types[status] || 'info'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    'UNREAD': '未读',
-    'READ': '已读',
-    'RESOLVED': '已处理'
-  }
-  return texts[status] || status
+  return texts[priority] || priority
 }
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
+  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
 }
 
 // 生命周期
 onMounted(() => {
   loadAlerts()
+  loadDingTalkConfig()
 })
 </script>
 
@@ -530,68 +575,96 @@ onMounted(() => {
   gap: 10px;
 }
 
-.search-section {
-  background: #f5f7fa;
-  padding: 20px;
-  border-radius: 8px;
+.search-card {
   margin-bottom: 20px;
 }
 
-.alerts-stats {
+.stats-row {
   margin-bottom: 20px;
 }
 
-.stat-card {
+.stats-card {
   text-align: center;
-  border: none;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #e4e7ed;
 }
 
-.stat-card.critical {
-  border-left: 4px solid #f56c6c;
+.stats-card.urgent {
+  border-left-color: #f56c6c;
 }
 
-.stat-card.warning {
-  border-left: 4px solid #e6a23c;
+.stats-card.high {
+  border-left-color: #e6a23c;
 }
 
-.stat-card.info {
-  border-left: 4px solid #409eff;
+.stats-card.normal {
+  border-left-color: #409eff;
 }
 
-.stat-card.unread {
-  border-left: 4px solid #909399;
+.stats-card.unread {
+  border-left-color: #909399;
 }
 
-.stat-content {
+.stats-content {
   padding: 10px;
 }
 
-.stat-number {
+.stats-number {
   font-size: 24px;
   font-weight: bold;
   color: #303133;
-  margin-bottom: 5px;
 }
 
-.stat-label {
+.stats-label {
   font-size: 14px;
-  color: #606266;
+  color: #909399;
+  margin-top: 5px;
 }
 
-.alerts-table {
+.alerts-card {
   margin-bottom: 20px;
 }
 
-.pagination-section {
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-info {
+  display: flex;
+  gap: 10px;
+}
+
+.alert-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-title .unread {
+  font-weight: bold;
+  color: #f56c6c;
+}
+
+.text-muted {
+  color: #909399;
+}
+
+.pagination-container {
   display: flex;
   justify-content: center;
   margin-top: 20px;
 }
 
-.dialog-footer {
+.action-buttons {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .el-button {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 12px;
 }
 </style> 

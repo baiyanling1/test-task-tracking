@@ -3,6 +3,7 @@ package com.testtracking.controller;
 import com.testtracking.dto.UserDto;
 import com.testtracking.entity.User;
 import com.testtracking.security.JwtTokenUtil;
+import com.testtracking.service.LoginHistoryService;
 import com.testtracking.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,12 +29,13 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtTokenUtil;
     private final UserService userService;
+    private final LoginHistoryService loginHistoryService;
 
     /**
      * 用户登录
      */
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
@@ -49,6 +52,9 @@ public class AuthController {
             // 更新最后登录时间
             userService.updateLastLoginTime(loginRequest.getUsername());
 
+            // 记录登录历史
+            loginHistoryService.recordSuccessfulLogin(loginRequest.getUsername(), request);
+
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
             response.put("user", user);
@@ -56,6 +62,8 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("登录失败: {}", e.getMessage());
+            // 记录失败登录
+            loginHistoryService.recordFailedLogin(loginRequest.getUsername(), request);
             return ResponseEntity.badRequest().body("用户名或密码错误");
         }
     }

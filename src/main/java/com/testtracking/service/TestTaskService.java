@@ -430,6 +430,7 @@ public class TestTaskService {
         
         List<TestTask> allTasks = testTaskRepository.findAll();
         int updatedCount = 0;
+        int alertCount = 0;
         
         for (TestTask task : allTasks) {
             boolean wasOverdue = task.getIsOverdue();
@@ -438,10 +439,20 @@ public class TestTaskService {
             if (wasOverdue != task.getIsOverdue()) {
                 testTaskRepository.save(task);
                 updatedCount++;
+                
+                // 如果任务变为超时状态，发送通知
+                if (task.getIsOverdue()) {
+                    try {
+                        notificationService.sendTaskOverdueNotification(task);
+                        alertCount++;
+                    } catch (Exception e) {
+                        log.error("为超时任务发送通知失败: taskId={}, error={}", task.getId(), e.getMessage());
+                    }
+                }
             }
         }
         
-        log.info("超时任务检查完成，更新了 {} 个任务", updatedCount);
+        log.info("超时任务检查完成，更新了 {} 个任务，创建了 {} 个告警", updatedCount, alertCount);
     }
 
     /**

@@ -162,6 +162,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { getProfile, changePassword as changePasswordApi } from '@/api/auth'
+import { getMyLoginHistory } from '@/api/loginHistory'
 import dayjs from 'dayjs'
 
 const authStore = useAuthStore()
@@ -188,29 +189,7 @@ const userInfo = ref({
 })
 
 // 登录历史
-const loginHistory = ref([
-  {
-    id: 1,
-    loginTime: new Date(),
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    status: 'SUCCESS'
-  },
-  {
-    id: 2,
-    loginTime: new Date(Date.now() - 86400000),
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    status: 'SUCCESS'
-  },
-  {
-    id: 3,
-    loginTime: new Date(Date.now() - 172800000),
-    ipAddress: '192.168.1.101',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    status: 'SUCCESS'
-  }
-])
+const loginHistory = ref([])
 
 // 表单数据
 const profileFormRef = ref()
@@ -282,8 +261,21 @@ const loadUserInfo = async () => {
       bio: userData.bio || '',
       avatar: userData.avatar || ''
     })
+    
+    // 加载登录历史
+    await loadLoginHistory()
   } catch (error) {
     console.error('加载用户信息失败:', error)
+  }
+}
+
+const loadLoginHistory = async () => {
+  try {
+    const historyData = await getMyLoginHistory()
+    loginHistory.value = historyData
+  } catch (error) {
+    console.error('加载登录历史失败:', error)
+    ElMessage.error('加载登录历史失败')
   }
 }
 

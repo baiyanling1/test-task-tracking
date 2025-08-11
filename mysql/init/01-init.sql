@@ -225,9 +225,9 @@ INSERT INTO `task_progress` (`task_id`, `updated_by_user`, `progress_percentage`
 
 -- 插入示例通知
 INSERT INTO `notifications` (`title`, `content`, `notification_type`, `priority`, `is_read`, `recipient_id`, `related_task_id`, `related_entity_type`, `related_entity_id`, `action_url`) VALUES
-('任务超时提醒', '任务「移动端兼容性测试」已超时5天，请及时处理', 'TASK_OVERDUE', 'HIGH', false, 4, 4, 'TestTask', 4, '/tasks/4'),
-('任务完成通知', '任务「支付接口安全测试」已完成', 'TASK_COMPLETED', 'NORMAL', false, 3, 3, 'TestTask', 3, '/tasks/3'),
-('进度更新通知', '任务「用户登录功能测试」进度已更新为60%', 'TASK_PROGRESS_UPDATE', 'LOW', false, 3, 1, 'TestTask', 1, '/tasks/1');
+('任务超时提醒', '任务「移动端兼容性测试」已超时5天，请及时处理', 'TASK_OVERDUE', 'HIGH', false, 1, 4, 'TestTask', 4, '/tasks/4'),
+('任务完成通知', '任务「支付接口安全测试」已完成', 'TASK_COMPLETED', 'NORMAL', false, 1, 3, 'TestTask', 3, '/tasks/3'),
+('进度更新通知', '任务「用户登录功能测试」进度已更新为60%', 'TASK_PROGRESS_UPDATE', 'LOW', false, 1, 1, 'TestTask', 1, '/tasks/1');
 
 -- 插入登录历史
 INSERT INTO `login_history` (`user_id`, `login_time`, `ip_address`, `user_agent`, `status`) VALUES

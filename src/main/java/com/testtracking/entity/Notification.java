@@ -83,7 +83,8 @@ public class Notification extends BaseEntity {
     public enum NotificationPriority {
         LOW("低"),
         NORMAL("普通"),
-        HIGH("高");
+        HIGH("高"),
+        URGENT("紧急");
 
         private final String description;
 
