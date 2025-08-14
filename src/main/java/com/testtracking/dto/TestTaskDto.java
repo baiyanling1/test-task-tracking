@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 @Data
 public class TestTaskDto {
     private Long id;
+    private Long parentTaskId;  // 父任务ID
+    private TestTask.TaskType taskType;  // 任务类型
     private String taskName;
     private String taskDescription;
     private LocalDate startDate;
@@ -39,6 +41,8 @@ public class TestTaskDto {
     public static TestTaskDto fromEntity(TestTask task) {
         TestTaskDto dto = new TestTaskDto();
         dto.setId(task.getId());
+        dto.setParentTaskId(task.getParentTaskId());
+        dto.setTaskType(task.getTaskType());
         dto.setTaskName(task.getTaskName());
         dto.setTaskDescription(task.getTaskDescription());
         dto.setStartDate(task.getStartDate());
@@ -73,5 +77,14 @@ public class TestTaskDto {
         }
         
         return dto;
+    }
+    
+    // 添加一个方法来处理空值，避免JSON反序列化错误
+    public void setTestType(TestTask.TestType testType) {
+        this.testType = testType;
+    }
+    
+    public void setTaskType(TestTask.TaskType taskType) {
+        this.taskType = taskType;
     }
 } 

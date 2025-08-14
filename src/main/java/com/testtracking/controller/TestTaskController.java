@@ -59,7 +59,7 @@ public class TestTaskController {
      * 更新测试任务
      */
     @PutMapping("/{taskId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
     public ResponseEntity<?> updateTask(@PathVariable Long taskId, @Valid @RequestBody TestTaskDto taskDto) {
         try {
             String currentUsername = getCurrentUsername();
@@ -122,7 +122,9 @@ public class TestTaskController {
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String testType,
             @RequestParam(required = false) String startDateFrom,
-            @RequestParam(required = false) String startDateTo) {
+            @RequestParam(required = false) String startDateTo,
+            @RequestParam(required = false) Long parentTaskId,
+            @RequestParam(required = false) String taskType) {
         
         try {
             Pageable pageable = PageRequest.of(page, size, 
@@ -137,6 +139,7 @@ public class TestTaskController {
             TestTask.TaskStatus taskStatus = status != null ? TestTask.TaskStatus.valueOf(status.toUpperCase()) : null;
             TestTask.TaskPriority taskPriority = priority != null ? TestTask.TaskPriority.valueOf(priority.toUpperCase()) : null;
             TestTask.TestType taskTestType = testType != null ? TestTask.TestType.valueOf(testType.toUpperCase()) : null;
+            TestTask.TaskType taskTypeEnum = taskType != null ? TestTask.TaskType.valueOf(taskType.toUpperCase()) : null;
             
             // 解析开始时间范围
             LocalDate startFrom = null;
@@ -150,7 +153,7 @@ public class TestTaskController {
             
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
                     assignedTo, assignedToName, department, taskStatus, taskPriority, 
-                    projectName, taskTestType, startFrom, startTo, pageable);
+                    projectName, taskTestType, startFrom, startTo, parentTaskId, taskTypeEnum, pageable);
             
             return ResponseEntity.ok(tasks);
         } catch (Exception e) {
@@ -170,6 +173,66 @@ public class TestTaskController {
             return ResponseEntity.ok(overdueTasks);
         } catch (Exception e) {
             log.error("获取超时任务失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有版本任务
+     */
+    @GetMapping("/versions")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getVersionTasks() {
+        try {
+            List<TestTaskDto> versionTasks = testTaskService.getVersionTasks();
+            return ResponseEntity.ok(versionTasks);
+        } catch (Exception e) {
+            log.error("获取版本任务失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取指定版本下的需求任务
+     */
+    @GetMapping("/versions/{versionTaskId}/requirements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getRequirementTasksByVersion(@PathVariable Long versionTaskId) {
+        try {
+            List<TestTaskDto> requirementTasks = testTaskService.getRequirementTasksByVersion(versionTaskId);
+            return ResponseEntity.ok(requirementTasks);
+        } catch (Exception e) {
+            log.error("获取需求任务失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 计算版本任务的总体进度
+     */
+    @PostMapping("/versions/{versionTaskId}/calculate-progress")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> calculateVersionProgress(@PathVariable Long versionTaskId) {
+        try {
+            testTaskService.calculateVersionProgress(versionTaskId);
+            return ResponseEntity.ok("版本进度计算成功");
+        } catch (Exception e) {
+            log.error("计算版本进度失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取任务的层级结构
+     */
+    @GetMapping("/hierarchy")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getTaskHierarchy() {
+        try {
+            Map<String, Object> hierarchy = testTaskService.getTaskHierarchy();
+            return ResponseEntity.ok(hierarchy);
+        } catch (Exception e) {
+            log.error("获取任务层级结构失败: {}", e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

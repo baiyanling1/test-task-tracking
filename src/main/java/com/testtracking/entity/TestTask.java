@@ -22,6 +22,13 @@ public class TestTask extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "parent_task_id")
+    private Long parentTaskId;  // 父任务ID，null表示顶级任务（版本）
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type")
+    private TaskType taskType = TaskType.REQUIREMENT;  // 任务类型：VERSION（版本）或 REQUIREMENT（需求）
+
     @NotBlank(message = "任务名称不能为空")
     @Column(name = "task_name", nullable = false)
     private String taskName;
@@ -211,6 +218,21 @@ public class TestTask extends BaseEntity {
         private final String description;
 
         TestType(String description) {
+            this.description = description;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+    }
+
+    public enum TaskType {
+        VERSION("版本测试"),
+        REQUIREMENT("需求测试");
+
+        private final String description;
+
+        TaskType(String description) {
             this.description = description;
         }
 

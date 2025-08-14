@@ -78,4 +78,36 @@ export const updateTaskProgress = async (taskId, progressId, data) => {
 // 删除任务进度
 export const deleteTaskProgress = async (taskId, progressId) => {
   return request.delete(`/tasks/${taskId}/progress/${progressId}`)
+}
+
+// 获取所有版本任务
+export const getVersionTasks = () => {
+  return request({
+    url: '/tasks/versions',
+    method: 'get'
+  })
+}
+
+// 获取指定版本下的需求任务
+export const getRequirementTasksByVersion = (versionTaskId) => {
+  return request({
+    url: `/tasks/versions/${versionTaskId}/requirements`,
+    method: 'get'
+  })
+}
+
+// 计算版本任务的总体进度
+export const calculateVersionProgress = (versionTaskId) => {
+  return request({
+    url: `/tasks/versions/${versionTaskId}/calculate-progress`,
+    method: 'post'
+  })
+}
+
+// 获取任务的层级结构
+export const getTaskHierarchy = () => {
+  return request({
+    url: '/tasks/hierarchy',
+    method: 'get'
+  })
 } 

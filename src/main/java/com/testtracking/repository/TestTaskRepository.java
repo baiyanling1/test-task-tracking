@@ -30,6 +30,17 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     
     List<TestTask> findByTestType(TestTask.TestType testType);
 
+    // 父子任务关系查询
+    List<TestTask> findByParentTaskId(Long parentTaskId);
+    
+    List<TestTask> findByParentTaskIdIsNull();  // 查询顶级任务（版本）
+    
+    List<TestTask> findByTaskType(TestTask.TaskType taskType);
+    
+    List<TestTask> findByParentTaskIdAndTaskType(Long parentTaskId, TestTask.TaskType taskType);
+    
+    List<TestTask> findByParentTaskIdIsNullAndTaskType(TestTask.TaskType taskType);
+
     // 分页查询
     Page<TestTask> findByAssignedTo(User assignedTo, Pageable pageable);
     
@@ -61,7 +72,9 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "(:projectName IS NULL OR t.projectName = :projectName) AND " +
            "(:testType IS NULL OR t.testType = :testType) AND " +
            "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
-           "(:startDateTo IS NULL OR t.startDate <= :startDateTo)")
+           "(:startDateTo IS NULL OR t.startDate <= :startDateTo) AND " +
+           "(:parentTaskId IS NULL OR t.parentTaskId = :parentTaskId) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType)")
     Page<TestTask> findByFilters(@Param("assignedTo") User assignedTo,
                                  @Param("assignedToName") String assignedToName,
                                  @Param("department") String department,
@@ -71,6 +84,8 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
                                  @Param("testType") TestTask.TestType testType,
                                  @Param("startDateFrom") LocalDate startDateFrom,
                                  @Param("startDateTo") LocalDate startDateTo,
+                                 @Param("parentTaskId") Long parentTaskId,
+                                 @Param("taskType") TestTask.TaskType taskType,
                                  Pageable pageable);
 
     // 统计查询

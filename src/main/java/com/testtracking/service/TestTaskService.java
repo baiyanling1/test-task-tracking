@@ -35,6 +35,8 @@ public class TestTaskService {
      */
     public TestTaskDto createTask(TestTaskDto taskDto, String currentUsername) {
         log.info("创建测试任务: {}", taskDto.getTaskName());
+        log.info("任务类型: {}, 父任务ID: {}, 测试类型: {}", 
+                taskDto.getTaskType(), taskDto.getParentTaskId(), taskDto.getTestType());
         
         User currentUser = userRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new RuntimeException("当前用户不存在"));
@@ -42,6 +44,18 @@ public class TestTaskService {
         TestTask task = new TestTask();
         task.setTaskName(taskDto.getTaskName());
         task.setTaskDescription(taskDto.getTaskDescription());
+        task.setParentTaskId(taskDto.getParentTaskId());
+        // 处理任务类型，确保不为空
+        TestTask.TaskType taskType = taskDto.getTaskType();
+        if (taskType == null) {
+            // 如果有父任务ID，说明是需求测试
+            if (taskDto.getParentTaskId() != null) {
+                taskType = TestTask.TaskType.REQUIREMENT;
+            } else {
+                taskType = TestTask.TaskType.VERSION;
+            }
+        }
+        task.setTaskType(taskType);
         task.setStartDate(taskDto.getStartDate());
         task.setExpectedEndDate(taskDto.getExpectedEndDate());
         task.setParticipantCount(taskDto.getParticipantCount());
@@ -106,6 +120,18 @@ public class TestTaskService {
         // 更新基本信息
         task.setTaskName(taskDto.getTaskName());
         task.setTaskDescription(taskDto.getTaskDescription());
+        task.setParentTaskId(taskDto.getParentTaskId());
+        // 处理任务类型，确保不为空
+        TestTask.TaskType taskType = taskDto.getTaskType();
+        if (taskType == null) {
+            // 如果有父任务ID，说明是需求测试
+            if (taskDto.getParentTaskId() != null) {
+                taskType = TestTask.TaskType.REQUIREMENT;
+            } else {
+                taskType = task.getTaskType(); // 保持原有类型
+            }
+        }
+        task.setTaskType(taskType);
         task.setPriority(taskDto.getPriority());
         task.setStatus(taskDto.getStatus());
         task.setStartDate(taskDto.getStartDate());
@@ -212,10 +238,11 @@ public class TestTaskService {
                                                 TestTask.TaskPriority priority, String projectName, 
                                                 TestTask.TestType testType, 
                                                 LocalDate startDateFrom, LocalDate startDateTo,
+                                                Long parentTaskId, TestTask.TaskType taskType,
                                                 Pageable pageable) {
         Page<TestTask> tasks = testTaskRepository.findByFilters(assignedTo, assignedToName, department, 
                                                                status, priority, projectName, testType, 
-                                                               startDateFrom, startDateTo, pageable);
+                                                               startDateFrom, startDateTo, parentTaskId, taskType, pageable);
         return tasks.map(TestTaskDto::fromEntity);
     }
 
@@ -227,6 +254,75 @@ public class TestTaskService {
         return testTaskRepository.findByIsOverdueTrue().stream()
                 .map(TestTaskDto::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取所有版本任务（顶级任务）
+     */
+    @Transactional(readOnly = true)
+    public List<TestTaskDto> getVersionTasks() {
+        return testTaskRepository.findByParentTaskIdIsNullAndTaskType(TestTask.TaskType.VERSION).stream()
+                .map(TestTaskDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取指定版本下的需求任务
+     */
+    @Transactional(readOnly = true)
+    public List<TestTaskDto> getRequirementTasksByVersion(Long versionTaskId) {
+        return testTaskRepository.findByParentTaskIdAndTaskType(versionTaskId, TestTask.TaskType.REQUIREMENT).stream()
+                .map(TestTaskDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 计算版本任务的总体进度
+     */
+    @Transactional
+    public void calculateVersionProgress(Long versionTaskId) {
+        List<TestTask> requirements = testTaskRepository.findByParentTaskIdAndTaskType(versionTaskId, TestTask.TaskType.REQUIREMENT);
+        if (!requirements.isEmpty()) {
+            double avgProgress = requirements.stream()
+                .mapToInt(TestTask::getProgressPercentage)
+                .average()
+                .orElse(0.0);
+            
+            TestTask versionTask = testTaskRepository.findById(versionTaskId).orElse(null);
+            if (versionTask != null) {
+                versionTask.setProgressPercentage((int) avgProgress);
+                testTaskRepository.save(versionTask);
+            }
+        }
+    }
+
+    /**
+     * 获取任务的层级结构
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getTaskHierarchy() {
+        Map<String, Object> hierarchy = new HashMap<>();
+        
+        // 获取所有版本任务
+        List<TestTask> versionTasks = testTaskRepository.findByParentTaskIdIsNullAndTaskType(TestTask.TaskType.VERSION);
+        
+        List<Map<String, Object>> versions = new ArrayList<>();
+        for (TestTask versionTask : versionTasks) {
+            Map<String, Object> version = new HashMap<>();
+            version.put("version", TestTaskDto.fromEntity(versionTask));
+            
+            // 获取该版本下的需求任务
+            List<TestTask> requirementTasks = testTaskRepository.findByParentTaskIdAndTaskType(versionTask.getId(), TestTask.TaskType.REQUIREMENT);
+            List<TestTaskDto> requirements = requirementTasks.stream()
+                .map(TestTaskDto::fromEntity)
+                .collect(Collectors.toList());
+            version.put("requirements", requirements);
+            
+            versions.add(version);
+        }
+        
+        hierarchy.put("versions", versions);
+        return hierarchy;
     }
 
     /**

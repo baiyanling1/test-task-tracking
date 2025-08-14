@@ -1,9 +1,18 @@
 <template>
   <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside width="250px" class="sidebar">
+    <el-aside :width="sidebarWidth" class="sidebar" :class="{ 'sidebar-collapsed': isCollapsed }">
       <div class="logo">
-        <h2>测试任务跟踪系统</h2>
+        <h2 v-if="!isCollapsed">测试任务跟踪系统</h2>
+        <h2 v-else>测试</h2>
+      </div>
+      
+      <!-- 折叠按钮 -->
+      <div class="collapse-btn" @click="toggleSidebar">
+        <el-icon>
+          <ArrowLeft v-if="!isCollapsed" />
+          <ArrowRight v-else />
+        </el-icon>
       </div>
       
       <el-menu
@@ -13,6 +22,7 @@
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409EFF"
+        :collapse="isCollapsed"
       >
         <el-menu-item index="/">
           <el-icon><DataBoard /></el-icon>
@@ -87,7 +97,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
-import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding } from '@element-plus/icons-vue'
+import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,6 +105,19 @@ const authStore = useAuthStore()
 
 const user = computed(() => authStore.user)
 const unreadCount = ref(0)
+
+// 侧边栏折叠状态
+const isCollapsed = ref(false)
+
+// 计算侧边栏宽度
+const sidebarWidth = computed(() => {
+  return isCollapsed.value ? '64px' : '250px'
+})
+
+// 切换侧边栏折叠状态
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // 计算属性
 const canManageDepartments = computed(() => {
@@ -169,6 +192,12 @@ onMounted(() => {
 .sidebar {
   background-color: #304156;
   color: #bfcbd9;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.sidebar-collapsed {
+  width: 64px !important;
 }
 
 .logo {
@@ -177,12 +206,38 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid #1f2d3d;
+  transition: all 0.3s ease;
 }
 
 .logo h2 {
   color: #fff;
   margin: 0;
   font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.collapse-btn {
+  position: absolute;
+  top: 70px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  background-color: #409EFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  font-size: 12px;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.collapse-btn:hover {
+  background-color: #66b1ff;
+  transform: scale(1.1);
 }
 
 .sidebar-menu {
