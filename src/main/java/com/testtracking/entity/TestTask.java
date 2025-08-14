@@ -7,6 +7,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
+import javax.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -135,6 +136,15 @@ public class TestTask extends BaseEntity {
             this.status = TaskStatus.COMPLETED;
             this.actualEndDate = LocalDate.now();
         }
+    }
+
+    // 验证开始日期和结束日期的关系
+    @AssertTrue(message = "预计结束时间不能早于开始时间")
+    public boolean isEndDateValid() {
+        if (startDate == null || expectedEndDate == null) {
+            return true; // 如果任一日期为空，让@NotNull注解处理
+        }
+        return !expectedEndDate.isBefore(startDate); // 允许相等，但不允许结束日期早于开始日期
     }
 
     public enum TaskStatus {

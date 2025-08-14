@@ -707,8 +707,8 @@ const taskRules = {
     { required: true, message: '请选择开始日期', trigger: 'change' },
     { 
       validator: (rule, value, callback) => {
-        if (value && taskForm.expectedEndDate && value >= taskForm.expectedEndDate) {
-          callback(new Error('开始时间必须小于预计结束时间'))
+        if (value && taskForm.expectedEndDate && value > taskForm.expectedEndDate) {
+          callback(new Error('开始时间不能大于预计结束时间'))
         } else {
           callback()
         }
@@ -720,8 +720,8 @@ const taskRules = {
     { required: true, message: '请选择预计结束时间', trigger: 'change' },
     { 
       validator: (rule, value, callback) => {
-        if (value && taskForm.startDate && value <= taskForm.startDate) {
-          callback(new Error('预计结束时间必须大于开始时间'))
+        if (value && taskForm.startDate && value < taskForm.startDate) {
+          callback(new Error('预计结束时间不能小于开始时间'))
         } else {
           callback()
         }
