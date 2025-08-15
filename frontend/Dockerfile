@@ -1,5 +1,5 @@
 # 构建阶段
-FROM node:18-alpine as build-stage
+FROM node:18-alpine AS build-stage
 
 WORKDIR /app
 
@@ -12,11 +12,11 @@ RUN npm install
 # 复制源代码
 COPY . .
 
-# 构建应用
-RUN npm run build
+# 修复权限并构建应用
+RUN chmod +x node_modules/.bin/* && ./node_modules/.bin/vite build
 
 # 生产阶段
-FROM nginx:alpine as production-stage
+FROM nginx:alpine AS production-stage
 
 # 复制构建结果到nginx目录
 COPY --from=build-stage /app/dist /usr/share/nginx/html

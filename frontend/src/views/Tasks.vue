@@ -20,7 +20,8 @@
             v-model="searchQuery"
             placeholder="搜索任务名称或描述"
             clearable
-            @input="handleSearch"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
           >
             <template #prefix>
               <el-icon><Search /></el-icon>
@@ -759,45 +760,9 @@ const taskRules = {
   ]
 }
 
-// 计算属性
+// 计算属性 - 现在所有筛选都在后端处理，前端只显示结果
 const filteredTasks = computed(() => {
-  let filtered = tasks.value
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(task => 
-      (task.taskName && task.taskName.toLowerCase().includes(query)) ||
-      (task.taskDescription && task.taskDescription.toLowerCase().includes(query))
-    )
-  }
-
-  if (assignedToFilter.value) {
-    filtered = filtered.filter(task => task.assignedToName === assignedToFilter.value)
-  }
-
-  if (departmentFilter.value) {
-    filtered = filtered.filter(task => task.department === departmentFilter.value)
-  }
-
-  if (statusFilter.value) {
-    filtered = filtered.filter(task => task.status === statusFilter.value)
-  }
-
-  if (priorityFilter.value) {
-    filtered = filtered.filter(task => task.priority === priorityFilter.value)
-  }
-
-  if (startDateRange.value && startDateRange.value.length === 2) {
-    const [startDate, endDate] = startDateRange.value
-    filtered = filtered.filter(task => {
-      const taskStartDate = new Date(task.startDate).getTime()
-      const start = new Date(startDate).getTime()
-      const end = new Date(endDate).getTime()
-      return taskStartDate >= start && taskStartDate <= end
-    })
-  }
-
-  return filtered
+  return tasks.value
 })
 
 // 方法
@@ -827,6 +792,7 @@ const loadTasks = async () => {
       size: pageSize.value,
       sortBy: 'createdTime',
       sortDir: 'desc',
+      search: searchQuery.value || undefined,
       assignedToName: assignedToFilter.value || undefined,
       department: departmentFilter.value || undefined,
       status: statusFilter.value || undefined,
@@ -863,11 +829,13 @@ const loadTasks = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1
+  loadTasks()
 }
 
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
+  loadTasks()
 }
 
 const handleCurrentChange = (page) => {

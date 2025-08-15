@@ -114,6 +114,7 @@ public class TestTaskController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Long assignedToId,
             @RequestParam(required = false) String assignedToName,
             @RequestParam(required = false) String department,
@@ -150,7 +151,7 @@ public class TestTaskController {
             
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
                     assignedTo, assignedToName, department, taskStatus, taskPriority, 
-                    projectName, taskTestType, startFrom, startTo, pageable);
+                    projectName, taskTestType, startFrom, startTo, search, pageable);
             
             return ResponseEntity.ok(tasks);
         } catch (Exception e) {
