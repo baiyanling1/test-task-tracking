@@ -759,7 +759,18 @@ const taskRules = {
     }
   ],
   actualEndDate: [
-    { required: false, message: '请选择实际结束时间', trigger: 'change' }
+    { 
+      required: false, 
+      message: '请选择实际结束时间', 
+      trigger: 'change',
+      validator: (rule, value, callback) => {
+        if ((taskForm.progressPercentage === 100 || taskForm.status === 'COMPLETED') && !value) {
+          callback(new Error('进度为100%或状态为已完成时，实际结束时间是必填的'))
+        } else {
+          callback()
+        }
+      }
+    }
   ],
   progressPercentage: [
     { required: true, message: '请输入进度百分比', trigger: 'blur' },
@@ -776,8 +787,20 @@ const taskRules = {
     { type: 'number', min: 0, message: '工时必须大于等于0', trigger: 'blur' }
   ],
   actualManDays: [
-    { required: false, message: '请输入实际工时', trigger: 'blur' },
-    { type: 'number', min: 0, message: '实际工时必须大于等于0', trigger: 'blur' }
+    { 
+      required: false, 
+      message: '请输入实际工时', 
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if ((taskForm.progressPercentage === 100 || taskForm.status === 'COMPLETED') && (value === null || value === undefined || value <= 0)) {
+          callback(new Error('进度为100%或状态为已完成时，实际工时是必填的且必须大于0'))
+        } else if (value !== null && value !== undefined && value < 0) {
+          callback(new Error('实际工时必须大于等于0'))
+        } else {
+          callback()
+        }
+      }
+    }
   ],
   progressNotes: [
     { required: false, message: '请输入进度描述', trigger: 'blur' }
@@ -1207,8 +1230,16 @@ const canEditTask = (task) => {
   
   // 测试人员可以编辑分配给自己的任务或自己创建的任务
   if (userRole === 'TESTER') {
-    const isAssignee = task.assignedToName === currentUser?.realName || task.assignedToName === currentUser?.username
-    const isCreator = task.createdByUserName === currentUser?.realName || task.createdByUserName === currentUser?.username
+    // 检查是否为负责人（使用多种匹配方式）
+    const isAssignee = task.assignedToName === currentUser?.realName || 
+                      task.assignedToName === currentUser?.username ||
+                      task.assignedToId === currentUser?.id
+    
+    // 检查是否为创建者（使用多种匹配方式）
+    const isCreator = task.createdByUserName === currentUser?.realName || 
+                     task.createdByUserName === currentUser?.username ||
+                     task.createdByUserId === currentUser?.id
+    
     return isAssignee || isCreator
   }
   
