@@ -1054,11 +1054,8 @@ const saveTask = async () => {
     // 重置手动输入标记
     isActualManDaysManual.value = false
     
-    // 延迟重新加载任务列表，确保数据已保存
-    setTimeout(() => {
-      console.log('重新加载任务列表...')
-      loadTasks()
-    }, 1000)
+    // 重新加载任务列表
+    loadTasks()
   } catch (error) {
     // 检查是否是权限不足的错误
     if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('权限不足')) {
@@ -1151,11 +1148,8 @@ const addProgress = async () => {
     showAddProgressDialog.value = false
     loadProgressHistory(selectedTask.value.id)
     
-    // 延迟重新加载任务列表，确保数据已保存
-    setTimeout(() => {
-      console.log('重新加载任务列表...')
-      loadTasks()
-    }, 1000)
+    // 重新加载任务列表
+    loadTasks()
     
     // 重置表单
     progressForm.value = {
