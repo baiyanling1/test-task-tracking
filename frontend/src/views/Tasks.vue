@@ -337,7 +337,7 @@
             :step="0.5"
             placeholder="自动计算"
             style="width: 100%"
-            @change="calculateActualManDays"
+            @change="onActualManDaysChange"
           />
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
             * 根据实际开始和结束时间自动计算，可根据实际情况手动调整
@@ -707,6 +707,9 @@ const taskForm = reactive({
   progressNotes: ''
 })
 
+// 标记实际工时是否为手动输入
+const isActualManDaysManual = ref(false)
+
 // 表单验证规则
 const taskRules = {
   taskName: [
@@ -898,6 +901,8 @@ const createNewTask = () => {
     actualManDays: null,
     progressNotes: ''
   })
+  // 重置手动输入标记
+  isActualManDaysManual.value = false
   showCreateDialog.value = true
 }
 
@@ -921,6 +926,8 @@ const handleDialogClose = () => {
     actualManDays: null,
     progressNotes: ''
   })
+  // 重置手动输入标记
+  isActualManDaysManual.value = false
 }
 
 const editTask = (task) => {
@@ -942,6 +949,8 @@ const editTask = (task) => {
     actualManDays: task.actualManDays || null,
     progressNotes: task.progressNotes || ''
   })
+  // 编辑时重置手动输入标记，允许自动计算
+  isActualManDaysManual.value = false
   showCreateDialog.value = true
 }
 
@@ -1018,6 +1027,8 @@ const saveTask = async () => {
        actualManDays: null,
        progressNotes: ''
      })
+     // 重置手动输入标记
+     isActualManDaysManual.value = false
     loadTasks()
   } catch (error) {
     // 检查是否是权限不足的错误
@@ -1228,6 +1239,8 @@ const resetForm = () => {
     actualManDays: null,
     progressNotes: ''
   })
+  // 重置手动输入标记
+  isActualManDaysManual.value = false
   if (taskFormRef.value) {
     taskFormRef.value.resetFields()
   }
@@ -1303,6 +1316,11 @@ const calculateManDays = () => {
 
 // 计算实际工时
 const calculateActualManDays = () => {
+  // 如果是手动输入，不进行自动计算
+  if (isActualManDaysManual.value) {
+    return;
+  }
+  
   if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
     taskForm.actualManDays = null;
     return;
@@ -1316,6 +1334,13 @@ const calculateActualManDays = () => {
   
   // 实际工时 = 工作日 × 参与人数
   taskForm.actualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+};
+
+// 处理实际工时手动输入
+const onActualManDaysChange = (value) => {
+  // 标记为手动输入
+  isActualManDaysManual.value = true;
+  taskForm.actualManDays = value;
 };
 
 // 计算工作日（排除周末和节假日）
