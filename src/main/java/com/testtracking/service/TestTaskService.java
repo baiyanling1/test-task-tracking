@@ -73,6 +73,11 @@ public class TestTaskService {
             task.calculateManDays();
         }
         
+        // 设置实际工时
+        if (taskDto.getActualManDays() != null && taskDto.getActualManDays() >= 0) {
+            task.setActualManDays(taskDto.getActualManDays());
+        }
+        
         // 检查是否超时
         task.checkOverdue();
         
@@ -139,6 +144,11 @@ public class TestTaskService {
             task.setManDays(taskDto.getManDays());
         }
         // 如果没有提供工时，保持原有的工时值不变
+        
+        // 更新实际工时
+        if (taskDto.getActualManDays() != null && taskDto.getActualManDays() >= 0) {
+            task.setActualManDays(taskDto.getActualManDays());
+        }
         
         // 检查是否超时
         task.checkOverdue();

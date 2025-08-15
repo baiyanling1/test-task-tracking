@@ -29,24 +29,24 @@
           </el-input>
         </el-col>
         <el-col :span="3">
-          <el-select v-model="assignedToFilter" placeholder="负责人筛选" clearable @change="handleSearch">
-            <el-option label="全部" value="" />
-            <el-option
-              v-for="user in users"
-              :key="user.id"
-              :label="user.realName"
-              :value="user.realName"
-            />
-          </el-select>
-        </el-col>
-        <el-col :span="3">
-          <el-select v-model="departmentFilter" placeholder="部门筛选" clearable @change="handleSearch">
+          <el-select v-model="departmentFilter" placeholder="部门筛选" clearable @change="handleDepartmentChange">
             <el-option label="全部" value="" />
             <el-option
               v-for="dept in departments"
               :key="dept.id"
               :label="dept.name"
               :value="dept.name"
+            />
+          </el-select>
+        </el-col>
+        <el-col :span="3">
+          <el-select v-model="assignedToFilter" placeholder="负责人筛选" clearable @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option
+              v-for="user in filteredUsers"
+              :key="user.id"
+              :label="user.realName"
+              :value="user.realName"
             />
           </el-select>
         </el-col>
@@ -284,7 +284,7 @@
             :disabled="!!editingTask"
           />
         </el-form-item>
-        <el-form-item label="工时(人/天)" prop="manDays">
+        <el-form-item label="预计工时(人/天)" prop="manDays">
           <el-input-number
             v-model="taskForm.manDays"
             :min="0"
@@ -326,7 +326,22 @@
             placeholder="选择实际结束时间（可选）"
             value-format="YYYY-MM-DD"
             style="width: 100%"
+            @change="calculateActualManDays"
           />
+        </el-form-item>
+        <el-form-item label="实际工时(人/天)" prop="actualManDays" v-if="taskForm.status === 'COMPLETED' || taskForm.actualEndDate">
+          <el-input-number
+            v-model="taskForm.actualManDays"
+            :min="0"
+            :precision="1"
+            :step="0.5"
+            placeholder="自动计算"
+            style="width: 100%"
+            @change="calculateActualManDays"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            * 根据实际开始和结束时间自动计算，可根据实际情况手动调整
+          </div>
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="taskForm.status" placeholder="选择状态" style="width: 100%">
@@ -532,7 +547,7 @@
              placeholder="选择实际结束时间（必填）"
              value-format="YYYY-MM-DD"
              style="width: 100%"
-             @change="calculateActualManDays"
+             @change="calculateProgressActualManDays"
            />
          </el-form-item>
          
@@ -544,7 +559,7 @@
              :step="0.5"
              placeholder="请输入实际工时（必填）"
              style="width: 100%"
-             @change="calculateActualManDays"
+             @change="calculateProgressActualManDays"
            />
                              <div style="font-size: 12px; color: #909399; margin-top: 5px;">
                     * 请根据实际工时自己修改
@@ -688,6 +703,7 @@ const taskForm = reactive({
   status: 'PLANNED',
   delayReason: '',
   manDays: 0,
+  actualManDays: null,
   progressNotes: ''
 })
 
@@ -755,6 +771,10 @@ const taskRules = {
     { required: true, message: '请输入工时', trigger: 'blur' },
     { type: 'number', min: 0, message: '工时必须大于等于0', trigger: 'blur' }
   ],
+  actualManDays: [
+    { required: false, message: '请输入实际工时', trigger: 'blur' },
+    { type: 'number', min: 0, message: '实际工时必须大于等于0', trigger: 'blur' }
+  ],
   progressNotes: [
     { required: false, message: '请输入进度描述', trigger: 'blur' }
   ]
@@ -763,6 +783,14 @@ const taskRules = {
 // 计算属性 - 现在所有筛选都在后端处理，前端只显示结果
 const filteredTasks = computed(() => {
   return tasks.value
+})
+
+// 根据部门筛选用户
+const filteredUsers = computed(() => {
+  if (!departmentFilter.value) {
+    return users.value
+  }
+  return users.value.filter(user => user.department === departmentFilter.value)
 })
 
 // 方法
@@ -832,6 +860,13 @@ const handleSearch = () => {
   loadTasks()
 }
 
+const handleDepartmentChange = () => {
+  // 当部门变化时，清空负责人筛选
+  assignedToFilter.value = ''
+  currentPage.value = 1
+  loadTasks()
+}
+
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
@@ -860,6 +895,7 @@ const createNewTask = () => {
     status: 'PLANNED',
     delayReason: '',
     manDays: 0,
+    actualManDays: null,
     progressNotes: ''
   })
   showCreateDialog.value = true
@@ -882,6 +918,7 @@ const handleDialogClose = () => {
     status: 'PLANNED',
     delayReason: '',
     manDays: 0,
+    actualManDays: null,
     progressNotes: ''
   })
 }
@@ -902,6 +939,7 @@ const editTask = (task) => {
     status: task.status,
     delayReason: task.delayReason || '',
     manDays: task.manDays || 0,
+    actualManDays: task.actualManDays || null,
     progressNotes: task.progressNotes || ''
   })
   showCreateDialog.value = true
@@ -962,23 +1000,24 @@ const saveTask = async () => {
     }
 
     showCreateDialog.value = false
-    // 确保表单完全重置
-    Object.assign(taskForm, {
-      taskName: '',
-      taskDescription: '',
-      department: authStore.user?.department || '',
-      assignedToName: authStore.user?.realName || authStore.user?.username || '',
-      participantCount: 1,
-      priority: 'MEDIUM',
-      startDate: '',
-      expectedEndDate: '',
-      actualEndDate: '',
-      progressPercentage: 0,
-      status: 'PLANNED',
-      delayReason: '',
-      manDays: 0,
-      progressNotes: ''
-    })
+         // 确保表单完全重置
+     Object.assign(taskForm, {
+       taskName: '',
+       taskDescription: '',
+       department: authStore.user?.department || '',
+       assignedToName: authStore.user?.realName || authStore.user?.username || '',
+       participantCount: 1,
+       priority: 'MEDIUM',
+       startDate: '',
+       expectedEndDate: '',
+       actualEndDate: '',
+       progressPercentage: 0,
+       status: 'PLANNED',
+       delayReason: '',
+       manDays: 0,
+       actualManDays: null,
+       progressNotes: ''
+     })
     loadTasks()
   } catch (error) {
     // 检查是否是权限不足的错误
@@ -1095,8 +1134,8 @@ const showProgressUpdateDialog = () => {
   showAddProgressDialog.value = true
 }
 
-// 计算实际工时（排除节假日）
-const calculateActualManDays = () => {
+// 计算进度表单的实际工时（排除节假日）
+const calculateProgressActualManDays = () => {
   if (progressForm.value.progressPercentage === 100 && selectedTask.value) {
     const startDate = selectedTask.value.startDate
     const actualEndDate = progressForm.value.actualEndDate
@@ -1186,6 +1225,7 @@ const resetForm = () => {
     status: 'PLANNED',
     delayReason: '',
     manDays: 0,
+    actualManDays: null,
     progressNotes: ''
   })
   if (taskFormRef.value) {
@@ -1261,6 +1301,23 @@ const calculateManDays = () => {
   taskForm.manDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
 };
 
+// 计算实际工时
+const calculateActualManDays = () => {
+  if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
+    taskForm.actualManDays = null;
+    return;
+  }
+
+  const start = new Date(taskForm.startDate);
+  const end = new Date(taskForm.actualEndDate);
+  
+  // 排除节假日的工作日计算
+  const workDays = calculateWorkDays(start, end);
+  
+  // 实际工时 = 工作日 × 参与人数
+  taskForm.actualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+};
+
 // 计算工作日（排除周末和节假日）
 const calculateWorkDays = (startDate, endDate) => {
   let workDays = 0;
@@ -1282,6 +1339,10 @@ const calculateWorkDays = (startDate, endDate) => {
 onMounted(() => {
   loadUsers()
   loadDepartments()
+  // 非管理员默认显示自己的任务
+  if (authStore.user?.role !== 'ADMIN') {
+    assignedToFilter.value = authStore.user?.realName || authStore.user?.username || ''
+  }
   loadTasks()
 })
 </script>
