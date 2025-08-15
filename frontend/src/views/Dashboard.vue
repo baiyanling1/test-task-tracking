@@ -129,92 +129,29 @@
       </el-col>
     </el-row>
 
-    <!-- 最近任务和提醒 -->
-    <el-row :gutter="20" class="lists-row">
-      <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-        <el-card class="list-card">
-          <template #header>
-            <div class="card-header">
-              <span>最近任务</span>
-              <el-button text @click="$router.push('/tasks')">查看全部</el-button>
-            </div>
-          </template>
-          <div class="task-list">
-            <div v-if="recentTasks.length === 0" class="no-tasks">
-              <el-empty description="暂无最近任务" />
-            </div>
-            <div v-else v-for="task in recentTasks" :key="task.id" class="task-item">
-              <div class="task-info">
-                <div class="task-header">
-                  <div class="task-name" :title="task.taskName">{{ task.taskName }}</div>
-                  <el-tag :type="getStatusType(task.status)" size="small" class="status-tag">
-                    {{ getStatusText(task.status) }}
-                  </el-tag>
-                </div>
-                <div class="task-meta">
-                  <div class="assignee-info">
-                    <el-icon><User /></el-icon>
-                    <span>{{ task.assignedToName }}</span>
-                  </div>
-                  <div class="task-time" v-if="task.createdTime">
-                    {{ formatTime(task.createdTime) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-        <el-card class="list-card">
-          <template #header>
-            <div class="card-header">
-              <span>超时任务</span>
-              <el-button text @click="$router.push('/tasks')">查看全部</el-button>
-            </div>
-          </template>
-          <div class="task-list">
-            <div v-if="overdueTasks.length === 0" class="no-tasks">
-              <el-empty description="暂无超时任务" />
-            </div>
-            <div v-else v-for="task in overdueTasks" :key="task.id" class="task-item overdue">
-              <div class="task-info">
-                <div class="task-header">
-                  <div class="task-name" :title="task.taskName">{{ task.taskName }}</div>
-                  <el-tag type="danger" size="small" class="overdue-tag">超时</el-tag>
-                </div>
-                <div class="task-meta">
-                  <div class="assignee-info">
-                    <el-icon><User /></el-icon>
-                    <span>{{ task.assignedToName }}</span>
-                  </div>
-                  <div class="status-info">
-                    <el-tag :type="getStatusType(task.status)" size="small">
-                      {{ getStatusText(task.status) }}
-                    </el-tag>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-        <el-card class="list-card">
-          <template #header>
-            <div class="card-header">
-              <span>个人任务统计</span>
-              <el-button text @click="$router.push('/tasks')">查看全部</el-button>
-            </div>
-          </template>
-          <div class="chart-container">
-            <v-chart :option="userTaskChartOption" style="height: 300px" />
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+         <!-- 个人任务统计 -->
+     <el-row :gutter="20" class="lists-row">
+       <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+         <el-card class="list-card">
+           <template #header>
+             <div class="card-header">
+               <el-tabs v-model="activePersonalTab" class="personal-stats-tabs">
+                 <el-tab-pane label="本月任务" name="currentMonth" />
+                 <el-tab-pane label="上月任务" name="lastMonth" />
+               </el-tabs>
+             </div>
+           </template>
+           <div class="personal-stats-container">
+             <div v-if="activePersonalTab === 'currentMonth'" class="chart-container">
+               <v-chart :option="currentMonthUserTaskChartOption" style="height: 300px" />
+             </div>
+             <div v-else-if="activePersonalTab === 'lastMonth'" class="chart-container">
+               <v-chart :option="lastMonthUserTaskChartOption" style="height: 300px" />
+             </div>
+           </div>
+         </el-card>
+       </el-col>
+     </el-row>
   </div>
 </template>
 
@@ -266,6 +203,9 @@ const stats = ref({
 const recentTasks = ref([])
 const recentAlerts = ref([])
 const overdueTasks = ref([])
+const activePersonalTab = ref('currentMonth')
+const currentMonthUserTaskStats = ref([])
+const lastMonthUserTaskStats = ref([])
 
 // 饼图配置
 const pieChartOption = computed(() => ({
@@ -365,51 +305,167 @@ const lineChartOption = computed(() => {
   }
 })
 
-// 个人任务统计柱状图配置
-const userTaskChartOption = computed(() => {
-  // 从stats中获取个人任务统计数据，如果没有则使用默认数据
-  const userTaskData = stats.value.userTaskStats || [
-    { name: '张三', value: 0 },
-    { name: '李四', value: 0 },
-    { name: '王五', value: 0 }
-  ]
+// 本月个人任务统计柱状图配置
+const currentMonthUserTaskChartOption = computed(() => {
+  const userTaskData = currentMonthUserTaskStats.value || []
+  
+  if (userTaskData.length === 0) {
+    return {
+      tooltip: { trigger: 'axis' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: [] },
+      yAxis: { type: 'value' },
+      series: [{ name: '任务数量', type: 'bar', data: [] }]
+    }
+  }
+
+  // 使用分组柱状图，每个用户显示4种状态
+  const xAxisData = userTaskData.map(item => item.name)
+  const completedData = userTaskData.map(item => item.completed || 0)
+  const inProgressData = userTaskData.map(item => item.inProgress || 0)
+  const onHoldData = userTaskData.map(item => item.onHold || 0)
+  const plannedData = userTaskData.map(item => item.planned || 0)
 
   return {
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
+      axisPointer: { type: 'shadow' }
+    },
+    legend: {
+      data: ['已完成', '进行中', '计划中', '暂停'],
+      top: 10
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '3%',
+      bottom: '20%',
+      top: '15%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: userTaskData.map(item => item.name),
-      axisTick: {
+      data: xAxisData,
+      axisTick: { 
         alignWithLabel: true
+      },
+      axisLabel: {
+        fontSize: 10,
+        rotate: 45,
+        interval: 0
       }
     },
-    yAxis: {
-      type: 'value'
-    },
+    yAxis: { type: 'value' },
     series: [
       {
-        name: '任务数量',
+        name: '已完成',
         type: 'bar',
-        barWidth: '60%',
-        data: userTaskData.map(item => item.value),
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#83bff6' },
-            { offset: 0.5, color: '#188df0' },
-            { offset: 1, color: '#188df0' }
-          ])
-        }
+        data: completedData,
+        itemStyle: { color: '#67C23A' },
+        barWidth: '8%'
+      },
+      {
+        name: '进行中',
+        type: 'bar',
+        data: inProgressData,
+        itemStyle: { color: '#E6A23C' },
+        barWidth: '8%'
+      },
+      {
+        name: '计划中',
+        type: 'bar',
+        data: plannedData,
+        itemStyle: { color: '#909399' },
+        barWidth: '8%'
+      },
+      {
+        name: '暂停',
+        type: 'bar',
+        data: onHoldData,
+        itemStyle: { color: '#F56C6C' },
+        barWidth: '8%'
+      }
+    ]
+  }
+})
+
+// 上月个人任务统计柱状图配置
+const lastMonthUserTaskChartOption = computed(() => {
+  const userTaskData = lastMonthUserTaskStats.value || []
+  
+  if (userTaskData.length === 0) {
+    return {
+      tooltip: { trigger: 'axis' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: [] },
+      yAxis: { type: 'value' },
+      series: [{ name: '任务数量', type: 'bar', data: [] }]
+    }
+  }
+
+  // 使用分组柱状图，每个用户显示4种状态
+  const xAxisData = userTaskData.map(item => item.name)
+  const completedData = userTaskData.map(item => item.completed || 0)
+  const inProgressData = userTaskData.map(item => item.inProgress || 0)
+  const onHoldData = userTaskData.map(item => item.onHold || 0)
+  const plannedData = userTaskData.map(item => item.planned || 0)
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    legend: {
+      data: ['已完成', '进行中', '计划中', '暂停'],
+      top: 10
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '20%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: xAxisData,
+      axisTick: { 
+        alignWithLabel: true
+      },
+      axisLabel: {
+        fontSize: 10,
+        rotate: 45,
+        interval: 0
+      }
+    },
+    yAxis: { type: 'value' },
+    series: [
+      {
+        name: '已完成',
+        type: 'bar',
+        data: completedData,
+        itemStyle: { color: '#67C23A' },
+        barWidth: '8%'
+      },
+      {
+        name: '进行中',
+        type: 'bar',
+        data: inProgressData,
+        itemStyle: { color: '#E6A23C' },
+        barWidth: '8%'
+      },
+      {
+        name: '计划中',
+        type: 'bar',
+        data: plannedData,
+        itemStyle: { color: '#909399' },
+        barWidth: '8%'
+      },
+      {
+        name: '暂停',
+        type: 'bar',
+        data: onHoldData,
+        itemStyle: { color: '#F56C6C' },
+        barWidth: '8%'
       }
     ]
   }
@@ -551,13 +607,26 @@ const loadData = async () => {
       overdueTasks.value = []
     }
 
-    // 加载个人任务统计
+    // 加载本月个人任务统计
     try {
-      const userTaskStatsData = await request.get('/tasks/statistics/user-tasks')
-      stats.value.userTaskStats = userTaskStatsData || []
+      const currentMonthData = await request.get('/tasks/statistics/user-tasks-by-month', {
+        params: { month: 'current' }
+      })
+      currentMonthUserTaskStats.value = currentMonthData || []
     } catch (error) {
-      console.error('加载个人任务统计失败:', error)
-      stats.value.userTaskStats = []
+      console.error('加载本月个人任务统计失败:', error)
+      currentMonthUserTaskStats.value = []
+    }
+
+    // 加载上月个人任务统计
+    try {
+      const lastMonthData = await request.get('/tasks/statistics/user-tasks-by-month', {
+        params: { month: 'last' }
+      })
+      lastMonthUserTaskStats.value = lastMonthData || []
+    } catch (error) {
+      console.error('加载上月个人任务统计失败:', error)
+      lastMonthUserTaskStats.value = []
     }
   } catch (error) {
     console.error('加载仪表板数据失败:', error)
@@ -803,5 +872,72 @@ onMounted(() => {
 .no-tasks {
   text-align: center;
   padding: 40px 0;
+}
+
+.personal-stats-container {
+  height: 100%;
+}
+
+.personal-stats-tabs {
+  height: 100%;
+}
+
+.personal-stats-tabs .el-tabs__content {
+  height: calc(100% - 40px);
+}
+
+.personal-stats-tabs .el-tab-pane {
+  height: 100%;
+}
+
+/* 调整卡片头部的标签页样式 */
+.card-header .el-tabs {
+  margin: 0;
+  width: 100%;
+  position: relative;
+}
+
+.card-header .el-tabs__header {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: flex-end;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
+}
+
+.card-header .el-tabs__nav-wrap {
+  padding: 0;
+  display: flex;
+  justify-content: flex-end;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
+}
+
+.card-header .el-tabs__nav {
+  border: none;
+  margin-left: auto;
+  transform: translateX(-200px);
+  position: absolute;
+  right: 20px;
+  top: 0;
+}
+
+.card-header .el-tabs__item {
+  padding: 0 80px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-right: 20px;
+}
+
+.card-header .el-tabs__active-bar {
+  background-color: #409EFF;
+  height: 3px;
 }
 </style> 

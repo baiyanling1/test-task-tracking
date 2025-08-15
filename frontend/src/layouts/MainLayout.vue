@@ -1,9 +1,10 @@
 <template>
   <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside width="250px" class="sidebar">
+    <el-aside :width="isCollapsed ? '64px' : '250px'" class="sidebar">
       <div class="logo">
-        <h2>测试任务跟踪系统</h2>
+        <h2 v-if="!isCollapsed">测试任务跟踪系统</h2>
+        <h2 v-else>测试</h2>
       </div>
       
       <el-menu
@@ -13,6 +14,7 @@
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409EFF"
+        :collapse="isCollapsed"
       >
         <el-menu-item index="/">
           <el-icon><DataBoard /></el-icon>
@@ -47,6 +49,16 @@
       <!-- 顶部导航 -->
       <el-header class="header">
         <div class="header-left">
+          <el-button
+            type="text"
+            @click="toggleCollapse"
+            class="collapse-btn"
+          >
+            <el-icon>
+              <Expand v-if="isCollapsed" />
+              <Fold v-else />
+            </el-icon>
+          </el-button>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item v-for="item in breadcrumbs" :key="item.path" :to="item.path">
               {{ item.name }}
@@ -87,7 +99,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
-import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding } from '@element-plus/icons-vue'
+import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,6 +107,12 @@ const authStore = useAuthStore()
 
 const user = computed(() => authStore.user)
 const unreadCount = ref(0)
+const isCollapsed = ref(false)
+
+// 切换菜单折叠状态
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // 计算属性
 const canManageDepartments = computed(() => {
@@ -204,6 +222,13 @@ onMounted(() => {
 
 .header-left {
   flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.collapse-btn {
+  margin-right: 16px;
+  font-size: 18px;
 }
 
 .header-right {

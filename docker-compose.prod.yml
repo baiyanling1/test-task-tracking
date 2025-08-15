@@ -20,7 +20,7 @@ services:
       - ./mysql/conf:/etc/mysql/conf.d
     networks:
       - test_tracking_network
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --server-id=1
 
   # Redis缓存服务（可选，用于会话管理）
   redis:

@@ -292,6 +292,9 @@
             style="width: 100%"
             :disabled="!!editingTask"
           />
+              <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+                * 根据时间区间和参与人数自动计算，可根据实际情况手动调整
+              </div>
         </el-form-item>
         
         <!-- 任务进度模块 -->
@@ -528,6 +531,7 @@
              placeholder="选择实际结束时间（必填）"
              value-format="YYYY-MM-DD"
              style="width: 100%"
+             @change="calculateActualManDays"
            />
          </el-form-item>
          
@@ -539,7 +543,11 @@
              :step="0.5"
              placeholder="请输入实际工时（必填）"
              style="width: 100%"
+             @change="calculateActualManDays"
            />
+                             <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+                    * 请根据实际工时自己修改
+                  </div>
          </el-form-item>
       </el-form>
       
@@ -1119,6 +1127,20 @@ const showProgressUpdateDialog = () => {
   showAddProgressDialog.value = true
 }
 
+// 计算实际工时（排除节假日）
+const calculateActualManDays = () => {
+  if (progressForm.value.progressPercentage === 100 && selectedTask.value) {
+    const startDate = selectedTask.value.startDate
+    const actualEndDate = progressForm.value.actualEndDate
+    
+    if (startDate && actualEndDate) {
+      const workDays = calculateWorkDays(new Date(startDate), new Date(actualEndDate))
+      const participantCount = selectedTask.value.participantCount || 1
+      progressForm.value.actualManDays = parseFloat((workDays * participantCount).toFixed(1))
+    }
+  }
+}
+
 // 自定义tooltip功能
 const tooltipVisible = ref(false)
 const tooltipContent = ref('')
@@ -1149,8 +1171,21 @@ const hideTooltip = () => {
 // 权限检查方法
 const canEditTask = (task) => {
   const userRole = authStore.user?.role
-  // 只有管理员和测试经理可以编辑任务
-  return userRole === 'ADMIN' || userRole === 'MANAGER'
+  const currentUser = authStore.user
+  
+  // 管理员和测试经理可以编辑所有任务
+  if (userRole === 'ADMIN' || userRole === 'MANAGER') {
+    return true
+  }
+  
+  // 测试人员可以编辑分配给自己的任务或自己创建的任务
+  if (userRole === 'TESTER') {
+    const isAssignee = task.assignedToName === currentUser?.realName || task.assignedToName === currentUser?.username
+    const isCreator = task.createdByUserName === currentUser?.realName || task.createdByUserName === currentUser?.username
+    return isAssignee || isCreator
+  }
+  
+  return false
 }
 
 const canDeleteTask = (task) => {

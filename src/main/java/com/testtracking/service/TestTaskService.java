@@ -357,6 +357,62 @@ public class TestTaskService {
     }
 
     /**
+     * 获取本月或上月的个人任务统计（按状态分类）
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getUserTaskStatisticsByMonth(String month) {
+        LocalDate now = LocalDate.now();
+        LocalDate monthStart, monthEnd;
+        
+        if ("last".equals(month)) {
+            // 上月
+            monthStart = now.minusMonths(1).withDayOfMonth(1);
+            monthEnd = now.minusMonths(1).withDayOfMonth(now.minusMonths(1).lengthOfMonth());
+        } else {
+            // 本月
+            monthStart = now.withDayOfMonth(1);
+            monthEnd = now.withDayOfMonth(now.lengthOfMonth());
+        }
+        
+        List<Object[]> results = testTaskRepository.countByUserAndStatusThisMonth(monthStart, monthEnd);
+        Map<String, Map<String, Object>> userStatsMap = new HashMap<>();
+        
+        for (Object[] result : results) {
+            String userName = (String) result[0];
+            TestTask.TaskStatus status = (TestTask.TaskStatus) result[1];
+            Long count = (Long) result[2];
+            
+            if (!userStatsMap.containsKey(userName)) {
+                Map<String, Object> userStat = new HashMap<>();
+                userStat.put("name", userName);
+                userStat.put("completed", 0L);
+                userStat.put("inProgress", 0L);
+                userStat.put("onHold", 0L);
+                userStat.put("planned", 0L);
+                userStatsMap.put(userName, userStat);
+            }
+            
+            Map<String, Object> userStat = userStatsMap.get(userName);
+            switch (status) {
+                case COMPLETED:
+                    userStat.put("completed", count);
+                    break;
+                case IN_PROGRESS:
+                    userStat.put("inProgress", count);
+                    break;
+                case ON_HOLD:
+                    userStat.put("onHold", count);
+                    break;
+                case PLANNED:
+                    userStat.put("planned", count);
+                    break;
+            }
+        }
+        
+        return new ArrayList<>(userStatsMap.values());
+    }
+
+    /**
      * 检查用户是否为任务负责人（用于权限控制）
      */
     public boolean isTaskAssignee(Long taskId, String username) {

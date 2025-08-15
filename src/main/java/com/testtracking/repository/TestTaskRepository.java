@@ -136,4 +136,12 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "GROUP BY t.assignedTo.realName " +
            "ORDER BY COUNT(t) DESC")
     List<Object[]> countByUserThisMonth(@Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
+
+    // 个人任务统计（按状态分类）
+    @Query("SELECT t.assignedTo.realName, t.status, COUNT(t) FROM TestTask t " +
+           "WHERE t.assignedTo IS NOT NULL " +
+           "AND t.startDate >= :monthStart AND t.startDate <= :monthEnd " +
+           "GROUP BY t.assignedTo.realName, t.status " +
+           "ORDER BY t.assignedTo.realName, t.status")
+    List<Object[]> countByUserAndStatusThisMonth(@Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
 } 

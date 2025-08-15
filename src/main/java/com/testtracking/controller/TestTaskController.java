@@ -358,6 +358,21 @@ public class TestTaskController {
         }
     }
 
+    /**
+     * 获取本月或上月的个人任务统计
+     */
+    @GetMapping("/statistics/user-tasks-by-month")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getUserTaskStatisticsByMonth(@RequestParam String month) {
+        try {
+            List<Map<String, Object>> userStats = testTaskService.getUserTaskStatisticsByMonth(month);
+            return ResponseEntity.ok(userStats);
+        } catch (Exception e) {
+            log.error("获取个人任务统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取个人任务统计失败");
+        }
+    }
+
     // 获取当前用户名
     private String getCurrentUsername() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
