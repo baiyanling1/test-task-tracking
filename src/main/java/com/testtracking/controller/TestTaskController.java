@@ -59,7 +59,7 @@ public class TestTaskController {
      * 更新测试任务
      */
     @PutMapping("/{taskId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
     public ResponseEntity<?> updateTask(@PathVariable Long taskId, @Valid @RequestBody TestTaskDto taskDto) {
         try {
             String currentUsername = getCurrentUsername();

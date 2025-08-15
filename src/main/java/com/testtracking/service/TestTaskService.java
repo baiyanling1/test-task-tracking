@@ -443,23 +443,50 @@ public class TestTaskService {
 
     // 权限检查方法
     private boolean canModifyTask(TestTask task, User currentUser) {
+        log.info("权限检查 - 任务ID: {}, 当前用户: {} (ID: {}), 角色: {}", 
+                task.getId(), currentUser.getUsername(), currentUser.getId(), currentUser.getRole());
+        
         // ADMIN可以修改所有任务
         if (currentUser.getRole() == User.UserRole.ADMIN) {
+            log.info("用户是管理员，允许修改");
             return true;
         }
         
         // MANAGER可以修改所有任务
         if (currentUser.getRole() == User.UserRole.MANAGER) {
+            log.info("用户是经理，允许修改");
             return true;
         }
         
         // TESTER只能修改分配给自己的任务或自己创建的任务
         if (currentUser.getRole() == User.UserRole.TESTER) {
-            boolean isAssignee = task.getAssignedTo() != null && task.getAssignedTo().getId().equals(currentUser.getId());
-            boolean isCreator = task.getCreatedByUser() != null && task.getCreatedByUser().getId().equals(currentUser.getId());
-            return isAssignee || isCreator;
+            boolean isAssignee = false;
+            boolean isCreator = false;
+            
+            if (task.getAssignedTo() != null) {
+                isAssignee = task.getAssignedTo().getId().equals(currentUser.getId());
+                log.info("任务负责人: {} (ID: {}), 当前用户ID: {}, 是否为负责人: {}", 
+                        task.getAssignedTo().getUsername(), task.getAssignedTo().getId(), 
+                        currentUser.getId(), isAssignee);
+            } else {
+                log.info("任务没有分配负责人");
+            }
+            
+            if (task.getCreatedByUser() != null) {
+                isCreator = task.getCreatedByUser().getId().equals(currentUser.getId());
+                log.info("任务创建者: {} (ID: {}), 当前用户ID: {}, 是否为创建者: {}", 
+                        task.getCreatedByUser().getUsername(), task.getCreatedByUser().getId(), 
+                        currentUser.getId(), isCreator);
+            } else {
+                log.info("任务没有创建者信息");
+            }
+            
+            boolean canModify = isAssignee || isCreator;
+            log.info("TESTER权限检查结果: {}", canModify);
+            return canModify;
         }
         
+        log.info("用户角色不匹配，拒绝修改");
         return false;
     }
     
