@@ -44,6 +44,7 @@ public class TestTaskService {
         task.setTaskDescription(taskDto.getTaskDescription());
         task.setStartDate(taskDto.getStartDate());
         task.setExpectedEndDate(taskDto.getExpectedEndDate());
+        task.setActualEndDate(taskDto.getActualEndDate());
         task.setParticipantCount(taskDto.getParticipantCount());
         task.setPriority(taskDto.getPriority() != null ? taskDto.getPriority() : TestTask.TaskPriority.MEDIUM);
         task.setRiskLevel(taskDto.getRiskLevel() != null ? taskDto.getRiskLevel() : TestTask.RiskLevel.LOW);

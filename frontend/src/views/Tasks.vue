@@ -299,16 +299,17 @@
         </el-form-item>
         
         <!-- 任务进度模块 -->
-        <el-form-item label="当前进度" prop="progressPercentage">
-          <el-slider
-            v-model="taskForm.progressPercentage"
-            :min="0"
-            :max="100"
-            :step="5"
-            show-input
-            style="width: 100%"
-          />
-        </el-form-item>
+                 <el-form-item label="当前进度" prop="progressPercentage">
+           <el-slider
+             v-model="taskForm.progressPercentage"
+             :min="0"
+             :max="100"
+             :step="5"
+             show-input
+             style="width: 100%"
+             @change="onProgressChange"
+           />
+         </el-form-item>
         
         <el-form-item label="进度描述" prop="progressNotes">
           <el-input
@@ -343,15 +344,15 @@
             * 根据实际开始和结束时间自动计算，可根据实际情况手动调整
           </div>
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="taskForm.status" placeholder="选择状态" style="width: 100%">
-            <el-option label="计划中" value="PLANNED" />
-            <el-option label="进行中" value="IN_PROGRESS" />
-            <el-option label="已完成" value="COMPLETED" />
-            <el-option label="已暂停" value="ON_HOLD" />
-            <el-option label="已取消" value="CANCELLED" />
-          </el-select>
-        </el-form-item>
+                 <el-form-item label="状态" prop="status">
+           <el-select v-model="taskForm.status" placeholder="选择状态" style="width: 100%" @change="onStatusChange">
+             <el-option label="计划中" value="PLANNED" />
+             <el-option label="进行中" value="IN_PROGRESS" />
+             <el-option label="已完成" value="COMPLETED" />
+             <el-option label="已暂停" value="ON_HOLD" />
+             <el-option label="已取消" value="CANCELLED" />
+           </el-select>
+         </el-form-item>
         <el-form-item label="延期备注" prop="delayReason" v-if="taskForm.actualEndDate && taskForm.expectedEndDate && taskForm.actualEndDate > taskForm.expectedEndDate">
           <el-input
             v-model="taskForm.delayReason"
@@ -1009,27 +1010,32 @@ const saveTask = async () => {
     }
 
     showCreateDialog.value = false
-         // 确保表单完全重置
-     Object.assign(taskForm, {
-       taskName: '',
-       taskDescription: '',
-       department: authStore.user?.department || '',
-       assignedToName: authStore.user?.realName || authStore.user?.username || '',
-       participantCount: 1,
-       priority: 'MEDIUM',
-       startDate: '',
-       expectedEndDate: '',
-       actualEndDate: '',
-       progressPercentage: 0,
-       status: 'PLANNED',
-       delayReason: '',
-       manDays: 0,
-       actualManDays: null,
-       progressNotes: ''
-     })
-     // 重置手动输入标记
-     isActualManDaysManual.value = false
-    loadTasks()
+    // 确保表单完全重置
+    Object.assign(taskForm, {
+      taskName: '',
+      taskDescription: '',
+      department: authStore.user?.department || '',
+      assignedToName: authStore.user?.realName || authStore.user?.username || '',
+      participantCount: 1,
+      priority: 'MEDIUM',
+      startDate: '',
+      expectedEndDate: '',
+      actualEndDate: '',
+      progressPercentage: 0,
+      status: 'PLANNED',
+      delayReason: '',
+      manDays: 0,
+      actualManDays: null,
+      progressNotes: ''
+    })
+    // 重置手动输入标记
+    isActualManDaysManual.value = false
+    
+    // 延迟重新加载任务列表，确保数据已保存
+    setTimeout(() => {
+      console.log('重新加载任务列表...')
+      loadTasks()
+    }, 1000)
   } catch (error) {
     // 检查是否是权限不足的错误
     if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('权限不足')) {
@@ -1122,8 +1128,11 @@ const addProgress = async () => {
     showAddProgressDialog.value = false
     loadProgressHistory(selectedTask.value.id)
     
-    // 重新加载任务列表
-    await loadTasks()
+    // 延迟重新加载任务列表，确保数据已保存
+    setTimeout(() => {
+      console.log('重新加载任务列表...')
+      loadTasks()
+    }, 1000)
     
     // 重置表单
     progressForm.value = {
@@ -1341,6 +1350,40 @@ const onActualManDaysChange = (value) => {
   // 标记为手动输入
   isActualManDaysManual.value = true;
   taskForm.actualManDays = value;
+};
+
+// 处理进度变化
+const onProgressChange = (value) => {
+  // 如果进度设置为100%，自动将状态设置为已完成
+  if (value === 100) {
+    taskForm.status = 'COMPLETED';
+  }
+  // 如果进度从100%降低，且状态是已完成，则根据进度调整状态
+  else if (value < 100 && taskForm.status === 'COMPLETED') {
+    if (value === 0) {
+      taskForm.status = 'PLANNED';
+    } else {
+      taskForm.status = 'IN_PROGRESS';
+    }
+  }
+};
+
+// 处理状态变化
+const onStatusChange = (value) => {
+  // 如果状态设置为已完成，自动将进度设置为100%
+  if (value === 'COMPLETED') {
+    taskForm.progressPercentage = 100;
+  }
+  // 如果状态从已完成改为其他状态，且进度是100%，则根据状态调整进度
+  else if (value !== 'COMPLETED' && taskForm.progressPercentage === 100) {
+    if (value === 'PLANNED') {
+      taskForm.progressPercentage = 0;
+    } else if (value === 'IN_PROGRESS') {
+      taskForm.progressPercentage = 50; // 默认设置为50%
+    } else {
+      taskForm.progressPercentage = 0; // 其他状态设置为0
+    }
+  }
 };
 
 // 计算工作日（排除周末和节假日）
