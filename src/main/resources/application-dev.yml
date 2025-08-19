@@ -65,7 +65,7 @@ management:
 dingtalk:
   enabled: false  # 本地开发时关闭钉钉通知
   webhook:
-    url: https://oapi.dingtalk.com/robot/send?access_token=your_access_token
+    url: https://oapi.dingtalk.com/robot/send?access_token=98b6b18dfda2b07323b01b7050fce8a34ffce394815428c85eef1cff4ee41726
   secret: your_secret
 
 # 定时任务配置

@@ -6,47 +6,10 @@
         <el-button type="warning" @click="markAllAsRead" :disabled="unreadCount === 0">
           全部标记为已读
         </el-button>
-        <el-button type="primary" @click="showDingTalkConfig = true">
-          钉钉配置
-        </el-button>
-        <el-button type="info" @click="handleTestDingTalkConnection">
-          测试钉钉连接
-        </el-button>
       </div>
     </div>
 
-    <!-- 钉钉配置对话框 -->
-    <el-dialog
-      v-model="showDingTalkConfig"
-      title="钉钉通知配置"
-      width="600px"
-      @close="closeDingTalkConfig"
-    >
-      <el-form :model="dingTalkConfig" label-width="120px">
-        <el-form-item label="启用钉钉通知">
-          <el-switch v-model="dingTalkConfig.enabled" />
-        </el-form-item>
-        <el-form-item label="Webhook地址">
-          <el-input
-            v-model="dingTalkConfig.webhookUrl"
-            placeholder="https://oapi.dingtalk.com/robot/send?access_token=your_token"
-            :disabled="!dingTalkConfig.enabled"
-          />
-        </el-form-item>
-        <el-form-item label="签名密钥">
-          <el-input
-            v-model="dingTalkConfig.secret"
-            placeholder="钉钉机器人签名密钥（可选）"
-            :disabled="!dingTalkConfig.enabled"
-            show-password
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="closeDingTalkConfig">取消</el-button>
-                 <el-button type="primary" @click="handleSaveDingTalkConfig">保存配置</el-button>
-      </template>
-    </el-dialog>
+
 
     <!-- 搜索和筛选 -->
     <el-card class="search-card">
@@ -241,10 +204,7 @@ import {
   markAllAlertsAsRead,
   deleteAlert,
   deleteAlerts,
-  getUnreadAlertCount,
-  testDingTalkConnection,
-  getDingTalkConfig,
-  saveDingTalkConfig
+  getUnreadAlertCount
 } from '@/api/alerts'
 
 // 响应式数据
@@ -253,14 +213,6 @@ const alerts = ref([])
 const selectedAlerts = ref([])
 const total = ref(0)
 const unreadCount = ref(0)
-const showDingTalkConfig = ref(false)
-
-// 钉钉配置
-const dingTalkConfig = reactive({
-  enabled: false,
-  webhookUrl: '',
-  secret: ''
-})
 
 // 搜索表单
 const searchForm = reactive({
@@ -478,45 +430,7 @@ const batchDelete = async () => {
   }
 }
 
-// 测试钉钉连接
-const handleTestDingTalkConnection = async () => {
-  try {
-    await testDingTalkConnection()
-    ElMessage.success('钉钉连接测试成功')
-  } catch (error) {
-    console.error('钉钉连接测试失败:', error)
-    ElMessage.error('钉钉连接测试失败')
-  }
-}
 
-// 钉钉配置相关
-const loadDingTalkConfig = async () => {
-  try {
-    const config = await getDingTalkConfig()
-    dingTalkConfig.enabled = config.enabled || false
-    dingTalkConfig.webhookUrl = config.webhookUrl || ''
-    dingTalkConfig.secret = config.secret || ''
-  } catch (error) {
-    console.error('加载钉钉配置失败:', error)
-  }
-}
-
-const closeDingTalkConfig = () => {
-  showDingTalkConfig.value = false
-}
-
-const handleSaveDingTalkConfig = async () => {
-  try {
-    await saveDingTalkConfig(dingTalkConfig)
-    ElMessage.success('钉钉配置保存成功')
-    showDingTalkConfig.value = false
-    // 重新加载配置以确保显示最新状态
-    await loadDingTalkConfig()
-  } catch (error) {
-    console.error('保存钉钉配置失败:', error)
-    ElMessage.error('保存钉钉配置失败')
-  }
-}
 
 // 工具方法
 const getLevelType = (priority) => {
@@ -549,7 +463,6 @@ const formatDateTime = (date) => {
 // 生命周期
 onMounted(() => {
   loadAlerts()
-  loadDingTalkConfig()
 })
 </script>
 

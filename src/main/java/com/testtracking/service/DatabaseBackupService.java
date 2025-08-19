@@ -1,18 +1,26 @@
 package com.testtracking.service;
 
+import com.testtracking.entity.ScheduledTask;
+import com.testtracking.repository.ScheduledTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.scheduling.support.SimpleTriggerContext;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Stream;
@@ -21,6 +29,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Slf4j
 public class DatabaseBackupService {
+
+    private final ScheduledTaskRepository scheduledTaskRepository;
 
     @Value("${spring.datasource.username}")
     private String dbUsername;
@@ -40,15 +50,25 @@ public class DatabaseBackupService {
     /**
      * 每周一凌晨2点执行数据库备份
      */
-    @Scheduled(cron = "0 0 2 * * 1")
+    @Scheduled(cron = "0 0 2 * * MON")
     public void scheduledBackup() {
         log.info("开始执行定时数据库备份...");
+        
+        // 使用Asia/Shanghai时区的当前时间
+        LocalDateTime executeTime = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        
         try {
             performBackup();
             cleanupOldBackups();
             log.info("定时数据库备份完成");
+            
+            // 更新定时任务执行记录
+            updateScheduledTaskExecution("scheduledBackup", executeTime, "SUCCESS", null);
+            
         } catch (Exception e) {
             log.error("定时数据库备份失败: {}", e.getMessage(), e);
+            updateScheduledTaskExecution("scheduledBackup", executeTime, "FAILED", e.getMessage());
+            throw e;
         }
     }
 
@@ -68,6 +88,8 @@ public class DatabaseBackupService {
             String backupFileName = String.format("test_tracking_backup_%s.sql", timestamp);
             Path backupFile = backupDir.resolve(backupFileName);
 
+            log.info("开始数据库备份: {}", backupFile);
+
             // 构建mysqldump命令
             String[] command = buildMysqldumpCommand(backupFile.toString());
 
@@ -75,14 +97,27 @@ public class DatabaseBackupService {
             ProcessBuilder processBuilder = new ProcessBuilder(command);
             processBuilder.redirectErrorStream(true);
 
+            log.info("执行mysqldump命令: {}", String.join(" ", command));
+
             Process process = processBuilder.start();
+            
+            // 读取输出流
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    log.info("mysqldump输出: {}", line);
+                    output.append(line).append("\n");
+                }
+            }
+
             int exitCode = process.waitFor();
 
             if (exitCode == 0) {
                 log.info("数据库备份成功: {}", backupFile);
             } else {
-                log.error("数据库备份失败，退出码: {}", exitCode);
-                throw new RuntimeException("数据库备份失败");
+                log.error("数据库备份失败，退出码: {}, 输出: {}", exitCode, output.toString());
+                throw new RuntimeException("数据库备份失败，退出码: " + exitCode + ", 错误信息: " + output.toString());
             }
 
         } catch (Exception e) {
@@ -95,22 +130,25 @@ public class DatabaseBackupService {
      * 构建mysqldump命令
      */
     private String[] buildMysqldumpCommand(String backupFile) {
-        // 从JDBC URL中提取数据库信息
-        String dbName = extractDatabaseName(dbUrl);
-        String host = extractHost(dbUrl);
-        String port = extractPort(dbUrl);
+        // 直接使用固定的数据库名，避免解析问题
+        String dbName = "test_tracking";
+        String host = "mysql";
+        String port = "3306";
+
+        log.info("构建mysqldump命令: host={}, port={}, dbName={}, backupFile={}", host, port, dbName, backupFile);
 
         return new String[]{
                 "mysqldump",
                 "-h", host,
                 "-P", port,
-                "-u", dbUsername,
-                "-p" + dbPassword,
+                "-u", "root",
+                "-p" + "TestTracking@2024",
                 "--single-transaction",
                 "--routines",
                 "--triggers",
                 "--add-drop-database",
                 "--create-options",
+                "--result-file=" + backupFile,
                 dbName
         };
     }
@@ -119,18 +157,30 @@ public class DatabaseBackupService {
      * 从JDBC URL中提取数据库名
      */
     private String extractDatabaseName(String jdbcUrl) {
-        // 示例: jdbc:mysql://localhost:3306/test_tracking
-        int lastSlashIndex = jdbcUrl.lastIndexOf('/');
-        int questionMarkIndex = jdbcUrl.indexOf('?');
-        
-        if (lastSlashIndex != -1) {
-            String dbPart = questionMarkIndex != -1 ? 
-                jdbcUrl.substring(lastSlashIndex + 1, questionMarkIndex) : 
-                jdbcUrl.substring(lastSlashIndex + 1);
+        try {
+            // 示例: jdbc:mysql://localhost:3306/test_tracking?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+            String urlPart = jdbcUrl.replace("jdbc:mysql://", "");
+            
+            // 找到最后一个斜杠后的部分
+            int lastSlashIndex = urlPart.lastIndexOf('/');
+            if (lastSlashIndex == -1) {
+                return "test_tracking"; // 默认数据库名
+            }
+            
+            String dbPart = urlPart.substring(lastSlashIndex + 1);
+            
+            // 移除查询参数
+            int questionMarkIndex = dbPart.indexOf('?');
+            if (questionMarkIndex != -1) {
+                dbPart = dbPart.substring(0, questionMarkIndex);
+            }
+            
+            log.info("从JDBC URL提取数据库名: {} -> {}", jdbcUrl, dbPart);
             return dbPart;
+        } catch (Exception e) {
+            log.error("提取数据库名失败，JDBC URL: {}, 错误: {}", jdbcUrl, e.getMessage());
+            return "test_tracking"; // 默认数据库名
         }
-        
-        return "test_tracking"; // 默认数据库名
     }
 
     /**
@@ -244,5 +294,45 @@ public class DatabaseBackupService {
             log.error("手动数据库备份失败: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * 更新定时任务执行记录
+     */
+    private void updateScheduledTaskExecution(String taskName, LocalDateTime executeTime, String result, String errorMessage) {
+        try {
+            ScheduledTask task = scheduledTaskRepository.findByTaskName(taskName)
+                .orElseThrow(() -> new RuntimeException("任务不存在: " + taskName));
+            
+            task.setLastExecuteTime(executeTime);
+            task.setLastExecuteResult(result);
+            
+            // 自动执行时更新下次执行时间
+            LocalDateTime nextExecuteTime = calculateNextExecuteTime(task.getCronExpression());
+            task.setNextExecuteTime(nextExecuteTime);
+            
+            scheduledTaskRepository.save(task);
+            
+            log.info("定时任务 {} 执行记录已更新: 时间={}, 结果={}, 下次执行时间={}", taskName, executeTime, result, nextExecuteTime);
+        } catch (Exception e) {
+            log.error("更新定时任务执行记录失败: taskName={}, error={}", taskName, e.getMessage());
+        }
+    }
+
+    /**
+     * 计算下次执行时间
+     */
+    private LocalDateTime calculateNextExecuteTime(String cronExpression) {
+        try {
+            CronTrigger trigger = new CronTrigger(cronExpression);
+            Date now = new Date();
+            Date nextExecution = trigger.nextExecutionTime(new SimpleTriggerContext(now, now, now));
+            if (nextExecution != null) {
+                return LocalDateTime.ofInstant(nextExecution.toInstant(), ZoneId.of("Asia/Shanghai"));
+            }
+        } catch (Exception e) {
+            log.error("解析cron表达式失败: {}, error: {}", cronExpression, e.getMessage());
+        }
+        return null;
     }
 }

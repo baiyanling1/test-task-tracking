@@ -64,7 +64,7 @@ jwt:
 dingtalk:
   enabled: ${DINGTALK_ENABLED:false}
   webhook:
-    url: ${DINGTALK_WEBHOOK_URL:https://oapi.dingtalk.com/robot/send?access_token=your_access_token}
+    url: ${DINGTALK_WEBHOOK_URL:https://oapi.dingtalk.com/robot/send?access_token=98b6b18dfda2b07323b01b7050fce8a34ffce394815428c85eef1cff4ee41726}
   secret: ${DINGTALK_SECRET:your_secret}
 
 # 日志配置

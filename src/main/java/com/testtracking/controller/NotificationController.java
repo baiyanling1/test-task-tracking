@@ -13,9 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Map;
 import java.util.HashMap;
+import com.testtracking.service.DingTalkNotificationService;
+import com.testtracking.service.DingTalkConfigService;
 
 @Slf4j
 @RestController
@@ -26,6 +29,8 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final UserService userService;
+    private final DingTalkNotificationService dingTalkNotificationService;
+    private final DingTalkConfigService dingTalkConfigService;
 
     /**
      * 获取当前用户的通知列表
@@ -202,52 +207,37 @@ public class NotificationController {
     }
 
     /**
-     * 发送测试钉钉通知
+     * 测试钉钉通知配置
      */
     @PostMapping("/test-dingtalk")
-    public ResponseEntity<?> sendTestDingTalkNotification(@RequestBody TestNotificationRequest request) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> testDingTalkNotification() {
         try {
-            // 从保存的配置中读取钉钉设置
-            boolean dingtalkEnabled = (Boolean) dingTalkConfig.get("enabled");
-            String webhookUrl = (String) dingTalkConfig.get("webhookUrl");
-            
-            if (!dingtalkEnabled) {
-                return ResponseEntity.badRequest().body("钉钉通知未启用，请先在配置中启用钉钉通知");
-            }
-            
-            if (webhookUrl == null || webhookUrl.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("钉钉webhook地址未配置，请先配置webhook地址");
-            }
-            
-            // 这里应该调用DingTalkNotificationService发送测试消息
-            // 暂时返回成功，实际使用时需要完善
-            log.info("发送测试钉钉通知: enabled={}, webhookUrl={}, message={}, type={}", 
-                    dingtalkEnabled, webhookUrl, request.getMessage(), request.getType());
-            return ResponseEntity.ok("测试钉钉通知发送成功");
+            String result = dingTalkNotificationService.sendTestNotification();
+            return ResponseEntity.ok("钉钉通知测试成功: " + result);
         } catch (Exception e) {
-            log.error("发送测试钉钉通知失败: {}", e.getMessage());
-            return ResponseEntity.badRequest().body("发送测试钉钉通知失败: " + e.getMessage());
+            log.error("钉钉通知测试失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("钉钉通知测试失败: " + e.getMessage());
         }
     }
 
-    // 临时存储钉钉配置（实际项目中应该使用数据库或配置文件）
-    private static Map<String, Object> dingTalkConfig = new HashMap<>();
-    static {
-        dingTalkConfig.put("enabled", false);
-        dingTalkConfig.put("webhookUrl", "");
-        dingTalkConfig.put("secret", "");
-    }
-
     /**
-     * 获取钉钉配置
+     * 获取钉钉配置信息
      */
     @GetMapping("/dingtalk-config")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getDingTalkConfig() {
         try {
-            return ResponseEntity.ok(dingTalkConfig);
+            DingTalkConfigService.DingTalkConfig config = dingTalkConfigService.loadConfig();
+            Map<String, Object> response = new HashMap<>();
+            response.put("enabled", config.isEnabled());
+            response.put("webhookUrl", config.getWebhookUrl());
+            response.put("secret", config.getSecret());
+            response.put("isConfigured", config.isEnabled() && !config.getWebhookUrl().isEmpty());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("获取钉钉配置失败: {}", e.getMessage());
-            return ResponseEntity.badRequest().body("获取钉钉配置失败");
+            log.error("获取钉钉配置失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("获取钉钉配置失败: " + e.getMessage());
         }
     }
 
@@ -255,18 +245,27 @@ public class NotificationController {
      * 保存钉钉配置
      */
     @PostMapping("/dingtalk-config")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> saveDingTalkConfig(@RequestBody DingTalkConfigRequest request) {
         try {
-            // 保存配置到内存（实际项目中应该保存到数据库或配置文件）
-            dingTalkConfig.put("enabled", request.isEnabled());
-            dingTalkConfig.put("webhookUrl", request.getWebhookUrl());
-            dingTalkConfig.put("secret", request.getSecret());
-            
             log.info("保存钉钉配置: enabled={}, webhookUrl={}", request.isEnabled(), request.getWebhookUrl());
+            
+            // 验证webhook地址格式
+            if (request.isEnabled() && (request.getWebhookUrl() == null || request.getWebhookUrl().trim().isEmpty())) {
+                return ResponseEntity.badRequest().body("启用钉钉通知时必须提供webhook地址");
+            }
+            
+            if (request.isEnabled() && !request.getWebhookUrl().contains("oapi.dingtalk.com/robot/send")) {
+                return ResponseEntity.badRequest().body("webhook地址格式不正确，请使用钉钉机器人webhook地址");
+            }
+            
+            // 保存配置
+            dingTalkConfigService.saveConfig(request.isEnabled(), request.getWebhookUrl(), request.getSecret());
+            
             return ResponseEntity.ok("钉钉配置保存成功");
         } catch (Exception e) {
-            log.error("保存钉钉配置失败: {}", e.getMessage());
-            return ResponseEntity.badRequest().body("保存钉钉配置失败");
+            log.error("保存钉钉配置失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("保存钉钉配置失败: " + e.getMessage());
         }
     }
 
@@ -286,27 +285,7 @@ public class NotificationController {
         }
     }
 
-    // 内部类
-    public static class TestNotificationRequest {
-        private String message;
-        private String type;
 
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public void setType(String type) {
-            this.type = type;
-        }
-    }
 
     // 内部类
     public static class DingTalkConfigRequest {

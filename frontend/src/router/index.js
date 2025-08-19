@@ -39,6 +39,30 @@ const routes = [
         component: () => import('@/views/Alerts.vue')
       },
       {
+        path: 'scheduled-tasks',
+        name: 'ScheduledTasks',
+        component: () => import('@/views/ScheduledTasks.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
+        path: 'dingtalk-config',
+        name: 'DingTalkConfig',
+        component: () => import('@/views/DingTalkTest.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
+        path: 'task-tracking-config',
+        name: 'TaskTrackingConfig',
+        component: () => import('@/views/TaskTrackingConfig.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
+        path: 'alert-notification-config',
+        name: 'AlertNotificationConfig',
+        component: () => import('@/views/AlertNotificationConfig.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue')
@@ -80,6 +104,12 @@ router.beforeEach(async (to, from, next) => {
     if (!authStore.user) {
       await authStore.logout()
       next('/login')
+      return
+    }
+    
+    // 检查管理员权限
+    if (to.meta.requiresAdmin && authStore.user.role !== 'ADMIN') {
+      next('/')
       return
     }
   }

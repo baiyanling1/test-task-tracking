@@ -4,8 +4,10 @@ import com.testtracking.dto.NotificationDto;
 import com.testtracking.entity.Notification;
 import com.testtracking.entity.TestTask;
 import com.testtracking.entity.User;
+import com.testtracking.entity.ScheduledTask;
 import com.testtracking.repository.NotificationRepository;
 import com.testtracking.repository.UserRepository;
+import com.testtracking.repository.ScheduledTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.scheduling.support.SimpleTriggerContext;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +33,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final DingTalkNotificationService dingTalkNotificationService;
+    private final ScheduledTaskRepository scheduledTaskRepository;
 
     /**
      * 创建系统内部通知
@@ -288,11 +295,25 @@ public class NotificationService {
     @Scheduled(cron = "0 0 2 * * ?") // 每天凌晨2点执行
     public void deleteExpiredNotifications() {
         log.info("开始清理过期通知");
-        List<Notification> expiredNotifications = notificationRepository.findExpiredNotifications(LocalDateTime.now());
         
-        if (!expiredNotifications.isEmpty()) {
-            notificationRepository.deleteAll(expiredNotifications);
-            log.info("清理了{}条过期通知", expiredNotifications.size());
+        // 使用Asia/Shanghai时区的当前时间
+        LocalDateTime executeTime = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        
+        try {
+            List<Notification> expiredNotifications = notificationRepository.findExpiredNotifications(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
+            
+            if (!expiredNotifications.isEmpty()) {
+                notificationRepository.deleteAll(expiredNotifications);
+                log.info("清理了{}条过期通知", expiredNotifications.size());
+            }
+            
+            // 更新定时任务执行记录
+            updateScheduledTaskExecution("deleteExpiredNotifications", executeTime, "SUCCESS", null);
+            
+        } catch (Exception e) {
+            log.error("清理过期通知失败: {}", e.getMessage(), e);
+            updateScheduledTaskExecution("deleteExpiredNotifications", executeTime, "FAILED", e.getMessage());
+            throw e;
         }
     }
 
@@ -373,5 +394,45 @@ public class NotificationService {
         
         Page<Notification> notifications = notificationRepository.findByRecipientAndType(user, Notification.NotificationType.TASK_OVERDUE, pageable);
         return notifications.map(NotificationDto::fromEntity);
+    }
+
+    /**
+     * 更新定时任务执行记录
+     */
+    private void updateScheduledTaskExecution(String taskName, LocalDateTime executeTime, String result, String errorMessage) {
+        try {
+            ScheduledTask task = scheduledTaskRepository.findByTaskName(taskName)
+                .orElseThrow(() -> new RuntimeException("任务不存在: " + taskName));
+            
+            task.setLastExecuteTime(executeTime);
+            task.setLastExecuteResult(result);
+            
+            // 自动执行时更新下次执行时间
+            LocalDateTime nextExecuteTime = calculateNextExecuteTime(task.getCronExpression());
+            task.setNextExecuteTime(nextExecuteTime);
+            
+            scheduledTaskRepository.save(task);
+            
+            log.info("定时任务 {} 执行记录已更新: 时间={}, 结果={}, 下次执行时间={}", taskName, executeTime, result, nextExecuteTime);
+        } catch (Exception e) {
+            log.error("更新定时任务执行记录失败: taskName={}, error={}", taskName, e.getMessage());
+        }
+    }
+
+    /**
+     * 计算下次执行时间
+     */
+    private LocalDateTime calculateNextExecuteTime(String cronExpression) {
+        try {
+            CronTrigger trigger = new CronTrigger(cronExpression);
+            Date now = new Date();
+            Date nextExecution = trigger.nextExecutionTime(new SimpleTriggerContext(now, now, now));
+            if (nextExecution != null) {
+                return LocalDateTime.ofInstant(nextExecution.toInstant(), ZoneId.of("Asia/Shanghai"));
+            }
+        } catch (Exception e) {
+            log.error("解析cron表达式失败: {}, error: {}", cronExpression, e.getMessage());
+        }
+        return null;
     }
 } 

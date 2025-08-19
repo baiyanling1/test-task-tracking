@@ -103,14 +103,10 @@ export function getAlertsByTaskId(taskId) {
 }
 
 // 测试钉钉连接
-export function testDingTalkConnection() {
+export function testDingTalkNotification() {
   return request({
     url: '/notifications/test-dingtalk',
-    method: 'post',
-    data: {
-      message: '这是一条测试消息，用于验证钉钉webhook配置是否正确。',
-      type: 'TEST'
-    }
+    method: 'post'
   })
 }
 

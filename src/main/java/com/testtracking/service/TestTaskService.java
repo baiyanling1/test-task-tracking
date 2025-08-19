@@ -3,8 +3,10 @@ package com.testtracking.service;
 import com.testtracking.dto.TestTaskDto;
 import com.testtracking.entity.TestTask;
 import com.testtracking.entity.User;
+import com.testtracking.entity.ScheduledTask;
 import com.testtracking.repository.TestTaskRepository;
 import com.testtracking.repository.UserRepository;
+import com.testtracking.repository.ScheduledTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,6 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.scheduling.support.SimpleTriggerContext;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,6 +36,7 @@ public class TestTaskService {
     private final TestTaskRepository testTaskRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ScheduledTaskRepository scheduledTaskRepository;
 
     /**
      * 创建测试任务
@@ -522,31 +530,44 @@ public class TestTaskService {
     public void checkOverdueTasks() {
         log.info("开始检查超时任务...");
         
-        List<TestTask> allTasks = testTaskRepository.findAll();
-        int updatedCount = 0;
-        int alertCount = 0;
+        // 使用Asia/Shanghai时区的当前时间
+        LocalDateTime executeTime = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
         
-        for (TestTask task : allTasks) {
-            boolean wasOverdue = task.getIsOverdue();
-            task.checkOverdue();
+        try {
+            List<TestTask> allTasks = testTaskRepository.findAll();
+            int updatedCount = 0;
+            int alertCount = 0;
             
-            if (wasOverdue != task.getIsOverdue()) {
-                testTaskRepository.save(task);
-                updatedCount++;
+            for (TestTask task : allTasks) {
+                boolean wasOverdue = task.getIsOverdue();
+                task.checkOverdue();
                 
-                // 如果任务变为超时状态，发送通知
-                if (task.getIsOverdue()) {
-                    try {
-                        notificationService.sendTaskOverdueNotification(task);
-                        alertCount++;
-                    } catch (Exception e) {
-                        log.error("为超时任务发送通知失败: taskId={}, error={}", task.getId(), e.getMessage());
+                if (wasOverdue != task.getIsOverdue()) {
+                    testTaskRepository.save(task);
+                    updatedCount++;
+                    
+                    // 如果任务变为超时状态，发送通知
+                    if (task.getIsOverdue()) {
+                        try {
+                            notificationService.sendTaskOverdueNotification(task);
+                            alertCount++;
+                        } catch (Exception e) {
+                            log.error("为超时任务发送通知失败: taskId={}, error={}", task.getId(), e.getMessage());
+                        }
                     }
                 }
             }
+            
+            log.info("超时任务检查完成，更新了 {} 个任务，创建了 {} 个告警", updatedCount, alertCount);
+            
+            // 更新定时任务执行记录
+            updateScheduledTaskExecution("checkOverdueTasks", executeTime, "SUCCESS", null);
+            
+        } catch (Exception e) {
+            log.error("超时任务检查失败: {}", e.getMessage(), e);
+            updateScheduledTaskExecution("checkOverdueTasks", executeTime, "FAILED", e.getMessage());
+            throw e;
         }
-        
-        log.info("超时任务检查完成，更新了 {} 个任务，创建了 {} 个告警", updatedCount, alertCount);
     }
 
     /**
@@ -569,5 +590,45 @@ public class TestTaskService {
         }
         
         log.info("超时任务状态更新完成，更新了 {} 个任务", updatedCount);
+    }
+
+    /**
+     * 更新定时任务执行记录
+     */
+    private void updateScheduledTaskExecution(String taskName, LocalDateTime executeTime, String result, String errorMessage) {
+        try {
+            ScheduledTask task = scheduledTaskRepository.findByTaskName(taskName)
+                .orElseThrow(() -> new RuntimeException("任务不存在: " + taskName));
+            
+            task.setLastExecuteTime(executeTime);
+            task.setLastExecuteResult(result);
+            
+            // 自动执行时更新下次执行时间
+            LocalDateTime nextExecuteTime = calculateNextExecuteTime(task.getCronExpression());
+            task.setNextExecuteTime(nextExecuteTime);
+            
+            scheduledTaskRepository.save(task);
+            
+            log.info("定时任务 {} 执行记录已更新: 时间={}, 结果={}, 下次执行时间={}", taskName, executeTime, result, nextExecuteTime);
+        } catch (Exception e) {
+            log.error("更新定时任务执行记录失败: taskName={}, error={}", taskName, e.getMessage());
+        }
+    }
+
+    /**
+     * 计算下次执行时间
+     */
+    private LocalDateTime calculateNextExecuteTime(String cronExpression) {
+        try {
+            CronTrigger trigger = new CronTrigger(cronExpression);
+            Date now = new Date();
+            Date nextExecution = trigger.nextExecutionTime(new SimpleTriggerContext(now, now, now));
+            if (nextExecution != null) {
+                return LocalDateTime.ofInstant(nextExecution.toInstant(), ZoneId.of("Asia/Shanghai"));
+            }
+        } catch (Exception e) {
+            log.error("解析cron表达式失败: {}, error: {}", cronExpression, e.getMessage());
+        }
+        return null;
     }
 } 

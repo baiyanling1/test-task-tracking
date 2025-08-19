@@ -18,13 +18,20 @@ RUN mvn clean package -DskipTests
 # 运行阶段
 FROM openjdk:11-jre-slim
 
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 安装mysqldump工具
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 从编译阶段复制JAR文件
 COPY --from=build /app/target/test-task-tracking-1.0.0.jar app.jar
 
-# 创建日志目录
-RUN mkdir -p /app/logs
+# 创建日志目录和备份目录
+RUN mkdir -p /app/logs /backup
 
 # 暴露端口
 EXPOSE 8080

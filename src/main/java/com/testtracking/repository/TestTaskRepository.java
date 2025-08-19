@@ -146,4 +146,18 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "GROUP BY t.assignedTo.realName, t.status " +
            "ORDER BY t.assignedTo.realName, t.status")
     List<Object[]> countByUserAndStatusThisMonth(@Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
+
+    // 任务跟踪提醒相关查询
+    @Query("SELECT t FROM TestTask t WHERE t.assignedTo = :assignedTo AND t.status IN :statuses")
+    List<TestTask> findByAssignedToAndStatusIn(@Param("assignedTo") User assignedTo, @Param("statuses") List<TestTask.TaskStatus> statuses);
+
+    @Query("SELECT t FROM TestTask t WHERE t.createdByUser = :createdByUser AND t.createdTime BETWEEN :startTime AND :endTime")
+    List<TestTask> findByCreatedByUserAndCreatedTimeBetween(@Param("createdByUser") User createdByUser, 
+                                                           @Param("startTime") java.time.LocalDateTime startTime, 
+                                                           @Param("endTime") java.time.LocalDateTime endTime);
+
+    @Query("SELECT t FROM TestTask t WHERE t.assignedTo = :assignedTo AND t.updatedTime BETWEEN :startTime AND :endTime")
+    List<TestTask> findByAssignedToAndUpdatedTimeBetween(@Param("assignedTo") User assignedTo, 
+                                                        @Param("startTime") java.time.LocalDateTime startTime, 
+                                                        @Param("endTime") java.time.LocalDateTime endTime);
 } 

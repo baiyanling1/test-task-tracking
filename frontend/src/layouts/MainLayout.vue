@@ -41,6 +41,26 @@
           <span>提醒管理</span>
           <el-badge v-if="unreadCount > 0" :value="unreadCount" class="alert-badge" />
         </el-menu-item>
+        
+        <el-menu-item index="/scheduled-tasks" v-if="isAdmin">
+          <el-icon><Clock /></el-icon>
+          <span>定时任务管理</span>
+        </el-menu-item>
+        
+        <el-menu-item index="/dingtalk-config" v-if="isAdmin">
+          <el-icon><Message /></el-icon>
+          <span>钉钉配置</span>
+        </el-menu-item>
+        
+        <el-menu-item index="/task-tracking-config" v-if="isAdmin">
+          <el-icon><UserFilled /></el-icon>
+          <span>任务跟踪配置</span>
+        </el-menu-item>
+        
+        <el-menu-item index="/alert-notification-config" v-if="isAdmin">
+          <el-icon><Setting /></el-icon>
+          <span>告警通知配置</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -99,7 +119,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
-import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold } from '@element-plus/icons-vue'
+import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold, Clock, UserFilled, Setting } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,6 +141,10 @@ const canManageDepartments = computed(() => {
 
 const canManageUsers = computed(() => {
   return authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER'
+})
+
+const isAdmin = computed(() => {
+  return authStore.user?.role === 'ADMIN'
 })
 
 // 面包屑导航

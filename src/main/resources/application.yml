@@ -23,6 +23,10 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      read-date-timestamps-as-nanoseconds: false
 
 jwt:
   secret: TestTrackingSecretKey2024ProductionEnvironmentWithEnhancedSecurityForHS512Algorithm
@@ -35,10 +39,10 @@ logging:
 
 # 钉钉通知配置
 dingtalk:
-  enabled: false  # 是否启用钉钉通知
+  enabled: true  # 是否启用钉钉通知
   webhook:
-    url: https://oapi.dingtalk.com/robot/send?access_token=your_access_token  # 钉钉机器人webhook地址
-  secret: your_secret  # 钉钉机器人签名密钥（可选）
+    url: https://oapi.dingtalk.com/robot/send?access_token=98b6b18dfda2b07323b01b7050fce8a34ffce394815428c85eef1cff4ee41726  # 钉钉机器人webhook地址
+  secret:   # 钉钉机器人签名密钥（可选）
 
 # 数据库备份配置
 backup:
