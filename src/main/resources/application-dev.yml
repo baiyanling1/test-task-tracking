@@ -36,7 +36,12 @@ spring:
   
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
-    time-zone: GMT+8
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+      write-dates-with-zone-id: false
+    deserialization:
+      read-date-timestamps-as-nanoseconds: false
 
 # JWT配置
 jwt:

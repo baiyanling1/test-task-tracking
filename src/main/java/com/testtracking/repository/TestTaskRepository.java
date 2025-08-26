@@ -62,6 +62,8 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "(:testType IS NULL OR t.testType = :testType) AND " +
            "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
            "(:startDateTo IS NULL OR t.startDate <= :startDateTo) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:isExpectedCompletionReached IS NULL OR t.isExpectedCompletionReached = :isExpectedCompletionReached) AND " +
            "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
     Page<TestTask> findByFilters(@Param("assignedTo") User assignedTo,
                                  @Param("assignedToName") String assignedToName,
@@ -72,6 +74,8 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
                                  @Param("testType") TestTask.TestType testType,
                                  @Param("startDateFrom") LocalDate startDateFrom,
                                  @Param("startDateTo") LocalDate startDateTo,
+                                 @Param("isOverdue") Boolean isOverdue,
+                                 @Param("isExpectedCompletionReached") Boolean isExpectedCompletionReached,
                                  @Param("search") String search,
                                  Pageable pageable);
 
@@ -160,4 +164,21 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     List<TestTask> findByAssignedToAndUpdatedTimeBetween(@Param("assignedTo") User assignedTo, 
                                                         @Param("startTime") java.time.LocalDateTime startTime, 
                                                         @Param("endTime") java.time.LocalDateTime endTime);
+
+    // 任务状态更新相关查询
+    @Query("SELECT t FROM TestTask t WHERE t.status NOT IN :statuses")
+    List<TestTask> findByStatusNotIn(@Param("statuses") List<TestTask.TaskStatus> statuses);
+
+    @Query("SELECT t FROM TestTask t WHERE t.expectedEndDate = :expectedEndDate AND t.status = :status")
+    List<TestTask> findByExpectedEndDateAndStatus(@Param("expectedEndDate") java.time.LocalDate expectedEndDate, 
+                                                 @Param("status") TestTask.TaskStatus status);
+
+    // 按用户和日期范围统计实际工时
+    @Query("SELECT SUM(t.actualManDays) FROM TestTask t WHERE t.assignedTo.id = :userId " +
+           "AND ((t.actualEndDate >= :startDate AND t.actualEndDate <= :endDate) " +
+           "OR (t.actualEndDate IS NULL AND t.expectedEndDate >= :startDate AND t.expectedEndDate <= :endDate)) " +
+           "AND t.actualManDays IS NOT NULL")
+    Double sumActualManDaysByUserAndDateRange(@Param("userId") Long userId, 
+                                             @Param("startDate") LocalDate startDate, 
+                                             @Param("endDate") LocalDate endDate);
 } 

@@ -48,6 +48,11 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      write-dates-with-zone-id: false
+    deserialization:
+      read-date-timestamps-as-nanoseconds: false
   
   # 任务调度配置
   task:

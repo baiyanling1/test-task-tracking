@@ -25,6 +25,7 @@ spring:
     time-zone: Asia/Shanghai
     serialization:
       write-dates-as-timestamps: false
+      write-dates-with-zone-id: false
     deserialization:
       read-date-timestamps-as-nanoseconds: false
 

@@ -175,7 +175,7 @@ const cancelEditCron = () => {
   editCronForm.value.cronExpression = ''
 }
 
-// 格式化日期时间（统一按本地时区展示）
+// 格式化日期时间（后端返回的时间已经是Asia/Shanghai时区，直接显示）
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
   try {
@@ -185,20 +185,14 @@ const formatDateTime = (dateTime) => {
       d = new Date(dateTime)
     } else if (typeof dateTime === 'string') {
       const s = dateTime.trim()
-      const isoBasic = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
-      const isoWithMs = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,3}$/
-      const hasZone = /[zZ]|[+-]\d{2}:?\d{2}$/
-      const spaceSep = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/
-
-      if (hasZone.test(s)) {
-        // 已包含时区信息，直接解析
+      // 后端返回的时间格式通常是 "2024-01-01 12:00:00" 或 ISO 格式
+      // 由于后端已配置 time-zone: Asia/Shanghai，这些时间已经是Asia/Shanghai时区
+      if (s.includes('T')) {
+        // ISO 格式，直接解析（后端已设置时区）
         d = new Date(s)
-      } else if (isoBasic.test(s) || isoWithMs.test(s)) {
-        // ISO 无时区，按 UTC 解析再转本地
-        d = new Date(s + 'Z')
-      } else if (spaceSep.test(s)) {
-        // 空格分隔，按 UTC 解析
-        d = new Date(s.replace(' ', 'T') + 'Z')
+      } else if (s.includes(' ')) {
+        // 空格分隔格式 "2024-01-01 12:00:00"，直接解析
+        d = new Date(s.replace(' ', 'T'))
       } else if (/^\d+$/.test(s)) {
         // 纯数字字符串，当作毫秒时间戳
         d = new Date(parseInt(s, 10))
@@ -212,13 +206,15 @@ const formatDateTime = (dateTime) => {
 
     if (isNaN(d.getTime())) return '-'
 
+    // 直接使用后端返回的时间，不进行时区转换
     return d.toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
+      timeZone: 'Asia/Shanghai' // 明确指定时区
     })
   } catch (error) {
     console.error('格式化时间失败:', dateTime, error)

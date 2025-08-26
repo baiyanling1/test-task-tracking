@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mysql:
-    image: mysql:5.7
+    image: registry.cn-hangzhou.aliyuncs.com/library/mysql:5.7
     container_name: test-tracking-mysql
     environment:
       MYSQL_ROOT_PASSWORD: 123456
@@ -38,4 +38,7 @@ volumes:
 
 networks:
   test-tracking-network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24 

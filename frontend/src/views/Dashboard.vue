@@ -152,11 +152,37 @@
          </el-card>
        </el-col>
      </el-row>
+
+    <!-- 近6个月工时统计 -->
+    <el-row :gutter="20" class="lists-row">
+      <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+        <el-card class="list-card">
+          <template #header>
+            <div class="card-header">
+              <span>近6个月工时统计</span>
+            </div>
+          </template>
+          <div class="monthly-man-days-container">
+            <el-tabs v-model="activeMonthlyTab" class="monthly-tabs">
+              <el-tab-pane 
+                v-for="month in monthlyManDaysData" 
+                :key="month.month" 
+                :label="month.monthName" 
+                :name="month.month"
+              />
+            </el-tabs>
+            <div class="chart-container">
+              <v-chart :key="chartKey" :option="monthlyManDaysChartOption" style="height: 400px" />
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart, LineChart, BarChart } from 'echarts/charts'
@@ -169,7 +195,7 @@ import {
 import VChart from 'vue-echarts'
 import * as echarts from 'echarts/core'
 import dayjs from 'dayjs'
-import { getTaskStats, getTasks } from '@/api/tasks'
+import { getTaskStats, getTasks, getMonthlyManDaysStats } from '@/api/tasks'
 import { getAlerts } from '@/api/alerts'
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
@@ -206,6 +232,11 @@ const overdueTasks = ref([])
 const activePersonalTab = ref('currentMonth')
 const currentMonthUserTaskStats = ref([])
 const lastMonthUserTaskStats = ref([])
+
+// 近6个月工时统计相关数据
+const activeMonthlyTab = ref('')
+const monthlyManDaysData = ref([])
+const chartKey = ref(0) // 用于强制刷新图表
 
 // 饼图配置
 const pieChartOption = computed(() => ({
@@ -471,6 +502,109 @@ const lastMonthUserTaskChartOption = computed(() => {
   }
 })
 
+// 近6个月工时统计柱状图配置
+const monthlyManDaysChartOption = computed(() => {
+  const currentMonthData = monthlyManDaysData.value.find(month => month.month === activeMonthlyTab.value)
+  
+  console.log('当前月份数据:', currentMonthData)
+  
+  if (!currentMonthData || !currentMonthData.users || currentMonthData.users.length === 0) {
+    console.log('没有找到当前月份数据或用户数据为空')
+    return {
+      tooltip: { trigger: 'axis' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: [] },
+      yAxis: { type: 'value' },
+      series: [{ name: '工时(人天)', type: 'bar', data: [] }]
+    }
+  }
+
+  const xAxisData = currentMonthData.users.map(user => user.userName)
+  const manDaysData = currentMonthData.users.map(user => user.manDays)
+
+  const chartOption = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: function(params) {
+        const data = params[0]
+        return `${data.name}<br/>工时: ${data.value} 人天`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '40%',
+      top: '5%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: xAxisData,
+      axisTick: { 
+        alignWithLabel: true,
+        show: true
+      },
+      axisLabel: {
+        fontSize: 11,
+        rotate: 60,
+        interval: 0,
+        show: true,
+        textStyle: {
+          color: '#333'
+        },
+        margin: 20
+      },
+      axisLine: {
+        show: true
+      }
+    },
+    yAxis: { 
+      type: 'value',
+      name: '工时(人天)',
+      nameLocation: 'middle',
+      nameGap: 40,
+      axisLabel: {
+        show: true,
+        textStyle: {
+          color: '#333'
+        }
+      },
+      axisLine: {
+        show: true
+      },
+      axisTick: {
+        show: true
+      }
+    },
+    series: [
+      {
+        name: '工时(人天)',
+        type: 'bar',
+        data: manDaysData,
+        itemStyle: { 
+          color: function(params) {
+            // 根据工时值设置不同颜色
+            const value = params.value
+            if (value >= 20) return '#67C23A' // 绿色 - 高工时
+            if (value >= 10) return '#E6A23C' // 橙色 - 中等工时
+            return '#909399' // 灰色 - 低工时
+          }
+        },
+        barWidth: '25%',
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}'
+        }
+      }
+    ]
+  }
+  
+  console.log('图表配置:', chartOption)
+  return chartOption
+})
+
 // 获取状态类型
 const getStatusType = (status) => {
   const types = {
@@ -503,7 +637,7 @@ const formatTime = (time) => {
 // 格式化日期时间
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
 // 获取提醒类型
@@ -628,10 +762,35 @@ const loadData = async () => {
       console.error('加载上月个人任务统计失败:', error)
       lastMonthUserTaskStats.value = []
     }
+
+    // 加载近6个月工时统计
+    try {
+      const monthlyManDaysResponse = await getMonthlyManDaysStats()
+      console.log('近6个月工时统计API响应:', monthlyManDaysResponse)
+      if (monthlyManDaysResponse && monthlyManDaysResponse.monthlyData) {
+        monthlyManDaysData.value = monthlyManDaysResponse.monthlyData
+        console.log('近6个月工时统计数据:', monthlyManDaysData.value)
+        // 设置默认选中的月份为当前月
+        if (monthlyManDaysData.value.length > 0) {
+          activeMonthlyTab.value = monthlyManDaysData.value[monthlyManDaysData.value.length - 1].month
+          console.log('设置默认选中月份:', activeMonthlyTab.value)
+          // 强制刷新图表
+          chartKey.value++
+        }
+      }
+    } catch (error) {
+      console.error('加载近6个月工时统计失败:', error)
+      monthlyManDaysData.value = []
+    }
   } catch (error) {
     console.error('加载仪表板数据失败:', error)
   }
 }
+
+// 监听月份切换，强制刷新图表
+watch(activeMonthlyTab, () => {
+  chartKey.value++
+})
 
 onMounted(() => {
   loadData()
@@ -937,6 +1096,36 @@ onMounted(() => {
 }
 
 .card-header .el-tabs__active-bar {
+  background-color: #409EFF;
+  height: 3px;
+}
+
+/* 近6个月工时统计样式 */
+.monthly-man-days-container {
+  height: 100%;
+}
+
+.monthly-tabs {
+  margin-bottom: 20px;
+}
+
+.monthly-tabs .el-tabs__header {
+  margin-bottom: 0;
+}
+
+.monthly-tabs .el-tabs__nav-wrap {
+  padding: 0;
+}
+
+.monthly-tabs .el-tabs__item {
+  padding: 0 20px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.monthly-tabs .el-tabs__active-bar {
   background-color: #409EFF;
   height: 3px;
 }

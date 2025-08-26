@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -289,5 +292,53 @@ public class DashboardService {
         dashboard.put("manDaysStats", getManDaysStatistics());
         
         return dashboard;
+    }
+
+    /**
+     * 获取近6个月工时统计
+     */
+    public Map<String, Object> getMonthlyManDaysStatistics() {
+        Map<String, Object> statistics = new HashMap<>();
+        List<Map<String, Object>> monthlyData = new ArrayList<>();
+        
+        // 获取所有用户
+        List<User> users = userRepository.findAll();
+        log.info("获取到用户数量: {}", users.size());
+        
+        // 获取近6个月的数据
+        for (int i = 5; i >= 0; i--) {
+            YearMonth yearMonth = YearMonth.now().minusMonths(i);
+            LocalDate monthStart = yearMonth.atDay(1);
+            LocalDate monthEnd = yearMonth.atEndOfMonth();
+            
+            Map<String, Object> monthData = new HashMap<>();
+            monthData.put("month", yearMonth.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")));
+            monthData.put("monthName", yearMonth.format(java.time.format.DateTimeFormatter.ofPattern("yyyy年MM月")));
+            
+            List<Map<String, Object>> userData = new ArrayList<>();
+            
+            for (User user : users) {
+                Map<String, Object> userMonthData = new HashMap<>();
+                userMonthData.put("userId", user.getId());
+                String userName = user.getRealName() != null ? user.getRealName() : user.getUsername();
+                userMonthData.put("userName", userName);
+                
+                // 获取该用户在该月的工时统计
+                Double userManDays = testTaskRepository.sumActualManDaysByUserAndDateRange(
+                    user.getId(), monthStart, monthEnd);
+                
+                userMonthData.put("manDays", userManDays != null ? userManDays : 0.0);
+                userData.add(userMonthData);
+                
+                log.debug("用户 {} 在 {} 月的工时: {}", userName, yearMonth.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM")), userManDays);
+            }
+            
+            monthData.put("users", userData);
+            monthlyData.add(monthData);
+        }
+        
+        statistics.put("monthlyData", monthlyData);
+        log.info("返回近6个月工时统计数据，包含 {} 个月", monthlyData.size());
+        return statistics;
     }
 } 

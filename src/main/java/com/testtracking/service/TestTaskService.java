@@ -231,10 +231,12 @@ public class TestTaskService {
                                                 TestTask.TaskPriority priority, String projectName, 
                                                 TestTask.TestType testType, 
                                                 LocalDate startDateFrom, LocalDate startDateTo,
+                                                Boolean isOverdue, Boolean isExpectedCompletionReached, 
                                                 String search, Pageable pageable) {
         Page<TestTask> tasks = testTaskRepository.findByFilters(assignedTo, assignedToName, department, 
                                                                status, priority, projectName, testType, 
-                                                               startDateFrom, startDateTo, search, pageable);
+                                                               startDateFrom, startDateTo, isOverdue, 
+                                                               isExpectedCompletionReached, search, pageable);
         return tasks.map(TestTaskDto::fromEntity);
     }
 

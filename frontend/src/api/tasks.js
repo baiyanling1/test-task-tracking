@@ -78,4 +78,12 @@ export const updateTaskProgress = async (taskId, progressId, data) => {
 // 删除任务进度
 export const deleteTaskProgress = async (taskId, progressId) => {
   return request.delete(`/tasks/${taskId}/progress/${progressId}`)
+}
+
+// 获取近6个月工时统计
+export const getMonthlyManDaysStats = () => {
+  return request({
+    url: '/dashboard/monthly-man-days',
+    method: 'get'
+  })
 } 

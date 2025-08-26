@@ -105,4 +105,7 @@ volumes:
 
 networks:
   test_tracking_network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24 

@@ -102,6 +102,20 @@ public class DashboardController {
     }
 
     /**
+     * 获取近6个月工时统计
+     */
+    @GetMapping("/monthly-man-days")
+    public ResponseEntity<?> getMonthlyManDaysStatistics() {
+        try {
+            Map<String, Object> monthlyManDaysStats = dashboardService.getMonthlyManDaysStatistics();
+            return ResponseEntity.ok(monthlyManDaysStats);
+        } catch (Exception e) {
+            log.error("获取近6个月工时统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取近6个月工时统计失败");
+        }
+    }
+
+    /**
      * 获取超时任务统计
      */
     @GetMapping("/overdue")

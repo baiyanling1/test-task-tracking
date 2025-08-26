@@ -105,6 +105,9 @@ public class TestTask extends BaseEntity {
     @Column(name = "is_delayed_completion")
     private Boolean isDelayedCompletion = false;
 
+    @Column(name = "is_expected_completion_reached")
+    private Boolean isExpectedCompletionReached = false;
+
     // 计算人天
     public void calculateManDays() {
         if (startDate != null && expectedEndDate != null && participantCount != null) {
@@ -113,18 +116,50 @@ public class TestTask extends BaseEntity {
         }
     }
 
-    // 检查是否超时
-    public void checkOverdue() {
-        if (status != TaskStatus.COMPLETED && expectedEndDate != null) {
+    // 检查任务状态和超时情况
+    public void checkTaskStatusAndOverdue() {
+        if (status == TaskStatus.COMPLETED || status == TaskStatus.CANCELLED) {
+            // 已完成或已取消的任务，根据实际结束时间计算超时
+            if (actualEndDate != null && expectedEndDate != null) {
+                if (actualEndDate.isAfter(expectedEndDate)) {
+                    this.isOverdue = true;
+                    this.overdueDays = (int) ChronoUnit.DAYS.between(expectedEndDate, actualEndDate);
+                    this.isDelayedCompletion = true;
+                } else {
+                    this.isOverdue = false;
+                    this.overdueDays = 0;
+                    this.isDelayedCompletion = false;
+                }
+            }
+            return;
+        }
+
+        // 未完成任务的超时检查
+        if (expectedEndDate != null) {
             LocalDate today = LocalDate.now();
+            
             if (today.isAfter(expectedEndDate)) {
+                // 已超过预期结束时间
                 this.isOverdue = true;
                 this.overdueDays = (int) ChronoUnit.DAYS.between(expectedEndDate, today);
-            } else {
+                this.isExpectedCompletionReached = true;
+            } else if (today.isEqual(expectedEndDate)) {
+                // 今天是预期结束时间，但任务未完成
                 this.isOverdue = false;
                 this.overdueDays = 0;
+                this.isExpectedCompletionReached = true;
+            } else {
+                // 还未到预期结束时间
+                this.isOverdue = false;
+                this.overdueDays = 0;
+                this.isExpectedCompletionReached = false;
             }
         }
+    }
+
+    // 检查是否超时（保持向后兼容）
+    public void checkOverdue() {
+        checkTaskStatusAndOverdue();
     }
 
     // 更新进度
@@ -135,6 +170,13 @@ public class TestTask extends BaseEntity {
         if (progressPercentage >= 100) {
             this.status = TaskStatus.COMPLETED;
             this.actualEndDate = LocalDate.now();
+            // 重新检查超时状态（基于实际结束时间）
+            this.checkTaskStatusAndOverdue();
+        } else if (progressPercentage > 0) {
+            // 如果进度大于0，状态应该是进行中
+            if (this.status == TaskStatus.PLANNED) {
+                this.status = TaskStatus.IN_PROGRESS;
+            }
         }
     }
 

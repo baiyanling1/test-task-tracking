@@ -272,7 +272,7 @@ const resetForm = () => {
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
 // 生命周期

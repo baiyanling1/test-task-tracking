@@ -55,8 +55,8 @@
             <el-option label="全部" value="" />
             <el-option label="计划中" value="PLANNED" />
             <el-option label="进行中" value="IN_PROGRESS" />
-            <el-option label="已完成" value="COMPLETED" />
             <el-option label="已暂停" value="ON_HOLD" />
+            <el-option label="已完成" value="COMPLETED" />
             <el-option label="已取消" value="CANCELLED" />
           </el-select>
         </el-col>
@@ -68,18 +68,26 @@
             <el-option label="低" value="LOW" />
           </el-select>
         </el-col>
-                 <el-col :span="4">
-           <el-date-picker
-             v-model="startDateRange"
-             type="daterange"
-             range-separator="至"
-             start-placeholder="开始日期（起）"
-             end-placeholder="开始日期（止）"
-             value-format="YYYY-MM-DD"
-             @change="handleSearch"
-             style="width: 100%"
-           />
-         </el-col>
+        <el-col :span="3">
+          <el-select v-model="overdueFilter" placeholder="超时状态筛选" clearable @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option label="超时" value="overdue" />
+            <el-option label="正常" value="normal" />
+            <el-option label="已到预期时间" value="expected_reached" />
+          </el-select>
+        </el-col>
+        <el-col :span="3">
+          <el-date-picker
+            v-model="startDateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期（起）"
+            end-placeholder="开始日期（止）"
+            value-format="YYYY-MM-DD"
+            @change="handleSearch"
+            style="width: 100%"
+          />
+        </el-col>
         <el-col :span="2">
           <el-button type="primary" @click="loadTasks">刷新</el-button>
         </el-col>
@@ -613,6 +621,7 @@ const assignedToFilter = ref('')
 const departmentFilter = ref('')
 const statusFilter = ref('')
 const priorityFilter = ref('')
+const overdueFilter = ref('') // 超时状态筛选（包含已到预期时间）
 const startDateRange = ref([]) // 新增：开始日期范围
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -852,6 +861,8 @@ const loadTasks = async () => {
       department: departmentFilter.value || undefined,
       status: statusFilter.value || undefined,
       priority: priorityFilter.value || undefined,
+      isOverdue: overdueFilter.value === 'overdue' ? true : overdueFilter.value === 'normal' ? false : undefined,
+      isExpectedCompletionReached: overdueFilter.value === 'expected_reached' ? true : undefined,
       startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,
       startDateTo: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[1] : undefined
     }
@@ -1283,9 +1294,9 @@ const resetForm = () => {
 const getStatusType = (status) => {
   const types = {
     'PLANNED': 'info',
-    'IN_PROGRESS': 'warning',
+    'IN_PROGRESS': 'primary',
+    'ON_HOLD': 'warning',
     'COMPLETED': 'success',
-    'ON_HOLD': 'danger',
     'CANCELLED': 'info'
   }
   return types[status] || 'info'
@@ -1295,8 +1306,8 @@ const getStatusText = (status) => {
   const texts = {
     'PLANNED': '计划中',
     'IN_PROGRESS': '进行中',
-    'COMPLETED': '已完成',
     'ON_HOLD': '已暂停',
+    'COMPLETED': '已完成',
     'CANCELLED': '已取消'
   }
   return texts[status] || status
@@ -1322,12 +1333,12 @@ const getPriorityText = (priority) => {
 
 const formatDate = (date) => {
   if (!date) return '-'
-  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD')
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 const formatDateTime = (date) => {
   if (!date) return '-'
-  return dayjs.utc(date).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm')
+  return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
 const calculateManDays = () => {

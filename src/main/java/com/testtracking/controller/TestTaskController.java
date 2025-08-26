@@ -123,7 +123,9 @@ public class TestTaskController {
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String testType,
             @RequestParam(required = false) String startDateFrom,
-            @RequestParam(required = false) String startDateTo) {
+            @RequestParam(required = false) String startDateTo,
+            @RequestParam(required = false) Boolean isOverdue,
+            @RequestParam(required = false) Boolean isExpectedCompletionReached) {
         
         try {
             Pageable pageable = PageRequest.of(page, size, 
@@ -151,7 +153,8 @@ public class TestTaskController {
             
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
                     assignedTo, assignedToName, department, taskStatus, taskPriority, 
-                    projectName, taskTestType, startFrom, startTo, search, pageable);
+                    projectName, taskTestType, startFrom, startTo, isOverdue, 
+                    isExpectedCompletionReached, search, pageable);
             
             return ResponseEntity.ok(tasks);
         } catch (Exception e) {
