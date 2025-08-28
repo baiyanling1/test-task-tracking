@@ -118,41 +118,49 @@ public class TestTask extends BaseEntity {
 
     // 检查任务状态和超时情况
     public void checkTaskStatusAndOverdue() {
-        if (status == TaskStatus.COMPLETED || status == TaskStatus.CANCELLED) {
-            // 已完成或已取消的任务，根据实际结束时间计算超时
-            if (actualEndDate != null && expectedEndDate != null) {
-                if (actualEndDate.isAfter(expectedEndDate)) {
-                    this.isOverdue = true;
-                    this.overdueDays = (int) ChronoUnit.DAYS.between(expectedEndDate, actualEndDate);
-                    this.isDelayedCompletion = true;
-                } else {
-                    this.isOverdue = false;
-                    this.overdueDays = 0;
-                    this.isDelayedCompletion = false;
-                }
-            }
+        if (expectedEndDate == null) {
+            // 没有预期结束时间，重置所有状态
+            this.isOverdue = false;
+            this.overdueDays = 0;
+            this.isDelayedCompletion = false;
+            this.isExpectedCompletionReached = false;
             return;
         }
 
-        // 未完成任务的超时检查
-        if (expectedEndDate != null) {
-            LocalDate today = LocalDate.now();
-            
+        LocalDate today = LocalDate.now();
+        
+        if (actualEndDate != null) {
+            // 有实际结束时间，根据实际结束时间与预期结束时间比较
+            if (actualEndDate.isAfter(expectedEndDate)) {
+                this.isOverdue = true;
+                this.overdueDays = (int) ChronoUnit.DAYS.between(expectedEndDate, actualEndDate);
+                this.isDelayedCompletion = true;
+            } else {
+                this.isOverdue = false;
+                this.overdueDays = 0;
+                this.isDelayedCompletion = false;
+            }
+            this.isExpectedCompletionReached = true;
+        } else {
+            // 没有实际结束时间，检查是否已到预期结束日期
             if (today.isAfter(expectedEndDate)) {
-                // 已超过预期结束时间
+                // 已超过预期结束时间，标记为超预期
                 this.isOverdue = true;
                 this.overdueDays = (int) ChronoUnit.DAYS.between(expectedEndDate, today);
                 this.isExpectedCompletionReached = true;
+                this.isDelayedCompletion = false; // 还未完成，不是延期完成
             } else if (today.isEqual(expectedEndDate)) {
-                // 今天是预期结束时间，但任务未完成
+                // 今天是预期结束时间
                 this.isOverdue = false;
                 this.overdueDays = 0;
                 this.isExpectedCompletionReached = true;
+                this.isDelayedCompletion = false;
             } else {
                 // 还未到预期结束时间
                 this.isOverdue = false;
                 this.overdueDays = 0;
                 this.isExpectedCompletionReached = false;
+                this.isDelayedCompletion = false;
             }
         }
     }

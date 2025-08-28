@@ -71,9 +71,8 @@
         <el-col :span="3">
           <el-select v-model="overdueFilter" placeholder="超时状态筛选" clearable @change="handleSearch">
             <el-option label="全部" value="" />
-            <el-option label="超时" value="overdue" />
+            <el-option label="超预期/延期" value="overdue" />
             <el-option label="正常" value="normal" />
-            <el-option label="已到预期时间" value="expected_reached" />
           </el-select>
         </el-col>
         <el-col :span="3">
@@ -154,10 +153,16 @@
             <el-progress :percentage="row.progressPercentage || 0" />
           </template>
         </el-table-column>
-        <el-table-column label="超时状态" width="100">
+        <el-table-column label="超时状态" width="120">
           <template #default="{ row }">
-            <el-tag v-if="row.isOverdue" type="danger" size="small">
-              超时{{ row.overdueDays }}天
+            <el-tag v-if="row.isOverdue && row.actualEndDate" type="danger" size="small">
+              延期完成{{ row.overdueDays }}天
+            </el-tag>
+            <el-tag v-else-if="row.isOverdue && !row.actualEndDate" type="warning" size="small">
+              超预期{{ row.overdueDays }}天
+            </el-tag>
+            <el-tag v-else-if="row.isExpectedCompletionReached && !row.actualEndDate" type="info" size="small">
+              已到预期时间
             </el-tag>
             <el-tag v-else type="success" size="small">
               正常
@@ -437,8 +442,16 @@
                <el-descriptions-item label="更新时间">
                  {{ formatDateTime(selectedTask.updatedTime) }}
                </el-descriptions-item>
-               <el-descriptions-item label="超时状态" v-if="selectedTask.isOverdue">
-                 <el-tag type="danger">超时{{ selectedTask.overdueDays }}天</el-tag>
+               <el-descriptions-item label="超时状态" v-if="selectedTask.isOverdue || selectedTask.isExpectedCompletionReached">
+                 <el-tag v-if="selectedTask.isOverdue && selectedTask.actualEndDate" type="danger">
+                   延期完成{{ selectedTask.overdueDays }}天
+                 </el-tag>
+                 <el-tag v-else-if="selectedTask.isOverdue && !selectedTask.actualEndDate" type="warning">
+                   超预期{{ selectedTask.overdueDays }}天
+                 </el-tag>
+                 <el-tag v-else-if="selectedTask.isExpectedCompletionReached && !selectedTask.actualEndDate" type="info">
+                   已到预期时间
+                 </el-tag>
                </el-descriptions-item>
                <el-descriptions-item label="延期完成" v-if="selectedTask.isDelayedCompletion">
                  <el-tag type="warning">延期完成</el-tag>
@@ -621,7 +634,7 @@ const assignedToFilter = ref('')
 const departmentFilter = ref('')
 const statusFilter = ref('')
 const priorityFilter = ref('')
-const overdueFilter = ref('') // 超时状态筛选（包含已到预期时间）
+const overdueFilter = ref('') // 超时状态筛选（包含超预期、延期完成）
 const startDateRange = ref([]) // 新增：开始日期范围
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -862,7 +875,6 @@ const loadTasks = async () => {
       status: statusFilter.value || undefined,
       priority: priorityFilter.value || undefined,
       isOverdue: overdueFilter.value === 'overdue' ? true : overdueFilter.value === 'normal' ? false : undefined,
-      isExpectedCompletionReached: overdueFilter.value === 'expected_reached' ? true : undefined,
       startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,
       startDateTo: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[1] : undefined
     }
