@@ -2,14 +2,25 @@
   <div class="tasks-container">
          <div class="page-header">
        <h1>测试任务管理</h1>
-               <el-button 
-          v-if="canCreateTask()" 
-          type="primary" 
-          @click="createNewTask"
-        >
-         <el-icon><Plus /></el-icon>
-         新建任务
-       </el-button>
+       <div class="header-actions">
+         <el-button 
+           type="info" 
+           size="small"
+           @click="showHelpDialog = true"
+           style="margin-right: 10px;"
+         >
+           <el-icon><QuestionFilled /></el-icon>
+           填写帮助
+         </el-button>
+         <el-button 
+           v-if="canCreateTask()" 
+           type="primary" 
+           @click="createNewTask"
+         >
+          <el-icon><Plus /></el-icon>
+          新建任务
+        </el-button>
+       </div>
      </div>
 
     <!-- 搜索和筛选 -->
@@ -80,8 +91,8 @@
             v-model="startDateRange"
             type="daterange"
             range-separator="至"
-            start-placeholder="开始日期（起）"
-            end-placeholder="开始日期（止）"
+            start-placeholder="开始时间（起）"
+            end-placeholder="开始时间（止）"
             value-format="YYYY-MM-DD"
             @change="handleSearch"
             style="width: 100%"
@@ -129,7 +140,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="startDate" label="开始日期" width="100">
+        <el-table-column prop="startDate" label="开始时间" width="100">
           <template #default="{ row }">
             {{ formatDate(row.startDate) }}
           </template>
@@ -272,18 +283,16 @@
             :max="100"
             placeholder="请输入投入人数"
             style="width: 100%"
-            @change="calculateManDays"
           />
         </el-form-item>
-                 <el-form-item label="开始日期" prop="startDate">
+                 <el-form-item label="开始时间" prop="startDate">
            <el-date-picker
              v-model="taskForm.startDate"
              type="date"
-             placeholder="选择开始日期"
+             placeholder="选择开始时间"
              value-format="YYYY-MM-DD"
              style="width: 100%"
-             @change="calculateManDays"
-             :disabled="!!editingTask"
+             :disabled="editingTask && !isAdmin()"
            />
          </el-form-item>
         <el-form-item label="预计结束时间" prop="expectedEndDate">
@@ -293,22 +302,32 @@
             placeholder="选择预计结束时间"
             value-format="YYYY-MM-DD"
             style="width: 100%"
-            @change="calculateManDays"
-            :disabled="!!editingTask"
+            :disabled="editingTask && !isAdmin()"
           />
         </el-form-item>
         <el-form-item label="预计工时(人/天)" prop="manDays">
-          <el-input-number
-            v-model="taskForm.manDays"
-            :min="0"
-            :precision="1"
-            placeholder="自动计算"
-            style="width: 100%"
-            :disabled="!!editingTask"
-          />
-              <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-                * 根据时间区间和参与人数自动计算，可根据实际情况手动调整
-              </div>
+          <div class="man-days-input-group">
+            <el-input-number
+              v-model="taskForm.manDays"
+              :min="0.1"
+              :precision="1"
+              placeholder="请输入或点击计算"
+              style="width: calc(100% - 80px)"
+              :disabled="editingTask && !isAdmin()"
+            />
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount || (editingTask && !isAdmin())"
+              @click="calculateManDaysManually"
+              style="margin-left: 8px; width: 72px;"
+            >
+              计算
+            </el-button>
+          </div>
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            * 点击"计算"按钮根据时间区间和参与人数自动计算，也可手动输入
+          </div>
         </el-form-item>
         
         <!-- 任务进度模块 -->
@@ -344,17 +363,28 @@
           />
         </el-form-item>
         <el-form-item label="实际工时(人/天)" prop="actualManDays" v-if="taskForm.status === 'COMPLETED' || taskForm.actualEndDate">
-          <el-input-number
-            v-model="taskForm.actualManDays"
-            :min="0"
-            :precision="1"
-            :step="0.5"
-            placeholder="自动计算"
-            style="width: 100%"
-            @change="onActualManDaysChange"
-          />
+          <div class="man-days-input-group">
+            <el-input-number
+              v-model="taskForm.actualManDays"
+              :min="0.1"
+              :precision="1"
+              :step="0.5"
+              placeholder="请输入或点击计算"
+              style="width: calc(100% - 80px)"
+              @change="onActualManDaysChange"
+            />
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount"
+              @click="calculateActualManDaysManually"
+              style="margin-left: 8px; width: 72px;"
+            >
+              计算
+            </el-button>
+          </div>
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-            * 根据实际开始和结束时间自动计算，可根据实际情况手动调整
+            * 点击"计算"按钮根据开始时间和实际结束时间自动计算，也可手动输入
           </div>
         </el-form-item>
                  <el-form-item label="状态" prop="status">
@@ -427,7 +457,7 @@
                    <div>实际: {{ selectedTask.actualManDays ? selectedTask.actualManDays.toFixed(1) : '-' }}</div>
                  </div>
                </el-descriptions-item>
-               <el-descriptions-item label="开始日期">
+               <el-descriptions-item label="开始时间">
                  {{ formatDate(selectedTask.startDate) }}
                </el-descriptions-item>
                <el-descriptions-item label="预计结束日期">
@@ -608,13 +638,209 @@
     >
       <div class="tooltip-content" style="white-space: pre-wrap;">{{ tooltipContent }}</div>
     </div>
+
+    <!-- 帮助文档对话框 -->
+    <el-dialog
+      v-model="showHelpDialog"
+      title="任务填写帮助文档"
+      width="800px"
+      class="help-dialog"
+    >
+      <div class="help-content">
+        <el-collapse v-model="activeHelpItems" accordion>
+          
+          <!-- 日期字段填写规则 -->
+          <el-collapse-item title="📅 日期字段填写规则" name="dates">
+            <div class="help-section">
+              <h4>开始时间 & 预计结束时间</h4>
+              <ul>
+                <li><strong>开始时间</strong>：任务实际开始执行的日期</li>
+                <li><strong>预计结束时间</strong>：根据任务复杂度和工作量预估的完成日期</li>
+                <li><strong>填写要求</strong>：
+                  <ul>
+                    <li>开始时间不能晚于预计结束时间（可以相等，表示当天完成）</li>
+                    <li>当开始时间等于预计结束时间时，自动计算按1天工时</li>
+                    <li>建议预留一定的缓冲时间，避免过于紧张的排期</li>
+                    <li>考虑节假日和周末（系统会自动排除）</li>
+                  </ul>
+                </li>
+              </ul>
+              
+              <h4>实际结束时间</h4>
+              <ul>
+                <li><strong>填写时机</strong>：任务完成时填写，进度达到100%时可选填</li>
+                <li><strong>作用</strong>：用于计算实际工时，分析任务执行效率</li>
+                <li><strong>延期处理</strong>：
+                  <ul>
+                    <li>如果实际结束时间晚于预计结束时间，系统会标记为"延期完成"</li>
+                    <li>需要在"延期备注"中说明延期原因</li>
+                  </ul>
+                </li>
+              </ul>
+              
+              <div class="tip-box">
+                <el-icon><InfoFilled /></el-icon>
+                <span><strong>权限说明：</strong>编辑任务时，只有管理员可以修改开始时间和预计结束时间</span>
+              </div>
+            </div>
+          </el-collapse-item>
+
+          <!-- 工时填写方法 -->
+          <el-collapse-item title="⏱️ 工时填写方法与注意事项" name="workdays">
+            <div class="help-section">
+              <h4>预计工时（人/天）</h4>
+              <ul>
+                <li><strong>计算方法</strong>：
+                  <ul>
+                    <li>手动输入：根据经验直接填写预估工时</li>
+                    <li>自动计算：点击"计算"按钮，系统根据时间区间和投入人数计算</li>
+                    <li>计算公式：工作日数 × 投入人数 = 预计工时</li>
+                  </ul>
+                </li>
+                <li><strong>工作日计算</strong>：
+                  <ul>
+                    <li>自动排除周末（周六、周日）</li>
+                    <li>排除国家法定节假日</li>
+                    <li>只计算有效工作日</li>
+                  </ul>
+                </li>
+                <li><strong>填写建议</strong>：
+                  <ul>
+                    <li>手动填写时，支持0.1天起的精确工时（如0.5天表示半天）</li>
+                    <li>同一天开始和结束的任务，自动计算按1天计算</li>
+                    <li>考虑任务复杂度，适当增加缓冲时间</li>
+                    <li>参考历史类似任务的实际工时</li>
+                    <li>考虑团队成员的经验水平</li>
+                  </ul>
+                </li>
+              </ul>
+
+              <h4>实际工时（人/天）</h4>
+              <ul>
+                <li><strong>填写时机</strong>：任务完成后填写</li>
+                <li><strong>作用</strong>：用于工时统计和项目管理分析</li>
+                <li><strong>计算方式</strong>：
+                  <ul>
+                    <li>自动计算：基于开始时间和实际结束时间</li>
+                    <li>手动调整：可根据实际情况手动修改</li>
+                  </ul>
+                </li>
+              </ul>
+
+              <div class="example-box">
+                <h5>💡 计算示例</h5>
+                <p><strong>自动计算示例1：</strong>开始时间 2024-01-15（周一），预计结束时间 2024-01-19（周五），投入人数 2人</p>
+                <p><strong>计算：</strong>5个工作日 × 2人 = 10.0人天</p>
+                <p><strong>自动计算示例2：</strong>开始时间 2024-01-15（周一），预计结束时间 2024-01-15（周一），投入人数 1人</p>
+                <p><strong>计算：</strong>1个工作日 × 1人 = 1.0人天（同一天按1天计算）</p>
+                <p><strong>手动填写示例：</strong>简单任务可以填写 0.5人天（半天），复杂任务可以填写 2.5人天等</p>
+              </div>
+            </div>
+          </el-collapse-item>
+
+          <!-- 进度更新方法 -->
+          <el-collapse-item title="📈 进度更新方法" name="progress">
+            <div class="help-section">
+              <h4>进度更新方式</h4>
+              <ul>
+                <li><strong>方式一：任务列表中直接更新</strong>
+                  <ul>
+                    <li>点击任务行的"编辑"按钮</li>
+                    <li>在表单中调整"当前进度"滑块</li>
+                    <li>填写"进度描述"说明本次更新内容</li>
+                  </ul>
+                </li>
+                <li><strong>方式二：任务详情中添加进度记录</strong>
+                  <ul>
+                    <li>点击"查看详情"进入任务详情页</li>
+                    <li>切换到"进度历史"标签</li>
+                    <li>点击"添加进度更新"按钮</li>
+                  </ul>
+                </li>
+              </ul>
+
+              <h4>进度填写规范</h4>
+              <ul>
+                <li><strong>进度百分比</strong>：
+                  <ul>
+                    <li>0%：任务尚未开始</li>
+                    <li>1-99%：任务进行中</li>
+                    <li>100%：任务已完成</li>
+                  </ul>
+                </li>
+                <li><strong>进度描述要求</strong>：
+                  <ul>
+                    <li>详细说明本阶段完成的工作内容</li>
+                    <li>列出遇到的问题和解决方案</li>
+                    <li>说明下一阶段的工作计划</li>
+                  </ul>
+                </li>
+                <li><strong>更新频率建议</strong>：
+                  <ul>
+                    <li>每周至少更新一次进度</li>
+                    <li>重要节点及时更新</li>
+                    <li>遇到阻塞问题时立即更新</li>
+                  </ul>
+                </li>
+              </ul>
+
+              <h4>状态自动联动</h4>
+              <ul>
+                <li>进度设置为100%时，状态自动变为"已完成"</li>
+                <li>进度从0%变为其他值时，状态自动变为"进行中"</li>
+                <li>状态设置为"已完成"时，进度自动变为100%</li>
+              </ul>
+            </div>
+          </el-collapse-item>
+
+          <!-- 其他注意事项 -->
+          <el-collapse-item title="⚠️ 其他注意事项" name="notes">
+            <div class="help-section">
+              <h4>权限说明</h4>
+              <ul>
+                <li><strong>管理员（ADMIN）</strong>：可以编辑所有任务的所有字段</li>
+                <li><strong>经理（MANAGER）</strong>：可以编辑所有任务，但编辑时部分关键字段受限</li>
+                <li><strong>测试员（TESTER）</strong>：只能编辑分配给自己的任务或自己创建的任务</li>
+              </ul>
+
+              <h4>数据保存</h4>
+              <ul>
+                <li>所有修改都会记录操作时间和操作人</li>
+                <li>进度更新会保留完整的历史记录</li>
+                <li>系统会自动计算任务的超时状态</li>
+              </ul>
+
+              <h4>最佳实践</h4>
+              <ul>
+                <li><strong>及时更新</strong>：定期更新任务进度，保持信息准确性</li>
+                <li><strong>详细描述</strong>：进度描述要详细，便于团队协作</li>
+                <li><strong>合理估时</strong>：预计工时要结合实际情况，避免过于乐观</li>
+                <li><strong>问题反馈</strong>：遇到问题及时在进度描述中说明</li>
+              </ul>
+
+              <div class="warning-box">
+                <el-icon><WarningFilled /></el-icon>
+                <span><strong>重要提醒：</strong>请确保任务信息的准确性，这些数据将用于项目管理和工作量统计</span>
+              </div>
+            </div>
+          </el-collapse-item>
+
+        </el-collapse>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button type="primary" @click="showHelpDialog = false">知道了</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, QuestionFilled } from '@element-plus/icons-vue'
+import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress } from '@/api/tasks'
 import { getUsers } from '@/api/users'
@@ -635,7 +861,7 @@ const departmentFilter = ref('')
 const statusFilter = ref('')
 const priorityFilter = ref('')
 const overdueFilter = ref('') // 超时状态筛选（包含超预期、延期完成）
-const startDateRange = ref([]) // 新增：开始日期范围
+const startDateRange = ref([]) // 新增：开始时间范围
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalTasks = ref(0)
@@ -647,10 +873,12 @@ const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 const showProgressDialog = ref(false)
 const showAddProgressDialog = ref(false)
+const showHelpDialog = ref(false)
 const editingTask = ref(null)
 const selectedTask = ref(null)
 const activeTab = ref('basic')
 const progressHistory = ref([])
+const activeHelpItems = ref(['dates']) // 默认展开第一个帮助项
 
 // 进度表单
 const progressForm = ref({
@@ -755,11 +983,11 @@ const taskRules = {
     { required: true, message: '请选择优先级', trigger: 'change' }
   ],
   startDate: [
-    { required: true, message: '请选择开始日期', trigger: 'change' },
+    { required: true, message: '请选择开始时间', trigger: 'change' },
     { 
       validator: (rule, value, callback) => {
         if (value && taskForm.expectedEndDate && value > taskForm.expectedEndDate) {
-          callback(new Error('开始时间不能大于预计结束时间'))
+          callback(new Error('开始时间不能晚于预计结束时间'))
         } else {
           callback()
         }
@@ -772,7 +1000,7 @@ const taskRules = {
     { 
       validator: (rule, value, callback) => {
         if (value && taskForm.startDate && value < taskForm.startDate) {
-          callback(new Error('预计结束时间不能小于开始时间'))
+          callback(new Error('预计结束时间不能早于开始时间'))
         } else {
           callback()
         }
@@ -806,7 +1034,7 @@ const taskRules = {
   ],
   manDays: [
     { required: true, message: '请输入工时', trigger: 'blur' },
-    { type: 'number', min: 0, message: '工时必须大于等于0', trigger: 'blur' }
+    { type: 'number', min: 0.1, message: '工时必须大于0', trigger: 'blur' }
   ],
   actualManDays: [
     { 
@@ -814,10 +1042,10 @@ const taskRules = {
       message: '请输入实际工时', 
       trigger: 'blur',
       validator: (rule, value, callback) => {
-        if ((taskForm.progressPercentage === 100 || taskForm.status === 'COMPLETED') && (value === null || value === undefined || value <= 0)) {
+        if ((taskForm.progressPercentage === 100 || taskForm.status === 'COMPLETED') && (value === null || value === undefined || value < 0.1)) {
           callback(new Error('进度为100%或状态为已完成时，实际工时是必填的且必须大于0'))
-        } else if (value !== null && value !== undefined && value < 0) {
-          callback(new Error('实际工时必须大于等于0'))
+        } else if (value !== null && value !== undefined && value < 0.1) {
+          callback(new Error('实际工时必须大于0'))
         } else {
           callback()
         }
@@ -944,7 +1172,7 @@ const createNewTask = () => {
     progressPercentage: 0,
     status: 'PLANNED',
     delayReason: '',
-    manDays: 0,
+    manDays: null,
     actualManDays: null,
     progressNotes: ''
   })
@@ -969,7 +1197,7 @@ const handleDialogClose = () => {
     progressPercentage: 0,
     status: 'PLANNED',
     delayReason: '',
-    manDays: 0,
+    manDays: null,
     actualManDays: null,
     progressNotes: ''
   })
@@ -1070,7 +1298,7 @@ const saveTask = async () => {
       progressPercentage: 0,
       status: 'PLANNED',
       delayReason: '',
-      manDays: 0,
+      manDays: null,
       actualManDays: null,
       progressNotes: ''
     })
@@ -1275,6 +1503,11 @@ const canCreateTask = () => {
   return true
 }
 
+// 检查是否为管理员
+const isAdmin = () => {
+  return authStore.user?.role === 'ADMIN'
+}
+
 
 
 const resetForm = () => {
@@ -1292,7 +1525,7 @@ const resetForm = () => {
     progressPercentage: 0,
     status: 'PLANNED',
     delayReason: '',
-    manDays: 0,
+    manDays: null,
     actualManDays: null,
     progressNotes: ''
   })
@@ -1353,25 +1586,44 @@ const formatDateTime = (date) => {
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
+// 原来的自动计算函数，现在改为不自动执行
 const calculateManDays = () => {
+  // 不再自动计算，只有手动点击才计算
+  return;
+};
+
+// 手动计算工时的函数
+const calculateManDaysManually = () => {
   if (!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount) {
-    taskForm.manDays = 0;
+    ElMessage.warning('请先选择开始时间、预计结束时间和投入人数');
     return;
   }
 
   const start = new Date(taskForm.startDate);
   const end = new Date(taskForm.expectedEndDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 计算总天数，加1是因为包含开始日期
+  
+  // 验证日期的合理性
+  if (start > end) {
+    ElMessage.error('开始时间不能晚于预计结束时间');
+    return;
+  }
 
-  // 排除节假日的工作日计算
-  const workDays = calculateWorkDays(start, end);
+  // 计算工作日数，如果开始时间等于结束时间，按1天计算
+  let workDays;
+  if (start.getTime() === end.getTime()) {
+    workDays = 1; // 同一天按1个工作日计算
+  } else {
+    workDays = calculateWorkDays(start, end);
+  }
   
   // 工时 = 工作日 × 参与人数
-  taskForm.manDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+  const calculatedManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+  taskForm.manDays = calculatedManDays;
+  
+  ElMessage.success(`已计算工时：${calculatedManDays} 人天（${workDays} 工作日 × ${taskForm.participantCount} 人）`);
 };
 
-// 计算实际工时
+// 计算实际工时（自动触发）
 const calculateActualManDays = () => {
   // 如果是手动输入，不进行自动计算
   if (isActualManDaysManual.value) {
@@ -1391,6 +1643,37 @@ const calculateActualManDays = () => {
   
   // 实际工时 = 工作日 × 参与人数
   taskForm.actualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+};
+
+// 手动计算实际工时的函数
+const calculateActualManDaysManually = () => {
+  if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
+    ElMessage.warning('请先选择开始时间、实际结束时间和投入人数');
+    return;
+  }
+
+  const start = new Date(taskForm.startDate);
+  const end = new Date(taskForm.actualEndDate);
+
+  // 验证日期的合理性
+  if (start > end) {
+    ElMessage.error('开始时间不能晚于实际结束时间');
+    return;
+  }
+
+  // 计算工作日数，如果开始时间等于结束时间，按1天计算
+  let workDays;
+  if (start.getTime() === end.getTime()) {
+    workDays = 1; // 同一天按1个工作日计算
+  } else {
+    workDays = calculateWorkDays(start, end);
+  }
+  
+  // 工时 = 工作日 × 参与人数
+  const calculatedActualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
+  taskForm.actualManDays = calculatedActualManDays;
+  
+  ElMessage.success(`已计算实际工时：${calculatedActualManDays} 人天（${workDays} 工作日 × ${taskForm.participantCount} 人）`);
 };
 
 // 处理实际工时手动输入
@@ -1632,6 +1915,154 @@ onMounted(() => {
 .progress-next strong {
   color: #303133;
   margin-right: 8px;
+}
+
+/* 工时输入组样式 */
+.man-days-input-group {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.man-days-input-group .el-input-number {
+  flex: 1;
+}
+
+.man-days-input-group .el-button {
+  flex-shrink: 0;
+}
+
+/* 页面头部样式 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 帮助文档对话框样式 */
+.help-dialog .el-dialog__body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.help-content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.help-section {
+  padding: 15px 0;
+}
+
+.help-section h4 {
+  color: #303133;
+  margin: 15px 0 10px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.help-section h5 {
+  color: #409EFF;
+  margin: 10px 0 5px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.help-section ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.help-section li {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.help-section ul ul {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+
+.help-section ul ul li {
+  margin: 5px 0;
+  color: #606266;
+}
+
+.tip-box {
+  background-color: #e1f3d8;
+  border: 1px solid #b3d8a4;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tip-box .el-icon {
+  color: #67c23a;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.example-box {
+  background-color: #f0f9ff;
+  border: 1px solid #b3e5fc;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+}
+
+.example-box h5 {
+  margin: 0 0 8px 0;
+  color: #0277bd;
+}
+
+.example-box p {
+  margin: 5px 0;
+  color: #37474f;
+}
+
+.warning-box {
+  background-color: #fef0e6;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.warning-box .el-icon {
+  color: #e6a23c;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.help-section strong {
+  color: #303133;
+  font-weight: 600;
+}
+
+/* 折叠面板自定义样式 */
+.help-content .el-collapse-item__header {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  padding-left: 10px;
+}
+
+.help-content .el-collapse-item__content {
+  padding: 0 10px 20px 10px;
 }
 
 .progress-notes p,

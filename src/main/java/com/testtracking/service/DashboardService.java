@@ -341,4 +341,110 @@ public class DashboardService {
         log.info("返回近6个月工时统计数据，包含 {} 个月", monthlyData.size());
         return statistics;
     }
+
+    /**
+     * 获取指定时间范围内没有填写任务或更新进度的用户
+     */
+    public Map<String, Object> getInactiveUsers(LocalDate startDate, LocalDate endDate) {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> inactiveUsersList = new ArrayList<>();
+        
+        // 获取所有活跃用户
+        List<User> activeUsers = userRepository.findByIsActiveTrue();
+        
+        // 过滤掉系统管理员，统计实际参与检查的用户数
+        long actualUserCount = activeUsers.stream()
+            .filter(user -> !"admin".equals(user.getUsername()))
+            .count();
+        
+        log.info("检查 {} 到 {} 期间的用户活动，共 {} 个活跃用户（排除管理员后 {} 个）", 
+            startDate, endDate, activeUsers.size(), actualUserCount);
+        
+        for (User user : activeUsers) {
+            // 排除系统管理员用户（用户名为admin的用户）
+            if ("admin".equals(user.getUsername())) {
+                log.debug("跳过系统管理员用户: {}", user.getUsername());
+                continue;
+            }
+            
+            // 检查用户在指定时间范围内是否有活动记录
+            boolean hasActivity = hasUserActivityInDateRange(user, startDate, endDate);
+            
+            if (!hasActivity) {
+                Map<String, Object> inactiveUser = new HashMap<>();
+                inactiveUser.put("userId", user.getId());
+                inactiveUser.put("username", user.getUsername());
+                inactiveUser.put("realName", user.getRealName());
+                inactiveUser.put("department", user.getDepartment());
+                inactiveUser.put("email", user.getEmail());
+                
+                // 获取用户分配的任务数量（仅计算未完成的任务）
+                List<TestTask.TaskStatus> activeStatuses = List.of(
+                    TestTask.TaskStatus.PLANNED,
+                    TestTask.TaskStatus.IN_PROGRESS,
+                    TestTask.TaskStatus.ON_HOLD
+                );
+                long assignedTaskCount = testTaskRepository.countByAssignedToAndStatusIn(user, activeStatuses);
+                inactiveUser.put("assignedTaskCount", assignedTaskCount);
+                
+                inactiveUsersList.add(inactiveUser);
+                log.info("用户 {} ({}) 在 {} 到 {} 期间无活动记录，分配任务数: {}", 
+                    user.getRealName(), user.getUsername(), startDate, endDate, assignedTaskCount);
+            }
+        }
+        
+        result.put("totalUsers", actualUserCount);
+        result.put("inactiveUsers", inactiveUsersList);
+        result.put("inactiveCount", inactiveUsersList.size());
+        result.put("startDate", startDate.toString());
+        result.put("endDate", endDate.toString());
+        
+        log.info("检查完成，共 {} 个用户无活动记录（已排除系统管理员）", inactiveUsersList.size());
+        return result;
+    }
+
+    /**
+     * 检查用户在指定时间范围内是否有活动记录
+     */
+    private boolean hasUserActivityInDateRange(User user, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+        
+        // 检查是否有新建任务
+        long createdTaskCount = testTaskRepository.countByCreatedByUserAndCreatedTimeBetween(
+            user, startDateTime, endDateTime);
+        if (createdTaskCount > 0) {
+            log.debug("用户 {} 在期间内创建了 {} 个任务", user.getRealName(), createdTaskCount);
+            return true;
+        }
+        
+        // 检查是否有任务进度更新记录
+        long progressUpdateCount = testTaskRepository.countTaskProgressUpdatesByUserAndDateRange(
+            user.getId(), startDateTime, endDateTime);
+        if (progressUpdateCount > 0) {
+            log.debug("用户 {} 在期间内更新了 {} 次任务进度", user.getRealName(), progressUpdateCount);
+            return true;
+        }
+        
+        // 检查是否有任务状态更新
+        long taskUpdateCount = testTaskRepository.countByUpdatedByAndUpdatedTimeBetween(
+            user.getUsername(), startDateTime, endDateTime);
+        if (taskUpdateCount > 0) {
+            log.debug("用户 {} 在期间内更新了 {} 个任务", user.getRealName(), taskUpdateCount);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * 获取上周没有活动的用户（默认情况）
+     */
+    public Map<String, Object> getLastWeekInactiveUsers() {
+        LocalDate now = LocalDate.now();
+        LocalDate lastWeekStart = now.minusWeeks(1).with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate lastWeekEnd = lastWeekStart.plusDays(6);
+        
+        return getInactiveUsers(lastWeekStart, lastWeekEnd);
+    }
 } 

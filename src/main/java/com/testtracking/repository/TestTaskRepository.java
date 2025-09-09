@@ -1,6 +1,7 @@
 package com.testtracking.repository;
 
 import com.testtracking.entity.TestTask;
+import com.testtracking.entity.TaskProgress;
 import com.testtracking.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -181,4 +183,29 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     Double sumActualManDaysByUserAndDateRange(@Param("userId") Long userId, 
                                              @Param("startDate") LocalDate startDate, 
                                              @Param("endDate") LocalDate endDate);
+
+    // 统计用户在指定时间范围内创建的任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.createdByUser = :user " +
+           "AND t.createdTime BETWEEN :startTime AND :endTime")
+    Long countByCreatedByUserAndCreatedTimeBetween(@Param("user") User user, 
+                                                  @Param("startTime") LocalDateTime startTime, 
+                                                  @Param("endTime") LocalDateTime endTime);
+
+    // 统计用户在指定时间范围内的任务进度更新次数
+    @Query("SELECT COUNT(tp) FROM TaskProgress tp WHERE tp.updatedByUser.id = :userId " +
+           "AND tp.updateTime BETWEEN :startTime AND :endTime")
+    Long countTaskProgressUpdatesByUserAndDateRange(@Param("userId") Long userId, 
+                                                   @Param("startTime") LocalDateTime startTime, 
+                                                   @Param("endTime") LocalDateTime endTime);
+
+    // 统计用户在指定时间范围内修改的任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.updatedBy = :username " +
+           "AND t.updatedTime BETWEEN :startTime AND :endTime")
+    Long countByUpdatedByAndUpdatedTimeBetween(@Param("username") String username, 
+                                              @Param("startTime") LocalDateTime startTime, 
+                                              @Param("endTime") LocalDateTime endTime);
+
+    // 统计用户分配的指定状态任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.assignedTo = :user AND t.status IN :statuses")
+    Long countByAssignedToAndStatusIn(@Param("user") User user, @Param("statuses") List<TestTask.TaskStatus> statuses);
 } 

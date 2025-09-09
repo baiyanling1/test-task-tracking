@@ -129,6 +129,101 @@
       </el-col>
     </el-row>
 
+    <!-- 未活跃用户统计区域 - 仅管理员和经理可见 -->
+    <el-row v-if="canViewInactiveUsers()" :gutter="20" class="inactive-users-row">
+      <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+        <el-card class="inactive-users-card">
+          <template #header>
+            <div class="card-header">
+              <span>未填写任务统计</span>
+              <div class="date-range-selector">
+                <el-radio-group v-model="inactiveUsersTimeRange" @change="onTimeRangeChange">
+                  <el-radio-button label="lastWeek">上周</el-radio-button>
+                  <el-radio-button label="custom">自定义</el-radio-button>
+                </el-radio-group>
+                <div v-if="inactiveUsersTimeRange === 'custom'" class="custom-date-range">
+                  <el-date-picker
+                    v-model="customDateRange"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    @change="onCustomDateRangeChange"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    size="small"
+                    style="margin-left: 10px;"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+          
+          <div class="inactive-users-content">
+            <div class="inactive-users-summary">
+              <el-row :gutter="20">
+                <el-col :span="6">
+                  <div class="summary-item">
+                    <div class="summary-number">{{ inactiveUsersStats.totalUsers || 0 }}</div>
+                    <div class="summary-label">总用户数</div>
+                  </div>
+                </el-col>
+                <el-col :span="6">
+                  <div class="summary-item">
+                    <div class="summary-number inactive-count">{{ inactiveUsersStats.inactiveCount || 0 }}</div>
+                    <div class="summary-label">未活跃用户</div>
+                  </div>
+                </el-col>
+                <el-col :span="6">
+                  <div class="summary-item">
+                    <div class="summary-number">{{ ((inactiveUsersStats.totalUsers - inactiveUsersStats.inactiveCount) || 0) }}</div>
+                    <div class="summary-label">活跃用户</div>
+                  </div>
+                </el-col>
+                <el-col :span="6">
+                  <div class="summary-item">
+                    <div class="summary-number">{{ inactiveUsersStats.totalUsers > 0 ? Math.round((inactiveUsersStats.totalUsers - inactiveUsersStats.inactiveCount) / inactiveUsersStats.totalUsers * 100) : 0 }}%</div>
+                    <div class="summary-label">活跃率</div>
+                  </div>
+                </el-col>
+              </el-row>
+            </div>
+
+            <div v-if="inactiveUsersStats.inactiveUsers && inactiveUsersStats.inactiveUsers.length > 0" class="inactive-users-list">
+              <el-table :data="inactiveUsersStats.inactiveUsers" style="width: 100%">
+                <el-table-column prop="realName" label="姓名" min-width="100" />
+                <el-table-column prop="username" label="用户名" min-width="120" />
+                <el-table-column prop="department" label="部门" min-width="120" />
+                <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="assignedTaskCount" label="分配任务数" width="120" align="center">
+                  <template #default="scope">
+                    <el-tag :type="scope.row.assignedTaskCount > 0 ? 'warning' : 'info'">
+                      {{ scope.row.assignedTaskCount }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" align="center">
+                  <template #default="scope">
+                    <el-tag type="danger">未活跃</el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <div v-else class="no-inactive-users">
+              <el-empty description="该时间段内所有用户都有活动记录" />
+            </div>
+
+            <div v-if="inactiveUsersStats.startDate && inactiveUsersStats.endDate" class="time-range-info">
+              <span class="time-range-text">
+                检查时间范围：{{ inactiveUsersStats.startDate }} 至 {{ inactiveUsersStats.endDate }}
+              </span>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
          <!-- 个人任务统计 -->
      <el-row :gutter="20" class="lists-row">
        <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
@@ -195,7 +290,7 @@ import {
 import VChart from 'vue-echarts'
 import * as echarts from 'echarts/core'
 import dayjs from 'dayjs'
-import { getTaskStats, getTasks, getMonthlyManDaysStats } from '@/api/tasks'
+import { getTaskStats, getTasks, getMonthlyManDaysStats, getLastWeekInactiveUsers, getInactiveUsersByDateRange } from '@/api/tasks'
 import { getAlerts } from '@/api/alerts'
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
@@ -237,6 +332,17 @@ const lastMonthUserTaskStats = ref([])
 const activeMonthlyTab = ref('')
 const monthlyManDaysData = ref([])
 const chartKey = ref(0) // 用于强制刷新图表
+
+// 未活跃用户统计相关数据
+const inactiveUsersStats = ref({
+  totalUsers: 0,
+  inactiveUsers: [],
+  inactiveCount: 0,
+  startDate: '',
+  endDate: ''
+})
+const inactiveUsersTimeRange = ref('lastWeek')
+const customDateRange = ref([])
 
 // 饼图配置
 const pieChartOption = computed(() => ({
@@ -787,6 +893,85 @@ const loadData = async () => {
   }
 }
 
+// 时间范围变化处理
+const onTimeRangeChange = () => {
+  if (!canViewInactiveUsers()) return
+  
+  if (inactiveUsersTimeRange.value === 'lastWeek') {
+    loadInactiveUsersStats()
+  } else {
+    // 自定义时间范围时，等待用户选择日期
+    if (customDateRange.value && customDateRange.value.length === 2) {
+      loadInactiveUsersStatsByRange()
+    }
+  }
+}
+
+// 自定义日期范围变化处理
+const onCustomDateRangeChange = () => {
+  if (!canViewInactiveUsers()) return
+  
+  if (customDateRange.value && customDateRange.value.length === 2) {
+    loadInactiveUsersStatsByRange()
+  }
+}
+
+// 加载未活跃用户统计（上周）
+const loadInactiveUsersStats = async () => {
+  try {
+    const response = await getLastWeekInactiveUsers()
+    inactiveUsersStats.value = response || {
+      totalUsers: 0,
+      inactiveUsers: [],
+      inactiveCount: 0,
+      startDate: '',
+      endDate: ''
+    }
+    console.log('上周未活跃用户统计:', inactiveUsersStats.value)
+  } catch (error) {
+    console.error('加载上周未活跃用户统计失败:', error)
+    inactiveUsersStats.value = {
+      totalUsers: 0,
+      inactiveUsers: [],
+      inactiveCount: 0,
+      startDate: '',
+      endDate: ''
+    }
+  }
+}
+
+// 加载指定时间范围的未活跃用户统计
+const loadInactiveUsersStatsByRange = async () => {
+  try {
+    const [startDate, endDate] = customDateRange.value
+    const response = await getInactiveUsersByDateRange(startDate, endDate)
+    inactiveUsersStats.value = response || {
+      totalUsers: 0,
+      inactiveUsers: [],
+      inactiveCount: 0,
+      startDate: '',
+      endDate: ''
+    }
+    console.log('自定义时间范围未活跃用户统计:', inactiveUsersStats.value)
+  } catch (error) {
+    console.error('加载自定义时间范围未活跃用户统计失败:', error)
+    inactiveUsersStats.value = {
+      totalUsers: 0,
+      inactiveUsers: [],
+      inactiveCount: 0,
+      startDate: '',
+      endDate: ''
+    }
+  }
+}
+
+// 检查用户是否可以查看未活跃用户统计
+const canViewInactiveUsers = () => {
+  const authStore = useAuthStore()
+  const userRole = authStore.user?.role
+  return userRole === 'ADMIN' || userRole === 'MANAGER'
+}
+
 // 监听月份切换，强制刷新图表
 watch(activeMonthlyTab, () => {
   chartKey.value++
@@ -794,6 +979,10 @@ watch(activeMonthlyTab, () => {
 
 onMounted(() => {
   loadData()
+  // 只有管理员和经理才加载未活跃用户统计
+  if (canViewInactiveUsers()) {
+    loadInactiveUsersStats()
+  }
 })
 </script>
 
@@ -1128,5 +1317,124 @@ onMounted(() => {
 .monthly-tabs .el-tabs__active-bar {
   background-color: #409EFF;
   height: 3px;
+}
+
+/* 未活跃用户统计样式 */
+.inactive-users-row {
+  margin-bottom: 20px;
+}
+
+.inactive-users-card {
+  min-height: 300px;
+}
+
+.inactive-users-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.date-range-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.custom-date-range {
+  margin-left: 10px;
+}
+
+.inactive-users-content {
+  padding: 10px 0;
+}
+
+.inactive-users-summary {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%);
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+}
+
+.summary-item {
+  text-align: center;
+  padding: 10px;
+}
+
+.summary-number {
+  font-size: 32px;
+  font-weight: bold;
+  color: #333;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.summary-number.inactive-count {
+  color: #f56c6c;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.inactive-users-list {
+  margin-bottom: 15px;
+}
+
+.inactive-users-list .el-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.inactive-users-list .el-table th {
+  background-color: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+}
+
+.no-inactive-users {
+  padding: 40px 0;
+  text-align: center;
+}
+
+.time-range-info {
+  text-align: center;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  margin-top: 15px;
+}
+
+.time-range-text {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .inactive-users-card .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .date-range-selector {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .custom-date-range {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  
+  .inactive-users-summary .el-col {
+    margin-bottom: 10px;
+  }
 }
 </style> 

@@ -86,4 +86,24 @@ export const getMonthlyManDaysStats = () => {
     url: '/dashboard/monthly-man-days',
     method: 'get'
   })
+}
+
+// 获取上周没有填写任务的用户（默认）
+export const getLastWeekInactiveUsers = () => {
+  return request({
+    url: '/dashboard/inactive-users',
+    method: 'get'
+  })
+}
+
+// 获取指定时间范围内没有填写任务的用户
+export const getInactiveUsersByDateRange = (startDate, endDate) => {
+  return request({
+    url: '/dashboard/inactive-users/range',
+    method: 'get',
+    params: {
+      startDate,
+      endDate
+    }
+  })
 } 

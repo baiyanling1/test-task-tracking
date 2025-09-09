@@ -4,6 +4,7 @@ import com.testtracking.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -182,6 +183,45 @@ public class DashboardController {
         } catch (Exception e) {
             log.error("获取部门统计失败: {}", e.getMessage());
             return ResponseEntity.badRequest().body("获取部门统计失败");
+        }
+    }
+
+    /**
+     * 获取上周没有填写任务的用户（默认）
+     */
+    @GetMapping("/inactive-users")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getLastWeekInactiveUsers() {
+        try {
+            Map<String, Object> statistics = dashboardService.getLastWeekInactiveUsers();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("获取上周未活跃用户统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取上周未活跃用户统计失败");
+        }
+    }
+
+    /**
+     * 获取指定时间范围内没有填写任务的用户
+     */
+    @GetMapping("/inactive-users/range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getInactiveUsersByDateRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        try {
+            java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+            java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+            
+            if (start.isAfter(end)) {
+                return ResponseEntity.badRequest().body("开始日期不能晚于结束日期");
+            }
+            
+            Map<String, Object> statistics = dashboardService.getInactiveUsers(start, end);
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("获取指定时间范围内未活跃用户统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取指定时间范围内未活跃用户统计失败: " + e.getMessage());
         }
     }
 } 
