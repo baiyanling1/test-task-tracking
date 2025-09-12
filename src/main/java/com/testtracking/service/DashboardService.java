@@ -447,4 +447,240 @@ public class DashboardService {
         
         return getInactiveUsers(lastWeekStart, lastWeekEnd);
     }
+
+    // ========================================
+    // 子任务统计功能
+    // ========================================
+
+    /**
+     * 获取子任务统计概览
+     */
+    public Map<String, Object> getSubTaskStatistics() {
+        log.info("获取子任务统计概览");
+        
+        Map<String, Object> statistics = new HashMap<>();
+        
+        // 主任务和子任务总数
+        long mainTaskCount = testTaskRepository.countByTaskLevel(TestTask.TaskLevel.MAIN);
+        long subTaskCount = testTaskRepository.countByTaskLevel(TestTask.TaskLevel.SUB);
+        
+        statistics.put("totalMainTasks", mainTaskCount);
+        statistics.put("totalSubTasks", subTaskCount);
+        statistics.put("totalTasks", mainTaskCount + subTaskCount);
+        
+        // 有子任务的主任务数量
+        List<Object[]> parentTaskCounts = testTaskRepository.countSubTasksByParent();
+        statistics.put("mainTasksWithSubTasks", parentTaskCounts.size());
+        
+        // 平均每个主任务的子任务数
+        double avgSubTasksPerMain = parentTaskCounts.isEmpty() ? 0.0 : 
+                subTaskCount / (double) parentTaskCounts.size();
+        statistics.put("averageSubTasksPerMain", Math.round(avgSubTasksPerMain * 100.0) / 100.0);
+        
+        // 子任务责任人分配统计
+        List<Object[]> assigneeStats = testTaskRepository.countSubTasksByAssignee();
+        List<Map<String, Object>> assigneeList = new ArrayList<>();
+        for (Object[] stat : assigneeStats) {
+            Map<String, Object> assigneeMap = new HashMap<>();
+            assigneeMap.put("assigneeName", stat[0]);
+            assigneeMap.put("subTaskCount", stat[1]);
+            assigneeList.add(assigneeMap);
+        }
+        statistics.put("subTaskAssignees", assigneeList);
+        
+        return statistics;
+    }
+
+    /**
+     * 获取本月子任务按用户和层级统计
+     */
+    public Map<String, Object> getMonthlySubTaskStatsByUser() {
+        log.info("获取本月子任务按用户统计");
+        
+        LocalDate now = LocalDate.now();
+        LocalDate monthStart = now.withDayOfMonth(1);
+        LocalDate monthEnd = now.withDayOfMonth(now.lengthOfMonth());
+        
+        Map<String, Object> result = new HashMap<>();
+        
+        // 主任务统计
+        List<Object[]> mainTaskStats = testTaskRepository.countByUserAndTaskLevelThisMonth(
+                TestTask.TaskLevel.MAIN, monthStart, monthEnd);
+        
+        // 子任务统计
+        List<Object[]> subTaskStats = testTaskRepository.countByUserAndTaskLevelThisMonth(
+                TestTask.TaskLevel.SUB, monthStart, monthEnd);
+        
+        // 整理数据
+        Map<String, Map<String, Object>> userStatsMap = new HashMap<>();
+        
+        // 处理主任务统计
+        for (Object[] stat : mainTaskStats) {
+            String userName = (String) stat[0];
+            Long count = (Long) stat[1];
+            
+            userStatsMap.computeIfAbsent(userName, k -> new HashMap<>())
+                    .put("mainTaskCount", count);
+        }
+        
+        // 处理子任务统计
+        for (Object[] stat : subTaskStats) {
+            String userName = (String) stat[0];
+            Long count = (Long) stat[1];
+            
+            userStatsMap.computeIfAbsent(userName, k -> new HashMap<>())
+                    .put("subTaskCount", count);
+        }
+        
+        // 转换为列表格式
+        List<Map<String, Object>> userStatsList = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Object>> entry : userStatsMap.entrySet()) {
+            Map<String, Object> userStats = new HashMap<>();
+            userStats.put("userName", entry.getKey());
+            userStats.put("mainTaskCount", entry.getValue().getOrDefault("mainTaskCount", 0L));
+            userStats.put("subTaskCount", entry.getValue().getOrDefault("subTaskCount", 0L));
+            
+            long totalCount = (Long) userStats.get("mainTaskCount") + (Long) userStats.get("subTaskCount");
+            userStats.put("totalTaskCount", totalCount);
+            
+            userStatsList.add(userStats);
+        }
+        
+        // 按总任务数排序
+        userStatsList.sort((a, b) -> 
+                Long.compare((Long) b.get("totalTaskCount"), (Long) a.get("totalTaskCount")));
+        
+        result.put("userStats", userStatsList);
+        result.put("monthStart", monthStart.toString());
+        result.put("monthEnd", monthEnd.toString());
+        
+        // 汇总统计
+        long totalMainTasks = userStatsList.stream()
+                .mapToLong(stats -> (Long) stats.get("mainTaskCount"))
+                .sum();
+        
+        long totalSubTasks = userStatsList.stream()
+                .mapToLong(stats -> (Long) stats.get("subTaskCount"))
+                .sum();
+        
+        result.put("totalMainTasksThisMonth", totalMainTasks);
+        result.put("totalSubTasksThisMonth", totalSubTasks);
+        result.put("totalTasksThisMonth", totalMainTasks + totalSubTasks);
+        
+        return result;
+    }
+
+    /**
+     * 获取指定用户的子任务详细统计
+     */
+    public Map<String, Object> getUserSubTaskDetails(String username) {
+        log.info("获取用户 {} 的子任务详细统计", username);
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在: " + username));
+        
+        Map<String, Object> result = new HashMap<>();
+        
+        // 获取用户可访问的子任务
+        List<TestTask> userSubTasks = testTaskRepository.findTasksAccessibleByUser(user, TestTask.TaskLevel.SUB);
+        
+        // 按状态分组统计
+        Map<TestTask.TaskStatus, Long> statusStats = userSubTasks.stream()
+                .collect(Collectors.groupingBy(TestTask::getStatus, Collectors.counting()));
+        
+        // 按优先级分组统计
+        Map<TestTask.TaskPriority, Long> priorityStats = userSubTasks.stream()
+                .collect(Collectors.groupingBy(TestTask::getPriority, Collectors.counting()));
+        
+        // 工时统计
+        double totalManDays = userSubTasks.stream()
+                .mapToDouble(task -> task.getManDays() != null ? task.getManDays() : 0.0)
+                .sum();
+        
+        double totalActualManDays = userSubTasks.stream()
+                .mapToDouble(task -> task.getActualManDays() != null ? task.getActualManDays() : 0.0)
+                .sum();
+        
+        // 进度统计
+        double avgProgress = userSubTasks.stream()
+                .mapToInt(task -> task.getProgressPercentage() != null ? task.getProgressPercentage() : 0)
+                .average()
+                .orElse(0.0);
+        
+        // 最近的子任务
+        List<TestTaskDto> recentSubTasks = userSubTasks.stream()
+                .sorted((a, b) -> b.getUpdatedTime().compareTo(a.getUpdatedTime()))
+                .limit(5)
+                .map(TestTaskDto::fromEntity)
+                .collect(Collectors.toList());
+        
+        result.put("username", username);
+        result.put("realName", user.getRealName());
+        result.put("department", user.getDepartment());
+        result.put("totalSubTasks", userSubTasks.size());
+        result.put("statusStatistics", statusStats);
+        result.put("priorityStatistics", priorityStats);
+        result.put("totalManDays", Math.round(totalManDays * 100.0) / 100.0);
+        result.put("totalActualManDays", Math.round(totalActualManDays * 100.0) / 100.0);
+        result.put("averageProgress", Math.round(avgProgress * 100.0) / 100.0);
+        result.put("recentSubTasks", recentSubTasks);
+        
+        return result;
+    }
+
+    /**
+     * 获取主任务及其子任务的进度汇总
+     */
+    public Map<String, Object> getMainTaskProgressSummary() {
+        log.info("获取主任务进度汇总");
+        
+        List<TestTask> mainTasksWithAutoProgress = testTaskRepository.findMainTasksWithAutoProgress();
+        List<Map<String, Object>> taskSummaries = new ArrayList<>();
+        
+        for (TestTask mainTask : mainTasksWithAutoProgress) {
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("mainTaskId", mainTask.getId());
+            summary.put("mainTaskName", mainTask.getTaskName());
+            summary.put("mainTaskProgress", mainTask.getProgressPercentage());
+            summary.put("mainTaskStatus", mainTask.getStatus().getDescription());
+            
+            // 获取子任务信息
+            List<TestTask> subTasks = testTaskRepository.findSubTasksByParentId(mainTask.getId());
+            summary.put("subTaskCount", subTasks.size());
+            
+            // 子任务进度详情
+            List<Map<String, Object>> subTaskDetails = subTasks.stream()
+                    .map(subTask -> {
+                        Map<String, Object> detail = new HashMap<>();
+                        detail.put("subTaskId", subTask.getId());
+                        detail.put("subTaskName", subTask.getTaskName());
+                        detail.put("progress", subTask.getProgressPercentage());
+                        detail.put("status", subTask.getStatus().getDescription());
+                        detail.put("assigneeName", 
+                                subTask.getAssignedTo() != null ? subTask.getAssignedTo().getRealName() : "未分配");
+                        detail.put("weight", subTask.getSubtaskWeight());
+                        return detail;
+                    })
+                    .collect(Collectors.toList());
+            
+            summary.put("subTasks", subTaskDetails);
+            
+            // 完成度统计
+            long completedSubTasks = subTasks.stream()
+                    .mapToLong(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED ? 1L : 0L)
+                    .sum();
+            
+            summary.put("completedSubTasks", completedSubTasks);
+            summary.put("completionRate", 
+                    subTasks.isEmpty() ? 0.0 : (completedSubTasks * 100.0 / subTasks.size()));
+            
+            taskSummaries.add(summary);
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("mainTaskSummaries", taskSummaries);
+        result.put("totalMainTasksWithAutoProgress", mainTasksWithAutoProgress.size());
+        
+        return result;
+    }
 } 

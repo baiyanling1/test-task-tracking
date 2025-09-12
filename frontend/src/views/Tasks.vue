@@ -2,31 +2,33 @@
   <div class="tasks-container">
          <div class="page-header">
        <h1>测试任务管理</h1>
-       <div class="header-actions">
-         <el-button 
-           type="info" 
-           size="small"
-           @click="showHelpDialog = true"
-           style="margin-right: 10px;"
-         >
-           <el-icon><QuestionFilled /></el-icon>
-           填写帮助
-         </el-button>
-         <el-button 
-           v-if="canCreateTask()" 
-           type="primary" 
-           @click="createNewTask"
-         >
-          <el-icon><Plus /></el-icon>
-          新建任务
+      <div class="header-actions">
+        
+        <el-button 
+          type="info" 
+          size="small"
+          @click="showHelpDialog = true"
+          style="margin-right: 10px;"
+        >
+          <el-icon><QuestionFilled /></el-icon>
+          填写帮助
         </el-button>
-       </div>
+        <el-button 
+          v-if="canCreateTask()" 
+          type="primary" 
+          @click="createNewTask"
+        >
+         <el-icon><Plus /></el-icon>
+         新建任务
+       </el-button>
+      </div>
      </div>
 
     <!-- 搜索和筛选 -->
     <div class="search-section">
-      <el-row :gutter="20">
-        <el-col :span="4">
+      <!-- 第一行筛选条件 -->
+      <el-row :gutter="20" style="margin-bottom: 15px;">
+        <el-col :span="6">
           <el-input
             v-model="searchQuery"
             placeholder="搜索任务名称或描述"
@@ -51,6 +53,13 @@
           </el-select>
         </el-col>
         <el-col :span="3">
+          <el-select v-model="taskTypeFilter" placeholder="任务类型" clearable @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option label="需求测试" value="REQUIREMENT" />
+            <el-option label="版本测试" value="VERSION" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
           <el-select v-model="assignedToFilter" placeholder="负责人筛选" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option
@@ -61,7 +70,7 @@
             />
           </el-select>
         </el-col>
-        <el-col :span="3">
+        <el-col :span="4">
           <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="计划中" value="PLANNED" />
@@ -71,7 +80,7 @@
             <el-option label="已取消" value="CANCELLED" />
           </el-select>
         </el-col>
-        <el-col :span="3">
+        <el-col :span="4">
           <el-select v-model="priorityFilter" placeholder="优先级筛选" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="高" value="HIGH" />
@@ -79,14 +88,18 @@
             <el-option label="低" value="LOW" />
           </el-select>
         </el-col>
-        <el-col :span="3">
+      </el-row>
+      
+      <!-- 第二行筛选条件 -->
+      <el-row :gutter="20">
+        <el-col :span="4">
           <el-select v-model="overdueFilter" placeholder="超时状态筛选" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="超预期/延期" value="overdue" />
             <el-option label="正常" value="normal" />
           </el-select>
         </el-col>
-        <el-col :span="3">
+        <el-col :span="6">
           <el-date-picker
             v-model="startDateRange"
             type="daterange"
@@ -98,22 +111,73 @@
             style="width: 100%"
           />
         </el-col>
-        <el-col :span="2">
-          <el-button type="primary" @click="loadTasks">刷新</el-button>
+        <el-col :span="3">
+          <el-button type="success" @click="loadAllData">
+            <el-icon><Refresh /></el-icon>
+            刷新
+          </el-button>
+        </el-col>
+        <el-col :span="11">
+          <div style="color: #909399; font-size: 14px; line-height: 32px;">
+            <el-icon><InfoFilled /></el-icon>
+            筛选提示：支持任务名称、描述搜索，可按部门、类型、负责人、状态等条件筛选
+          </div>
         </el-col>
       </el-row>
     </div>
 
     <!-- 任务列表 -->
     <div class="tasks-table">
+      <!-- 任务表格 - 支持展开子任务 -->
       <el-table
-        :data="filteredTasks"
+        ref="taskTableRef"
+        :data="taskTreeData"
         v-loading="loading"
         stripe
+        row-key="id"
+        :tree-props="{children: 'subTasks', hasChildren: 'hasSubTasks'}"
+        :default-expand-all="false"
+        :indent="20"
         style="width: 100%"
       >
-        <el-table-column prop="taskName" label="任务名称" min-width="200" />
-                         <el-table-column prop="taskDescription" label="描述" min-width="200">
+        <!-- 任务名称列 - 显示层级 -->
+        <el-table-column prop="taskName" label="任务名称" min-width="280">
+          <template #default="{ row }">
+            <div class="task-name-cell">
+              <!-- 任务图标 -->
+              <el-icon v-if="row.taskLevel === 'MAIN' && row.taskType === 'VERSION'" class="main-task-icon">
+                <Folder />
+              </el-icon>
+              <el-icon v-else-if="row.taskLevel === 'SUB'" class="sub-task-icon">
+                <Document />
+              </el-icon>
+              
+              <!-- 任务名称 -->
+              <span :class="{'main-task-name': row.taskLevel === 'MAIN', 'sub-task-name': row.taskLevel === 'SUB'}">
+                {{ row.taskName }}
+              </span>
+              
+              <!-- 任务类型标签（仅主任务显示） -->
+              <el-tag v-if="row.taskLevel === 'MAIN'" 
+                      :type="getTaskTypeTagType(row.taskType || 'REQUIREMENT')" 
+                      size="small" 
+                      class="task-type-tag">
+                {{ getTaskTypeText(row.taskType || 'REQUIREMENT') }}
+              </el-tag>
+              
+              <!-- 子任务数量标签 -->
+              <el-tag v-if="row.taskLevel === 'MAIN' && (row.taskType === 'VERSION' || (!row.taskType && row.hasSubTasks)) && row.subTasks && row.subTasks.length > 0" 
+                      size="small" 
+                      type="info" 
+                      class="subtask-count">
+                {{ row.subTasks.length }}个子任务
+              </el-tag>
+            </div>
+          </template>
+        </el-table-column>
+        
+        <!-- 描述列 -->
+        <el-table-column prop="taskDescription" label="描述" min-width="200">
           <template #default="{ row }">
             <div 
               style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;"
@@ -124,8 +188,11 @@
             </div>
           </template>
         </el-table-column>
+        
         <el-table-column prop="department" label="部门" width="120" />
         <el-table-column prop="assignedToName" label="负责人" width="120" />
+        
+        <!-- 状态列 -->
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
@@ -133,6 +200,9 @@
             </el-tag>
           </template>
         </el-table-column>
+        
+        
+        <!-- 优先级列 -->
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority)" size="small">
@@ -140,76 +210,159 @@
             </el-tag>
           </template>
         </el-table-column>
+        
+        <!-- 进度列 - 主任务显示自动计算标识 -->
+        <el-table-column prop="progressPercentage" label="进度" width="180">
+          <template #default="{ row }">
+            <div class="progress-cell">
+              <el-progress :percentage="row.progressPercentage || 0">
+                <template #default="{ percentage }">
+                  <span>{{ percentage }}%</span>
+                  <el-tag v-if="row.taskLevel === 'MAIN' && row.autoProgressCalculation" 
+                          size="small" 
+                          type="info" 
+                          class="auto-progress-tag">
+                    <el-icon><Cpu /></el-icon>
+                    自动
+                  </el-tag>
+                </template>
+              </el-progress>
+            </div>
+          </template>
+        </el-table-column>
+        
+        <!-- 投入人数列 -->
+        <el-table-column prop="participantCount" label="投入人数" width="100" align="center">
+          <template #default="{ row }">
+            {{ row.participantCount || 0 }}人
+          </template>
+        </el-table-column>
+        
+        <!-- 工时列 -->
+        <el-table-column prop="manDays" label="工时(人/天)" width="120" align="center">
+          <template #default="{ row }">
+            <div>
+              <div>{{ (row.manDays || 0).toFixed(1) }}</div>
+              <div v-if="row.actualManDays" style="color: #909399; font-size: 12px;">
+                实际: {{ row.actualManDays.toFixed(1) }}
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        
         <el-table-column prop="startDate" label="开始时间" width="100">
           <template #default="{ row }">
             {{ formatDate(row.startDate) }}
           </template>
         </el-table-column>
+        
         <el-table-column prop="expectedEndDate" label="预计结束日期" width="160">
           <template #default="{ row }">
             {{ formatDate(row.expectedEndDate) }}
           </template>
         </el-table-column>
-        <el-table-column prop="participantCount" label="投入人数" width="100" />
-        <el-table-column prop="manDays" label="工时(人/天)" width="160">
+        
+        <!-- 超时状态列 -->
+        <el-table-column label="超时状态" width="100" align="center">
           <template #default="{ row }">
-            <div>
-              <div>预计: {{ row.manDays ? row.manDays.toFixed(1) : '-' }}</div>
-              <div>实际: {{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</div>
+            <div v-if="row.isOverdue" style="color: #f56c6c;">
+              <el-icon><WarningFilled /></el-icon>
+              超时{{ row.overdueDays }}天
+            </div>
+            <div v-else-if="row.isExpectedCompletionReached" style="color: #e6a23c;">
+              已到期
+            </div>
+            <div v-else style="color: #67c23a;">
+              正常
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="progressPercentage" label="进度" width="120">
-          <template #default="{ row }">
-            <el-progress :percentage="row.progressPercentage || 0" />
-          </template>
-        </el-table-column>
-        <el-table-column label="超时状态" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.isOverdue && row.actualEndDate" type="danger" size="small">
-              延期完成{{ row.overdueDays }}天
-            </el-tag>
-            <el-tag v-else-if="row.isOverdue && !row.actualEndDate" type="warning" size="small">
-              超预期{{ row.overdueDays }}天
-            </el-tag>
-            <el-tag v-else-if="row.isExpectedCompletionReached && !row.actualEndDate" type="info" size="small">
-              已到预期时间
-            </el-tag>
-            <el-tag v-else type="success" size="small">
-              正常
-            </el-tag>
-          </template>
-        </el-table-column>
+        
+        <!-- 实际结束时间列 -->
         <el-table-column prop="actualEndDate" label="实际结束时间" width="160">
           <template #default="{ row }">
-            {{ formatDate(row.actualEndDate) }}
+            <span v-if="row.actualEndDate" :style="{ color: row.actualEndDate > row.expectedEndDate ? '#f56c6c' : '#67c23a' }">
+              {{ formatDate(row.actualEndDate) }}
+            </span>
+            <span v-else style="color: #909399;">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="updatedTime" label="修改时间" width="160">
+        
+        <!-- 更新时间列 -->
+        <el-table-column prop="updatedTime" label="更新时间" width="160">
           <template #default="{ row }">
             {{ formatDateTime(row.updatedTime) }}
           </template>
         </el-table-column>
-                 <el-table-column label="操作" width="280" fixed="right" align="center">
-           <template #default="{ row }">
-             <div class="action-buttons">
-               <el-button 
-                 v-if="canEditTask(row)" 
-                 size="small" 
-                 @click="editTask(row)"
-               >编辑</el-button>
-               <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
-               <el-button size="small" type="warning" @click="viewProgress(row)">进度更新</el-button>
-               <el-button 
-                 v-if="canDeleteTask(row)" 
-                 size="small" 
-                 type="danger" 
-                 @click="deleteTask(row)"
-               >删除</el-button>
-             </div>
-           </template>
-         </el-table-column>
+        
+        <!-- 操作列 - 根据任务类型显示不同操作 -->
+        <el-table-column label="操作" width="320" fixed="right" align="center">
+          <template #default="{ row }">
+            <div class="action-buttons">
+              <!-- 主任务操作 -->
+              <template v-if="row.taskLevel === 'MAIN'">
+                <!-- 只有版本测试主任务才能添加子任务 -->
+                <el-button v-if="row.taskType === 'VERSION'" size="small" @click="createSubTaskForParent(row)">
+                  <el-icon><Plus /></el-icon>
+                  添加子任务
+                </el-button>
+                <el-button size="small" type="info" @click="viewDetails(row)">
+                  详情
+                </el-button>
+                <el-button v-if="canEditTask(row)" size="small" @click="editTask(row)">
+                  编辑
+                </el-button>
+                <!-- 需求测试主任务：负责人或创建者可以更新进度 -->
+                <el-button 
+                  v-if="row.taskType === 'REQUIREMENT' && canEditTask(row)" 
+                  size="small" 
+                  type="warning" 
+                  @click="updateRequirementTaskProgressDialog(row)"
+                >
+                  进度更新
+                </el-button>
+                <!-- 版本测试主任务：只有创建者可以手动更新进度 -->
+                <el-button 
+                  v-if="row.taskType === 'VERSION' && isMainTaskCreator(row)" 
+                  size="small" 
+                  type="warning" 
+                  @click="updateMainTaskProgressDialog(row)"
+                >
+                  进度更新
+                </el-button>
+                <!-- 历史任务兼容：没有taskType的主任务按需求测试处理 -->
+                <el-button 
+                  v-if="!row.taskType && canEditTask(row)" 
+                  size="small" 
+                  type="warning" 
+                  @click="updateRequirementTaskProgressDialog(row)"
+                >
+                  进度更新
+                </el-button>
+              </template>
+              
+              <!-- 子任务操作 -->
+              <template v-else>
+                <el-button size="small" type="info" @click="viewDetails(row)">
+                  详情
+                </el-button>
+                <el-button v-if="canEditTask(row)" size="small" @click="editTask(row)">
+                  编辑
+                </el-button>
+                <el-button v-if="canEditTask(row)" size="small" type="warning" @click="updateSubTaskProgressDialog(row)">
+                  进度更新
+                </el-button>
+              </template>
+              
+              <!-- 通用操作 -->
+              <el-button v-if="canDeleteTask(row)" size="small" type="danger" @click="deleteTask(row)">
+                删除
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
       </el-table>
+
     </div>
 
     <!-- 分页 -->
@@ -238,6 +391,36 @@
         :rules="taskRules"
         label-width="120px"
       >
+        <!-- 任务类型选择（仅新建主任务时显示） -->
+        <el-form-item label="任务类型" v-if="!editingTask && taskForm.taskLevel === 'MAIN'">
+          <el-radio-group v-model="taskForm.taskType">
+            <el-radio label="REQUIREMENT">
+              <span class="task-type-option">
+                <el-icon><Document /></el-icon>
+                需求测试（独立任务）
+              </span>
+            </el-radio>
+            <el-radio label="VERSION">
+              <span class="task-type-option">
+                <el-icon><Folder /></el-icon>
+                版本测试（可拆分子任务）
+              </span>
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <!-- 父任务选择（创建子任务时） -->
+        <el-form-item label="归属主任务" v-if="taskForm.taskLevel === 'SUB'" prop="parentTaskId">
+          <el-select v-model="taskForm.parentTaskId" placeholder="选择主任务" style="width: 100%">
+            <el-option 
+              v-for="mainTask in mainTaskOptions" 
+              :key="mainTask.id"
+              :label="mainTask.taskName" 
+              :value="mainTask.id"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="任务名称" prop="taskName">
           <el-input v-model="taskForm.taskName" placeholder="请输入任务名称" />
         </el-form-item>
@@ -840,9 +1023,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled } from '@element-plus/icons-vue'
+import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled, Grid, List, Folder, Document, Cpu, Refresh } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress } from '@/api/tasks'
+import { 
+  getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress,
+  createSubTask, getSubTasks, updateSubTaskProgress, deleteSubTask, convertToMainTask,
+  updateMainTaskProgressManually
+} from '@/api/tasks'
 import { getUsers } from '@/api/users'
 import { getDepartments } from '@/api/departments'
 import dayjs from 'dayjs'
@@ -865,6 +1052,17 @@ const startDateRange = ref([]) // 新增：开始时间范围
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalTasks = ref(0)
+
+// 任务数据
+const taskTreeData = ref([])
+const showCreateSubTaskDialog = ref(false)
+const parentTaskForSub = ref(null)
+const mainTaskOptions = ref([])
+const showSubTaskProgress = ref(false)
+const selectedSubTask = ref(null)
+
+// 筛选条件
+const taskTypeFilter = ref('')
 
 
 
@@ -938,8 +1136,10 @@ const progressFormRules = {
   ]
 }
 
-// 表单数据
+// 表格和表单引用
+const taskTableRef = ref()
 const taskFormRef = ref()
+
 const taskForm = reactive({
   taskName: '',
   taskDescription: '',
@@ -955,7 +1155,12 @@ const taskForm = reactive({
   delayReason: '',
   manDays: 0,
   actualManDays: null,
-  progressNotes: ''
+  progressNotes: '',
+  // 子任务相关字段
+  taskLevel: 'MAIN',
+  parentTaskId: null,
+  subtaskWeight: 1.00,
+  taskType: 'VERSION' // 默认为版本测试
 })
 
 // 标记实际工时是否为手动输入
@@ -1089,7 +1294,8 @@ const loadDepartments = async () => {
   }
 }
 
-const loadTasks = async () => {
+// 统一的数据加载方法 - 单接口调用
+const loadAllData = async () => {
   loading.value = true
   try {
     const params = {
@@ -1102,15 +1308,17 @@ const loadTasks = async () => {
       department: departmentFilter.value || undefined,
       status: statusFilter.value || undefined,
       priority: priorityFilter.value || undefined,
+      taskType: taskTypeFilter.value || undefined,
       isOverdue: overdueFilter.value === 'overdue' ? true : overdueFilter.value === 'normal' ? false : undefined,
       startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,
       startDateTo: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[1] : undefined
     }
     
+    // 单接口调用，获取所有任务数据
     const response = await getTasks(params)
-    // 确保tasks数组正确初始化，并添加数据验证
+    
     if (response && response.content) {
-      tasks.value = response.content.map(task => ({
+      const allTasks = response.content.map(task => ({
         ...task,
         taskName: task.taskName || '',
         taskDescription: task.taskDescription || '',
@@ -1119,45 +1327,67 @@ const loadTasks = async () => {
         status: task.status || 'PLANNED',
         priority: task.priority || 'MEDIUM'
       }))
+      
+      // 智能分离数据：根据taskLevel和taskType分类
+      tasks.value = allTasks // 所有任务的扁平列表
+      
+      // 构建树形数据：只包含主任务，子任务作为children
+      taskTreeData.value = allTasks
+        .filter(task => task.taskLevel === 'MAIN') // 只取主任务
+        .map(mainTask => ({
+          ...mainTask,
+          // 如果有子任务数据，保持原有的subTasks结构
+          subTasks: mainTask.subTasks || [],
+          hasSubTasks: mainTask.hasSubTasks || false
+        }))
+        
     } else {
       tasks.value = []
+      taskTreeData.value = []
     }
+    
     totalTasks.value = response?.totalElements || 0
+    
   } catch (error) {
-    ElMessage.error('加载任务列表失败')
-    console.error('Load tasks error:', error)
+    ElMessage.error('加载任务数据失败')
+    console.error('Load data error:', error)
     tasks.value = []
+    taskTreeData.value = []
     totalTasks.value = 0
   } finally {
     loading.value = false
   }
 }
 
+// 为了兼容性，保留原方法名
+const loadTasks = loadAllData
+
 const handleSearch = () => {
   currentPage.value = 1
-  loadTasks()
+  loadAllData()
 }
 
 const handleDepartmentChange = () => {
   // 当部门变化时，清空负责人筛选
   assignedToFilter.value = ''
   currentPage.value = 1
-  loadTasks()
+  loadAllData()
 }
 
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
-  loadTasks()
+  loadAllData()
 }
 
 const handleCurrentChange = (page) => {
   currentPage.value = page
-  loadTasks()
+  loadAllData()
 }
 
 const createNewTask = () => {
   editingTask.value = null
+  parentTaskForSub.value = null
   // 确保表单完全重置
   Object.assign(taskForm, {
     taskName: '',
@@ -1174,7 +1404,12 @@ const createNewTask = () => {
     delayReason: '',
     manDays: null,
     actualManDays: null,
-    progressNotes: ''
+    progressNotes: '',
+    // 子任务相关字段
+    taskLevel: 'MAIN',
+    parentTaskId: null,
+    subtaskWeight: 1.00,
+    taskType: 'VERSION' // 默认为版本测试，便于创建子任务
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
@@ -1199,7 +1434,11 @@ const handleDialogClose = () => {
     delayReason: '',
     manDays: null,
     actualManDays: null,
-    progressNotes: ''
+    progressNotes: '',
+    taskLevel: 'MAIN',
+    parentTaskId: null,
+    subtaskWeight: 1.00,
+    taskType: 'VERSION'
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
@@ -1222,7 +1461,12 @@ const editTask = (task) => {
     delayReason: task.delayReason || '',
     manDays: task.manDays || 0,
     actualManDays: task.actualManDays || null,
-    progressNotes: task.progressNotes || ''
+    progressNotes: task.progressNotes || '',
+    // 子任务相关字段
+    taskLevel: task.taskLevel || 'MAIN',
+    parentTaskId: task.parentTaskId || null,
+    subtaskWeight: task.subtaskWeight || 1.00,
+    taskType: task.taskType || 'VERSION'
   })
   // 编辑时重置手动输入标记，允许自动计算
   isActualManDaysManual.value = false
@@ -1257,9 +1501,17 @@ const saveTask = async () => {
       await updateTask(editingTask.value.id, taskForm)
       ElMessage.success('任务更新成功')
     } else {
-      // 新建任务
-      const response = await createTask(taskForm)
-      ElMessage.success('任务创建成功')
+      // 新建任务或子任务
+      let response
+      if (taskForm.taskLevel === 'SUB' && taskForm.parentTaskId) {
+        // 创建子任务
+        response = await createSubTask(taskForm.parentTaskId, taskForm)
+        ElMessage.success('子任务创建成功')
+      } else {
+        // 创建主任务
+        response = await createTask(taskForm)
+        ElMessage.success('任务创建成功')
+      }
       
       // 如果新建任务时有进度描述，自动创建进度历史记录
       if (taskForm.progressNotes && taskForm.progressNotes.trim()) {
@@ -1305,15 +1557,32 @@ const saveTask = async () => {
     // 重置手动输入标记
     isActualManDaysManual.value = false
     
-    // 重新加载任务列表
-    loadTasks()
+    // 重新加载任务数据
+    loadAllData()
   } catch (error) {
-    // 检查是否是权限不足的错误
-    if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('权限不足')) {
-      ElMessage.error('非本人任务无法修改')
-    } else {
-      ElMessage.error(editingTask.value ? '更新任务失败' : '创建任务失败')
+    // 详细错误处理
+    let errorMessage = editingTask.value ? '更新任务失败' : '创建任务失败'
+    
+    if (error.response?.data) {
+      if (typeof error.response.data === 'string') {
+        // 如果是权限错误，显示详细信息
+        if (error.response.data.includes('权限不足')) {
+          errorMessage = error.response.data
+        } else if (error.response.data.includes('时间范围')) {
+          errorMessage = error.response.data
+        } else if (error.response.data.includes('不能添加子任务')) {
+          errorMessage = error.response.data
+        } else {
+          errorMessage = error.response.data
+        }
+      } else if (error.response.data.message) {
+        errorMessage = error.response.data.message
+      }
+    } else if (error.message) {
+      errorMessage = error.message
     }
+    
+    ElMessage.error(errorMessage)
     console.error('Save task error:', error)
   } finally {
     saving.value = false
@@ -1334,10 +1603,27 @@ const deleteTask = async (task) => {
 
     await deleteTaskApi(task.id)
     ElMessage.success('任务删除成功')
-    loadTasks()
+    loadAllData()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除任务失败')
+      // 详细错误处理
+      let errorMessage = '删除任务失败'
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          if (error.response.data.includes('权限')) {
+            errorMessage = error.response.data
+          } else {
+            errorMessage = error.response.data
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      ElMessage.error(errorMessage)
       console.error('Delete task error:', error)
     }
   }
@@ -1394,13 +1680,22 @@ const addProgress = async () => {
       updatedByUserId: authStore.user.id
     }
     
-    await addTaskProgress(selectedTask.value.id, progressData)
-    ElMessage.success('进度更新成功')
+    // 判断是否为子任务进度更新
+    if (selectedTask.value?.taskLevel === 'SUB') {
+      // 子任务进度更新
+      await updateSubTaskProgress(selectedTask.value.id, progressForm.value.progressPercentage)
+      ElMessage.success('子任务进度更新成功')
+    } else {
+      // 主任务/需求测试任务进度更新
+      await addTaskProgress(selectedTask.value.id, progressData)
+      ElMessage.success('任务进度更新成功')
+    }
+    
     showAddProgressDialog.value = false
     loadProgressHistory(selectedTask.value.id)
     
-    // 重新加载任务列表
-    loadTasks()
+    // 重新加载所有任务数据
+    loadAllData()
     
     // 重置表单
     progressForm.value = {
@@ -1410,7 +1705,24 @@ const addProgress = async () => {
       actualManDays: null
     }
   } catch (error) {
-    ElMessage.error('进度更新失败')
+    // 详细错误处理
+    let errorMessage = '进度更新失败'
+    
+    if (error.response?.data) {
+      if (typeof error.response.data === 'string') {
+        if (error.response.data.includes('权限')) {
+          errorMessage = error.response.data
+        } else {
+          errorMessage = error.response.data
+        }
+      } else if (error.response.data.message) {
+        errorMessage = error.response.data.message
+      }
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    ElMessage.error(errorMessage)
     console.error('Add progress error:', error)
   }
 }
@@ -1508,6 +1820,15 @@ const isAdmin = () => {
   return authStore.user?.role === 'ADMIN'
 }
 
+// 检查是否为主任务创建者
+const isMainTaskCreator = (task) => {
+  const currentUser = authStore.user
+  return task.taskLevel === 'MAIN' && 
+         (task.createdByUserName === currentUser?.realName || 
+          task.createdByUserName === currentUser?.username ||
+          task.createdByUserId === currentUser?.id)
+}
+
 
 
 const resetForm = () => {
@@ -1527,7 +1848,11 @@ const resetForm = () => {
     delayReason: '',
     manDays: null,
     actualManDays: null,
-    progressNotes: ''
+    progressNotes: '',
+    taskLevel: 'MAIN',
+    parentTaskId: null,
+    subtaskWeight: 1.00,
+    taskType: 'VERSION'
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
@@ -1734,15 +2059,159 @@ const calculateWorkDays = (startDate, endDate) => {
   return workDays;
 };
 
+// ========================================
+// 子任务相关方法
+// ========================================
+
+// 默认加载任务树（包含展开功能）
+
+// 智能判断任务类型和显示逻辑
+const getTaskTypeText = (taskType) => {
+  if (taskType === 'VERSION') return '版本测试'
+  if (taskType === 'REQUIREMENT') return '需求测试'
+  return '未知类型'
+}
+
+const getTaskTypeTagType = (taskType) => {
+  if (taskType === 'VERSION') return 'primary'
+  if (taskType === 'REQUIREMENT') return 'success'
+  return 'info'
+}
+
+// 判断任务是否可以添加子任务
+const canAddSubTask = (task) => {
+  return task.taskLevel === 'MAIN' && task.taskType === 'VERSION'
+}
+
+
+// 为主任务创建子任务
+const createSubTaskForParent = (parentTask) => {
+  parentTaskForSub.value = parentTask
+  taskForm.taskLevel = 'SUB'
+  taskForm.parentTaskId = parentTask.id
+  // 继承父任务的部分属性
+  taskForm.department = parentTask.department
+  taskForm.projectName = parentTask.projectName
+  taskForm.taskType = parentTask.taskType || 'VERSION' // 继承父任务类型
+  taskForm.assignedToName = authStore.user?.realName || ''
+  showCreateDialog.value = true
+}
+
+// 加载主任务选项
+const loadMainTaskOptions = async () => {
+  try {
+    const response = await getTasks({ 
+      size: 1000,
+      taskLevel: 'MAIN'
+    })
+    mainTaskOptions.value = response.content || []
+  } catch (error) {
+    console.error('加载主任务选项失败:', error)
+  }
+}
+
+// 更新子任务进度对话框
+const updateSubTaskProgressDialog = (subTask) => {
+  selectedSubTask.value = subTask
+  selectedTask.value = subTask // 确保selectedTask也设置为子任务
+  progressForm.value.progressPercentage = subTask.progressPercentage || 0
+  progressForm.value.progressNotes = ''
+  progressForm.value.actualEndDate = subTask.actualEndDate || ''
+  progressForm.value.actualManDays = subTask.actualManDays || null
+  showAddProgressDialog.value = true
+}
+
+// 需求测试任务进度更新对话框
+const updateRequirementTaskProgressDialog = (task) => {
+  selectedTask.value = task
+  progressForm.value.progressPercentage = task.progressPercentage || 0
+  progressForm.value.progressNotes = ''
+  progressForm.value.actualEndDate = task.actualEndDate || ''
+  progressForm.value.actualManDays = task.actualManDays || null
+  showAddProgressDialog.value = true
+}
+
+// 版本测试主任务进度更新对话框（手动更新）
+const updateMainTaskProgressDialog = (mainTask) => {
+  ElMessageBox.prompt('请输入新的进度百分比', '更新版本测试主任务进度', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPattern: /^(100|[1-9]?\d)$/,
+    inputErrorMessage: '请输入0-100之间的整数',
+    inputValue: mainTask.progressPercentage?.toString() || '0'
+  }).then(async ({ value }) => {
+    try {
+      const progressPercentage = parseInt(value)
+      await updateMainTaskProgressManually(mainTask.id, progressPercentage)
+      ElMessage.success('版本测试主任务进度更新成功')
+      loadAllData() // 重新加载所有数据
+    } catch (error) {
+      ElMessage.error(error.response?.data || '更新主任务进度失败')
+    }
+  }).catch(() => {
+    // 用户取消
+  })
+}
+
+// 创建子任务
+const createSubTaskForMain = async (parentTaskId, subTaskData) => {
+  try {
+    await createSubTask(parentTaskId, subTaskData)
+    ElMessage.success('子任务创建成功')
+    loadAllData()
+  } catch (error) {
+    ElMessage.error('创建子任务失败')
+    console.error('Create subtask error:', error)
+  }
+}
+
+// 更新子任务进度
+const updateSubTaskProgressValue = async (subTaskId, progressPercentage) => {
+  try {
+    await updateSubTaskProgress(subTaskId, progressPercentage)
+    ElMessage.success('子任务进度更新成功')
+    loadAllData()
+  } catch (error) {
+    ElMessage.error('更新子任务进度失败')
+    console.error('Update subtask progress error:', error)
+  }
+}
+
+// 删除子任务
+const deleteSubTaskById = async (subTaskId) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这个子任务吗？',
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await deleteSubTask(subTaskId)
+    ElMessage.success('子任务删除成功')
+    loadAllData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除子任务失败')
+      console.error('Delete subtask error:', error)
+    }
+  }
+}
+
 // 生命周期
 onMounted(() => {
   loadUsers()
   loadDepartments()
+  loadMainTaskOptions()
   // 非管理员默认显示自己的任务
   if (authStore.user?.role !== 'ADMIN') {
     assignedToFilter.value = authStore.user?.realName || authStore.user?.username || ''
   }
-  loadTasks()
+  // 加载所有任务数据（统一接口）
+  loadAllData()
 })
 </script>
 
@@ -2112,5 +2581,137 @@ onMounted(() => {
 .tooltip-content {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ========================================
+ * 子任务相关样式
+ * ======================================== */
+
+/* 任务名称单元格 */
+.task-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main-task-icon {
+  color: #409EFF;
+}
+
+.sub-task-icon {
+  color: #67C23A;
+}
+
+.main-task-name {
+  font-weight: 600;
+  color: #303133;
+}
+
+.sub-task-name {
+  color: #606266;
+}
+
+.subtask-count {
+  margin-left: 8px;
+}
+
+.task-type-tag {
+  margin-left: 8px;
+  margin-right: 4px;
+}
+
+/* 进度单元格 */
+.progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auto-progress-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.auto-progress-hint .el-icon {
+  font-size: 14px;
+}
+
+/* 任务类型选择 */
+.task-type-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-type-option .el-icon {
+  font-size: 16px;
+}
+
+/* 视图切换按钮组 */
+.header-actions .el-radio-group {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.header-actions .el-radio-button__inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+}
+
+/* 自动进度标签样式 */
+.auto-progress-tag {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.auto-progress-tag .el-icon {
+  margin-right: 2px;
+}
+
+
+/* 树形表格样式增强 */
+.el-table .el-table__row--level-1 .main-task-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.el-table .el-table__row--level-2 .sub-task-name {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 子任务行样式 */
+.el-table .el-table__row .el-table__cell {
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.el-table .el-table__row--level-2 {
+  background-color: #fafbfc;
+}
+
+.el-table .el-table__row--level-2:hover {
+  background-color: #f0f9ff;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.action-buttons .el-button {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.action-buttons .el-button + .el-button {
+  margin-left: 0;
 }
 </style> 

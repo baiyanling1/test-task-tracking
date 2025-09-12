@@ -1,10 +1,13 @@
 package com.testtracking.controller;
 
 import com.testtracking.service.DashboardService;
+import com.testtracking.service.UserService;
+import com.testtracking.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,6 +20,7 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final UserService userService;
 
     /**
      * 获取综合Dashboard数据
@@ -222,6 +226,82 @@ public class DashboardController {
         } catch (Exception e) {
             log.error("获取指定时间范围内未活跃用户统计失败: {}", e.getMessage());
             return ResponseEntity.badRequest().body("获取指定时间范围内未活跃用户统计失败: " + e.getMessage());
+        }
+    }
+
+    // ========================================
+    // 子任务统计API
+    // ========================================
+
+    /**
+     * 获取子任务统计概览
+     */
+    @GetMapping("/subtask-statistics")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getSubTaskStatistics() {
+        try {
+            Map<String, Object> statistics = dashboardService.getSubTaskStatistics();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("获取子任务统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取子任务统计失败");
+        }
+    }
+
+    /**
+     * 获取本月子任务按用户统计
+     */
+    @GetMapping("/monthly-subtask-stats")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getMonthlySubTaskStatsByUser() {
+        try {
+            Map<String, Object> statistics = dashboardService.getMonthlySubTaskStatsByUser();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("获取本月子任务用户统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取本月子任务用户统计失败");
+        }
+    }
+
+    /**
+     * 获取指定用户的子任务详细统计
+     */
+    @GetMapping("/user-subtask-details/{username}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getUserSubTaskDetails(@PathVariable String username, 
+                                                   Authentication authentication) {
+        try {
+            String currentUsername = authentication.getName();
+            
+            // 检查权限：普通用户只能查看自己的统计
+            if (!currentUsername.equals(username)) {
+                User currentUser = userService.getUserByUsername(currentUsername)
+                        .orElseThrow(() -> new RuntimeException("当前用户不存在"));
+                if (currentUser.getRole() != User.UserRole.ADMIN && currentUser.getRole() != User.UserRole.MANAGER) {
+                    return ResponseEntity.status(403).body("没有权限查看其他用户的子任务统计");
+                }
+            }
+            
+            Map<String, Object> details = dashboardService.getUserSubTaskDetails(username);
+            return ResponseEntity.ok(details);
+        } catch (Exception e) {
+            log.error("获取用户子任务详细统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取用户子任务详细统计失败");
+        }
+    }
+
+    /**
+     * 获取主任务进度汇总
+     */
+    @GetMapping("/main-task-progress-summary")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getMainTaskProgressSummary() {
+        try {
+            Map<String, Object> summary = dashboardService.getMainTaskProgressSummary();
+            return ResponseEntity.ok(summary);
+        } catch (Exception e) {
+            log.error("获取主任务进度汇总失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取主任务进度汇总失败");
         }
     }
 } 

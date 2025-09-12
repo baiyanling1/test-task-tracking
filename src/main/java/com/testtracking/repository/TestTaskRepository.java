@@ -81,6 +81,36 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
                                  @Param("search") String search,
                                  Pageable pageable);
 
+    // 支持taskType过滤的查询方法
+    @Query("SELECT t FROM TestTask t WHERE " +
+           "(:assignedTo IS NULL OR t.assignedTo = :assignedTo) AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName = :assignedToName) AND " +
+           "(:department IS NULL OR t.department = :department) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:projectName IS NULL OR t.projectName = :projectName) AND " +
+           "(:testType IS NULL OR t.testType = :testType) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
+           "(:startDateTo IS NULL OR t.startDate <= :startDateTo) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:isExpectedCompletionReached IS NULL OR t.isExpectedCompletionReached = :isExpectedCompletionReached) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    Page<TestTask> findByFiltersWithTaskType(@Param("assignedTo") User assignedTo,
+                                           @Param("assignedToName") String assignedToName,
+                                           @Param("department") String department,
+                                           @Param("status") TestTask.TaskStatus status,
+                                           @Param("priority") TestTask.TaskPriority priority,
+                                           @Param("projectName") String projectName,
+                                           @Param("testType") TestTask.TestType testType,
+                                           @Param("taskType") TestTask.TaskType taskType,
+                                           @Param("startDateFrom") LocalDate startDateFrom,
+                                           @Param("startDateTo") LocalDate startDateTo,
+                                           @Param("isOverdue") Boolean isOverdue,
+                                           @Param("isExpectedCompletionReached") Boolean isExpectedCompletionReached,
+                                           @Param("search") String search,
+                                           Pageable pageable);
+
     // 统计查询
     @Query("SELECT COUNT(t) FROM TestTask t WHERE t.status = :status")
     Long countByStatus(@Param("status") TestTask.TaskStatus status);
@@ -208,4 +238,230 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     // 统计用户分配的指定状态任务数量
     @Query("SELECT COUNT(t) FROM TestTask t WHERE t.assignedTo = :user AND t.status IN :statuses")
     Long countByAssignedToAndStatusIn(@Param("user") User user, @Param("statuses") List<TestTask.TaskStatus> statuses);
+
+    // ========================================
+    // 子任务支持查询
+    // ========================================
+    
+    // 查询主任务（不包含子任务）
+    List<TestTask> findByTaskLevel(TestTask.TaskLevel taskLevel);
+    
+    Page<TestTask> findByTaskLevel(TestTask.TaskLevel taskLevel, Pageable pageable);
+    
+    // 查询指定主任务的所有子任务
+    @Query("SELECT t FROM TestTask t WHERE t.parentTask.id = :parentTaskId ORDER BY t.subTaskOrder ASC")
+    List<TestTask> findSubTasksByParentId(@Param("parentTaskId") Long parentTaskId);
+    
+    // 查询主任务并加载子任务
+    @Query("SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE t.taskLevel = :taskLevel")
+    List<TestTask> findMainTasksWithSubTasks(@Param("taskLevel") TestTask.TaskLevel taskLevel);
+    
+    // 分页查询主任务并加载子任务
+    @Query(value = "SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks s WHERE t.taskLevel = :taskLevel",
+           countQuery = "SELECT COUNT(DISTINCT t) FROM TestTask t WHERE t.taskLevel = :taskLevel")
+    Page<TestTask> findMainTasksWithSubTasks(@Param("taskLevel") TestTask.TaskLevel taskLevel, Pageable pageable);
+    
+    // 复杂筛选查询（包含子任务支持）
+    @Query("SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE " +
+           "(:taskLevel IS NULL OR t.taskLevel = :taskLevel) AND " +
+           "(:parentTaskId IS NULL OR t.parentTask.id = :parentTaskId) AND " +
+           "(:assignedTo IS NULL OR t.assignedTo = :assignedTo) AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName = :assignedToName) AND " +
+           "(:department IS NULL OR t.department = :department) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:projectName IS NULL OR t.projectName = :projectName) AND " +
+           "(:testType IS NULL OR t.testType = :testType) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
+           "(:startDateTo IS NULL OR t.startDate <= :startDateTo) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    List<TestTask> findByFiltersWithSubTasks(@Param("taskLevel") TestTask.TaskLevel taskLevel,
+                                           @Param("parentTaskId") Long parentTaskId,
+                                           @Param("assignedTo") User assignedTo,
+                                           @Param("assignedToName") String assignedToName,
+                                           @Param("department") String department,
+                                           @Param("status") TestTask.TaskStatus status,
+                                           @Param("priority") TestTask.TaskPriority priority,
+                                           @Param("projectName") String projectName,
+                                           @Param("testType") TestTask.TestType testType,
+                                           @Param("taskType") TestTask.TaskType taskType,
+                                           @Param("startDateFrom") LocalDate startDateFrom,
+                                           @Param("startDateTo") LocalDate startDateTo,
+                                           @Param("isOverdue") Boolean isOverdue,
+                                           @Param("search") String search);
+
+    // 用户权限相关查询 - 特别强调子任务责任人统计
+    @Query("SELECT t FROM TestTask t WHERE " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "(t.taskLevel = 'SUB' AND t.parentTask.assignedTo = :user) OR " +
+           "(t.taskLevel = 'SUB' AND t.parentTask.createdByUser = :user)) AND " +
+           "(:taskLevel IS NULL OR t.taskLevel = :taskLevel)")
+    List<TestTask> findTasksAccessibleByUser(@Param("user") User user, 
+                                           @Param("taskLevel") TestTask.TaskLevel taskLevel);
+
+    @Query("SELECT t FROM TestTask t WHERE " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "(t.taskLevel = 'SUB' AND t.parentTask.assignedTo = :user) OR " +
+           "(t.taskLevel = 'SUB' AND t.parentTask.createdByUser = :user)) AND " +
+           "(:taskLevel IS NULL OR t.taskLevel = :taskLevel)")
+    Page<TestTask> findTasksAccessibleByUser(@Param("user") User user, 
+                                           @Param("taskLevel") TestTask.TaskLevel taskLevel, 
+                                           Pageable pageable);
+
+    // 子任务责任人统计查询
+    @Query("SELECT t.assignedTo.realName, COUNT(t), t.taskLevel FROM TestTask t " +
+           "WHERE t.assignedTo IS NOT NULL " +
+           "AND (:taskLevel IS NULL OR t.taskLevel = :taskLevel) " +
+           "AND t.startDate >= :monthStart AND t.startDate <= :monthEnd " +
+           "GROUP BY t.assignedTo.realName, t.taskLevel " +
+           "ORDER BY t.taskLevel, COUNT(t) DESC")
+    List<Object[]> countByUserAndTaskLevelThisMonth(@Param("taskLevel") TestTask.TaskLevel taskLevel,
+                                                   @Param("monthStart") LocalDate monthStart, 
+                                                   @Param("monthEnd") LocalDate monthEnd);
+
+    // 主任务进度自动计算相关查询
+    @Query("SELECT t.parentTask FROM TestTask t WHERE t.id = :subTaskId AND t.taskLevel = 'SUB'")
+    TestTask findParentTaskBySubTaskId(@Param("subTaskId") Long subTaskId);
+    
+    // 查询需要重新计算进度的主任务
+    @Query("SELECT DISTINCT t FROM TestTask t WHERE t.taskLevel = 'MAIN' AND t.autoProgressCalculation = true")
+    List<TestTask> findMainTasksWithAutoProgress();
+    
+    // 子任务统计
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.taskLevel = :taskLevel")
+    Long countByTaskLevel(@Param("taskLevel") TestTask.TaskLevel taskLevel);
+    
+    @Query("SELECT t.parentTask.id, COUNT(t) FROM TestTask t WHERE t.taskLevel = 'SUB' GROUP BY t.parentTask.id")
+    List<Object[]> countSubTasksByParent();
+    
+    // 用户子任务分配统计
+    @Query("SELECT t.assignedTo.realName, COUNT(t) FROM TestTask t " +
+           "WHERE t.taskLevel = 'SUB' AND t.assignedTo IS NOT NULL " +
+           "GROUP BY t.assignedTo.realName " +
+           "ORDER BY COUNT(t) DESC")
+    List<Object[]> countSubTasksByAssignee();
+    
+    // 检查主任务是否有子任务
+    @Query("SELECT COUNT(t) > 0 FROM TestTask t WHERE t.parentTask.id = :mainTaskId")
+    boolean hasSubTasks(@Param("mainTaskId") Long mainTaskId);
+    
+    // 获取用户可见的所有任务（包括主任务及其子任务）
+    @Query("SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "EXISTS(SELECT s FROM TestTask s WHERE s.parentTask = t AND (s.assignedTo = :user OR s.createdByUser = :user)))")
+    List<TestTask> findMainTasksVisibleToUser(@Param("user") User user);
+    
+    @Query(value = "SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "EXISTS(SELECT s FROM TestTask s WHERE s.parentTask = t AND (s.assignedTo = :user OR s.createdByUser = :user)))",
+           countQuery = "SELECT COUNT(DISTINCT t) FROM TestTask t WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "EXISTS(SELECT s FROM TestTask s WHERE s.parentTask = t AND (s.assignedTo = :user OR s.createdByUser = :user)))")
+    Page<TestTask> findMainTasksVisibleToUser(@Param("user") User user, Pageable pageable);
+    
+    // 主任务过滤查询（支持任务类型等过滤）
+    @Query(value = "SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+           "(:department IS NULL OR t.department LIKE %:department%) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)",
+           countQuery = "SELECT COUNT(DISTINCT t) FROM TestTask t WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+           "(:department IS NULL OR t.department LIKE %:department%) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    Page<TestTask> findMainTasksWithFilters(@Param("assignedToName") String assignedToName,
+                                           @Param("department") String department,
+                                           @Param("status") TestTask.TaskStatus status,
+                                           @Param("priority") TestTask.TaskPriority priority,
+                                           @Param("taskType") TestTask.TaskType taskType,
+                                           @Param("isOverdue") Boolean isOverdue,
+                                           @Param("search") String search,
+                                           Pageable pageable);
+    
+    // 用户可见的主任务过滤查询
+    @Query(value = "SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.subTasks WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "EXISTS(SELECT s FROM TestTask s WHERE s.parentTask = t AND (s.assignedTo = :user OR s.createdByUser = :user))) AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+           "(:department IS NULL OR t.department LIKE %:department%) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)",
+           countQuery = "SELECT COUNT(DISTINCT t) FROM TestTask t WHERE " +
+           "t.taskLevel = 'MAIN' AND " +
+           "(t.assignedTo = :user OR t.createdByUser = :user OR " +
+           "EXISTS(SELECT s FROM TestTask s WHERE s.parentTask = t AND (s.assignedTo = :user OR s.createdByUser = :user))) AND " +
+           "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+           "(:department IS NULL OR t.department LIKE %:department%) AND " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:priority IS NULL OR t.priority = :priority) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
+           "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+           "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    Page<TestTask> findMainTasksVisibleToUserWithFilters(@Param("user") User user,
+                                                       @Param("assignedToName") String assignedToName,
+                                                       @Param("department") String department,
+                                                       @Param("status") TestTask.TaskStatus status,
+                                                       @Param("priority") TestTask.TaskPriority priority,
+                                                       @Param("taskType") TestTask.TaskType taskType,
+                                                       @Param("isOverdue") Boolean isOverdue,
+                                                       @Param("search") String search,
+                                                       Pageable pageable);
+
+    // 查询所有任务（主任务和子任务）- 管理员使用
+    @Query(value = "SELECT DISTINCT t FROM TestTask t WHERE " +
+            "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+            "(:department IS NULL OR t.department LIKE %:department%) AND " +
+            "(:status IS NULL OR t.status = :status) AND " +
+            "(:priority IS NULL OR t.priority = :priority) AND " +
+            "(:taskType IS NULL OR t.taskType = :taskType OR (:taskType = 'REQUIREMENT' AND t.taskType IS NULL)) AND " +
+            "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+            "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    Page<TestTask> findAllTasksWithFilters(@Param("assignedToName") String assignedToName,
+                                         @Param("department") String department,
+                                         @Param("status") TestTask.TaskStatus status,
+                                         @Param("priority") TestTask.TaskPriority priority,
+                                         @Param("taskType") TestTask.TaskType taskType,
+                                         @Param("isOverdue") Boolean isOverdue,
+                                         @Param("search") String search,
+                                         Pageable pageable);
+
+    // 查询用户可见的所有任务（主任务和子任务）- 普通用户使用
+    @Query(value = "SELECT DISTINCT t FROM TestTask t WHERE " +
+            "(t.assignedTo = :user OR t.createdBy = :user OR " +
+            "(t.taskLevel = 'SUB' AND t.parentTask.assignedTo = :user) OR " +
+            "(t.taskLevel = 'MAIN' AND EXISTS (SELECT 1 FROM TestTask st WHERE st.parentTask = t AND st.assignedTo = :user))) AND " +
+            "(:assignedToName IS NULL OR t.assignedTo.realName LIKE %:assignedToName%) AND " +
+            "(:department IS NULL OR t.department LIKE %:department%) AND " +
+            "(:status IS NULL OR t.status = :status) AND " +
+            "(:priority IS NULL OR t.priority = :priority) AND " +
+            "(:taskType IS NULL OR t.taskType = :taskType OR (:taskType = 'REQUIREMENT' AND t.taskType IS NULL)) AND " +
+            "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
+            "(:search IS NULL OR t.taskName LIKE %:search% OR t.taskDescription LIKE %:search%)")
+    Page<TestTask> findAllTasksVisibleToUserWithFilters(@Param("user") User user,
+                                                       @Param("assignedToName") String assignedToName,
+                                                       @Param("department") String department,
+                                                       @Param("status") TestTask.TaskStatus status,
+                                                       @Param("priority") TestTask.TaskPriority priority,
+                                                       @Param("taskType") TestTask.TaskType taskType,
+                                                       @Param("isOverdue") Boolean isOverdue,
+                                                       @Param("search") String search,
+                                                       Pageable pageable);
 } 
