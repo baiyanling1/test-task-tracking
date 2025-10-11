@@ -208,4 +208,13 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     // 统计用户分配的指定状态任务数量
     @Query("SELECT COUNT(t) FROM TestTask t WHERE t.assignedTo = :user AND t.status IN :statuses")
     Long countByAssignedToAndStatusIn(@Param("user") User user, @Param("statuses") List<TestTask.TaskStatus> statuses);
+
+    // 获取用户在指定日期范围内的任务
+    @Query("SELECT t FROM TestTask t WHERE t.assignedTo = :user " +
+           "AND ((t.startDate >= :startDate AND t.startDate <= :endDate) " +
+           "OR (t.actualEndDate >= :startDate AND t.actualEndDate <= :endDate) " +
+           "OR (t.expectedEndDate >= :startDate AND t.expectedEndDate <= :endDate))")
+    List<TestTask> findByAssignedToAndDateRange(@Param("user") User user, 
+                                               @Param("startDate") LocalDate startDate, 
+                                               @Param("endDate") LocalDate endDate);
 } 

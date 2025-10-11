@@ -604,18 +604,27 @@
          </el-form-item>
          
          <el-form-item label="实际工时(人天)" prop="actualManDays" v-if="progressForm.progressPercentage === 100">
-           <el-input-number
-             v-model="progressForm.actualManDays"
-             :min="0"
-             :precision="1"
-             :step="0.5"
-             placeholder="请输入实际工时（必填）"
-             style="width: 100%"
-             @change="calculateProgressActualManDays"
-           />
-                             <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-                    * 请根据实际工时自己修改
-                  </div>
+           <div class="man-days-input-group">
+             <el-input-number
+               v-model="progressForm.actualManDays"
+               :min="0"
+               :precision="1"
+               :step="0.5"
+               placeholder="请输入实际工时（必填）"
+               style="flex: 1;"
+             />
+             <el-button 
+               type="primary" 
+               size="small"
+               @click="calculateProgressActualManDaysManually"
+               style="margin-left: 8px;"
+             >
+               计算
+             </el-button>
+           </div>
+           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+             * 点击"计算"按钮根据开始时间和实际结束时间自动计算，也可手动输入
+           </div>
          </el-form-item>
       </el-form>
       
@@ -1224,8 +1233,8 @@ const editTask = (task) => {
     actualManDays: task.actualManDays || null,
     progressNotes: task.progressNotes || ''
   })
-  // 编辑时重置手动输入标记，允许自动计算
-  isActualManDaysManual.value = false
+  // 如果任务已经有实际工时值，标记为手动输入，避免被自动覆盖
+  isActualManDaysManual.value = task.actualManDays && task.actualManDays > 0
   showCreateDialog.value = true
 }
 
@@ -1436,6 +1445,50 @@ const calculateProgressActualManDays = () => {
   }
 }
 
+// 手动计算进度表单的实际工时
+const calculateProgressActualManDaysManually = () => {
+  if (!selectedTask.value) {
+    ElMessage.warning('请先选择任务');
+    return;
+  }
+  
+  if (progressForm.value.progressPercentage !== 100) {
+    ElMessage.warning('只有进度为100%时才需要计算实际工时');
+    return;
+  }
+  
+  const startDate = selectedTask.value.startDate
+  const actualEndDate = progressForm.value.actualEndDate
+  
+  if (!startDate || !actualEndDate) {
+    ElMessage.warning('请先选择实际结束时间');
+    return;
+  }
+  
+  const start = new Date(startDate);
+  const end = new Date(actualEndDate);
+  
+  // 验证日期的合理性
+  if (start > end) {
+    ElMessage.error('开始时间不能晚于实际结束时间');
+    return;
+  }
+  
+  // 计算工作日数，如果开始时间等于结束时间，按1天计算
+  let workDays;
+  if (start.getTime() === end.getTime()) {
+    workDays = 1; // 同一天按1个工作日计算
+  } else {
+    workDays = calculateWorkDays(start, end);
+  }
+  
+  const participantCount = selectedTask.value.participantCount || 1;
+  const calculatedActualManDays = parseFloat((workDays * participantCount).toFixed(1));
+  progressForm.value.actualManDays = calculatedActualManDays;
+  
+  ElMessage.success(`已计算实际工时：${calculatedActualManDays} 人天（${workDays} 工作日 × ${participantCount} 人）`);
+};
+
 // 自定义tooltip功能
 const tooltipVisible = ref(false)
 const tooltipContent = ref('')
@@ -1627,6 +1680,11 @@ const calculateManDaysManually = () => {
 const calculateActualManDays = () => {
   // 如果是手动输入，不进行自动计算
   if (isActualManDaysManual.value) {
+    return;
+  }
+  
+  // 如果实际工时已经有值且不为0，说明可能是手动输入的，不自动覆盖
+  if (taskForm.actualManDays && taskForm.actualManDays > 0) {
     return;
   }
   

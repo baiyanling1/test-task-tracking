@@ -1,6 +1,7 @@
 package com.testtracking.service;
 
 import com.testtracking.dto.TestTaskDto;
+import com.testtracking.dto.UserWorkStatsDto;
 import com.testtracking.entity.TestTask;
 import com.testtracking.entity.User;
 import com.testtracking.repository.TestTaskRepository;
@@ -14,10 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -222,16 +220,18 @@ public class DashboardService {
         Double completedManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.COMPLETED);
         Double onHoldManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.ON_HOLD);
         
-        statistics.put("plannedManDays", plannedManDays != null ? plannedManDays : 0.0);
-        statistics.put("inProgressManDays", inProgressManDays != null ? inProgressManDays : 0.0);
-        statistics.put("completedManDays", completedManDays != null ? completedManDays : 0.0);
-        statistics.put("onHoldManDays", onHoldManDays != null ? onHoldManDays : 0.0);
+        statistics.put("plannedManDays", plannedManDays != null ? Math.round(plannedManDays * 10.0) / 10.0 : 0.0);
+        statistics.put("inProgressManDays", inProgressManDays != null ? Math.round(inProgressManDays * 10.0) / 10.0 : 0.0);
+        statistics.put("completedManDays", completedManDays != null ? Math.round(completedManDays * 10.0) / 10.0 : 0.0);
+        statistics.put("onHoldManDays", onHoldManDays != null ? Math.round(onHoldManDays * 10.0) / 10.0 : 0.0);
         
-        // 总人天
+        // 总人天 - 使用精确计算避免浮点数精度问题
         double totalManDays = (plannedManDays != null ? plannedManDays : 0.0) +
                              (inProgressManDays != null ? inProgressManDays : 0.0) +
                              (completedManDays != null ? completedManDays : 0.0) +
                              (onHoldManDays != null ? onHoldManDays : 0.0);
+        // 保留1位小数，避免浮点数精度问题
+        totalManDays = Math.round(totalManDays * 10.0) / 10.0;
         statistics.put("totalManDays", totalManDays);
         
         return statistics;
@@ -446,5 +446,188 @@ public class DashboardService {
         LocalDate lastWeekEnd = lastWeekStart.plusDays(6);
         
         return getInactiveUsers(lastWeekStart, lastWeekEnd);
+    }
+
+    /**
+     * 获取所有用户的工作统计数据（仅管理员可访问）
+     */
+    public List<UserWorkStatsDto> getAllUsersWorkStats() {
+        List<User> allUsers = userRepository.findAll();
+        List<UserWorkStatsDto> userStatsList = new ArrayList<>();
+        
+        // 计算本月的工作日数（标准工时）
+        LocalDate now = LocalDate.now();
+        LocalDate monthStart = now.withDayOfMonth(1);
+        LocalDate monthEnd = now.withDayOfMonth(now.lengthOfMonth());
+        int workDaysInMonth = calculateWorkDays(monthStart, monthEnd);
+        double standardWorkDays = workDaysInMonth; // 假设每天8小时，这里按天计算
+        
+        for (User user : allUsers) {
+            UserWorkStatsDto stats = calculateUserWorkStats(user, monthStart, monthEnd, standardWorkDays);
+            userStatsList.add(stats);
+        }
+        
+        // 按工时利用率降序排序
+        userStatsList.sort((a, b) -> Double.compare(
+            b.getWorkloadUtilization() != null ? b.getWorkloadUtilization() : 0.0,
+            a.getWorkloadUtilization() != null ? a.getWorkloadUtilization() : 0.0
+        ));
+        
+        return userStatsList;
+    }
+    
+    /**
+     * 计算单个用户的工作统计
+     */
+    private UserWorkStatsDto calculateUserWorkStats(User user, LocalDate startDate, LocalDate endDate, double standardWorkDays) {
+        UserWorkStatsDto stats = new UserWorkStatsDto();
+        
+        // 基本信息
+        stats.setUserId(user.getId());
+        stats.setUserName(user.getUsername());
+        stats.setRealName(user.getRealName());
+        stats.setDepartment(user.getDepartment());
+        stats.setStandardWorkDays(standardWorkDays);
+        
+        // 获取用户在指定时间范围内的任务
+        List<TestTask> userTasks = testTaskRepository.findByAssignedToAndDateRange(user, startDate, endDate);
+        
+        // 计算总工时
+        double totalManDays = userTasks.stream()
+            .filter(task -> task.getActualManDays() != null)
+            .mapToDouble(TestTask::getActualManDays)
+            .sum();
+        
+        // 如果没有实际工时，使用预估工时
+        if (totalManDays == 0) {
+            totalManDays = userTasks.stream()
+                .filter(task -> task.getManDays() != null)
+                .mapToDouble(TestTask::getManDays)
+                .sum();
+        }
+        
+        stats.setTotalManDays(Math.round(totalManDays * 10.0) / 10.0);
+        
+        // 计算工时利用率
+        double workloadUtilization = standardWorkDays > 0 ? (totalManDays / standardWorkDays) * 100 : 0;
+        stats.setWorkloadUtilization(Math.round(workloadUtilization * 10.0) / 10.0);
+        
+        // 确定工作状态
+        String workloadStatus;
+        if (workloadUtilization > 110) {
+            workloadStatus = "OVERLOADED";
+        } else if (workloadUtilization >= 90) {
+            workloadStatus = "SATURATED";
+        } else if (workloadUtilization >= 60) {
+            workloadStatus = "NORMAL";
+        } else {
+            workloadStatus = "IDLE";
+        }
+        stats.setWorkloadStatus(workloadStatus);
+        
+        // 任务完成统计
+        int totalTasks = userTasks.size();
+        long completedTasks = userTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED)
+            .count();
+        
+        // 计算按时完成的任务数
+        long onTimeCompletedTasks = userTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED)
+            .filter(task -> task.getActualEndDate() != null && task.getExpectedEndDate() != null)
+            .filter(task -> !task.getActualEndDate().isAfter(task.getExpectedEndDate()))
+            .count();
+        
+        stats.setTotalTasks(totalTasks);
+        stats.setCompletedTasks((int) completedTasks);
+        stats.setOnTimeCompletedTasks((int) onTimeCompletedTasks);
+        
+        // 计算按时完成率
+        double onTimeCompletionRate = completedTasks > 0 ? (double) onTimeCompletedTasks / completedTasks * 100 : 0;
+        stats.setOnTimeCompletionRate(Math.round(onTimeCompletionRate * 10.0) / 10.0);
+        
+        // 计算平均延期天数
+        double avgDelayDays = userTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED)
+            .filter(task -> task.getActualEndDate() != null && task.getExpectedEndDate() != null)
+            .filter(task -> task.getActualEndDate().isAfter(task.getExpectedEndDate()))
+            .mapToLong(task -> java.time.temporal.ChronoUnit.DAYS.between(task.getExpectedEndDate(), task.getActualEndDate()))
+            .average()
+            .orElse(0.0);
+        stats.setAvgDelayDays(Math.round(avgDelayDays * 10.0) / 10.0);
+        
+        // 当前任务负载
+        List<TestTask> currentTasks = testTaskRepository.findByAssignedToAndStatusIn(user, 
+            Arrays.asList(TestTask.TaskStatus.PLANNED, TestTask.TaskStatus.IN_PROGRESS, TestTask.TaskStatus.ON_HOLD));
+        
+        long currentActiveTasks = currentTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.IN_PROGRESS)
+            .count();
+        
+        long plannedTasks = currentTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.PLANNED)
+            .count();
+        
+        long onHoldTasks = currentTasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.ON_HOLD)
+            .count();
+        
+        stats.setCurrentActiveTasks((int) currentActiveTasks);
+        stats.setPlannedTasks((int) plannedTasks);
+        stats.setOnHoldTasks((int) onHoldTasks);
+        
+        // 计算当前工作负载（预估工时）
+        double currentWorkload = currentTasks.stream()
+            .filter(task -> task.getManDays() != null)
+            .mapToDouble(TestTask::getManDays)
+            .sum();
+        stats.setCurrentWorkload(Math.round(currentWorkload * 10.0) / 10.0);
+        
+        // 计算工时预估准确度
+        double estimationAccuracy = calculateEstimationAccuracy(userTasks);
+        stats.setEstimationAccuracy(Math.round(estimationAccuracy * 10.0) / 10.0);
+        
+        // 计算显示属性
+        stats.calculateDisplayProperties();
+        
+        return stats;
+    }
+    
+    /**
+     * 计算工时预估准确度
+     */
+    private double calculateEstimationAccuracy(List<TestTask> tasks) {
+        List<Double> accuracyRates = tasks.stream()
+            .filter(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED)
+            .filter(task -> task.getManDays() != null && task.getActualManDays() != null)
+            .filter(task -> task.getManDays() > 0 && task.getActualManDays() > 0)
+            .map(task -> {
+                double estimated = task.getManDays();
+                double actual = task.getActualManDays();
+                double accuracy = 100 - Math.abs(estimated - actual) / estimated * 100;
+                return Math.max(0, accuracy); // 确保不为负数
+            })
+            .collect(Collectors.toList());
+        
+        return accuracyRates.isEmpty() ? 0.0 : 
+            accuracyRates.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+    }
+    
+    /**
+     * 计算工作日数（排除周末，暂不考虑节假日）
+     */
+    private int calculateWorkDays(LocalDate startDate, LocalDate endDate) {
+        int workDays = 0;
+        LocalDate current = startDate;
+        
+        while (!current.isAfter(endDate)) {
+            if (current.getDayOfWeek() != java.time.DayOfWeek.SATURDAY && 
+                current.getDayOfWeek() != java.time.DayOfWeek.SUNDAY) {
+                workDays++;
+            }
+            current = current.plusDays(1);
+        }
+        
+        return workDays;
     }
 } 

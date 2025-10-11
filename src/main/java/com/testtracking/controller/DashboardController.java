@@ -1,5 +1,6 @@
 package com.testtracking.controller;
 
+import com.testtracking.dto.UserWorkStatsDto;
 import com.testtracking.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -222,6 +224,21 @@ public class DashboardController {
         } catch (Exception e) {
             log.error("获取指定时间范围内未活跃用户统计失败: {}", e.getMessage());
             return ResponseEntity.badRequest().body("获取指定时间范围内未活跃用户统计失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取所有用户工作统计数据（仅管理员可访问）
+     */
+    @GetMapping("/users-work-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUsersWorkStats() {
+        try {
+            List<UserWorkStatsDto> userStats = dashboardService.getAllUsersWorkStats();
+            return ResponseEntity.ok(userStats);
+        } catch (Exception e) {
+            log.error("获取用户工作统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取用户工作统计失败: " + e.getMessage());
         }
     }
 } 

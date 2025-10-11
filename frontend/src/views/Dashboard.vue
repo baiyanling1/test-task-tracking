@@ -1,5 +1,9 @@
 <template>
   <div class="dashboard">
+    <!-- TAB页导航 -->
+    <el-tabs v-model="activeTab" class="dashboard-tabs">
+      <!-- 主仪表板TAB -->
+      <el-tab-pane label="仪表板概览" name="overview">
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
@@ -62,7 +66,7 @@
         <el-card class="stats-card">
           <div class="stats-content">
             <div class="stats-icon overdue">
-              <el-icon><Warning /></el-icon>
+                  <el-icon><WarningFilled /></el-icon>
             </div>
             <div class="stats-info">
               <div class="stats-number">{{ stats.overdueTasks }}</div>
@@ -75,11 +79,11 @@
       <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon man-days">
-              <el-icon><User /></el-icon>
+                <div class="stats-icon total-days">
+                  <el-icon><Calendar /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-number">{{ stats.totalManDays }}</div>
+                  <div class="stats-number">{{ formatNumber(stats.totalManDays) }}</div>
               <div class="stats-label">总人天</div>
             </div>
           </div>
@@ -128,156 +132,259 @@
         </el-card>
       </el-col>
     </el-row>
+      </el-tab-pane>
 
-    <!-- 未活跃用户统计区域 - 仅管理员和经理可见 -->
-    <el-row v-if="canViewInactiveUsers()" :gutter="20" class="inactive-users-row">
+      <!-- 管理员专用TAB页 -->
+      <el-tab-pane v-if="isAdmin()" label="管理员统计" name="admin">
+        <!-- 未活跃用户统计区域 -->
+        <el-row :gutter="20" class="inactive-users-row">
       <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
         <el-card class="inactive-users-card">
           <template #header>
             <div class="card-header">
               <span>未填写任务统计</span>
-              <div class="date-range-selector">
-                <el-radio-group v-model="inactiveUsersTimeRange" @change="onTimeRangeChange">
-                  <el-radio-button label="lastWeek">上周</el-radio-button>
-                  <el-radio-button label="custom">自定义</el-radio-button>
-                </el-radio-group>
-                <div v-if="inactiveUsersTimeRange === 'custom'" class="custom-date-range">
+                  <div class="time-range-selector">
+                    <el-select v-model="inactiveUsersTimeRange" @change="loadInactiveUsersStats" size="small">
+                      <el-option label="最近一周" value="lastWeek" />
+                      <el-option label="自定义" value="custom" />
+                    </el-select>
                   <el-date-picker
+                      v-if="inactiveUsersTimeRange === 'custom'"
                     v-model="customDateRange"
                     type="daterange"
                     range-separator="至"
                     start-placeholder="开始日期"
                     end-placeholder="结束日期"
-                    @change="onCustomDateRangeChange"
-                    format="YYYY-MM-DD"
-                    value-format="YYYY-MM-DD"
+                      @change="loadInactiveUsersStats"
                     size="small"
                     style="margin-left: 10px;"
                   />
-                </div>
+                    <el-text v-if="inactiveUsersTimeRange === 'lastWeek'" type="info" size="small" style="margin-left: 10px;">
+                      默认显示上周数据
+                    </el-text>
               </div>
             </div>
           </template>
           
-          <div class="inactive-users-content">
-            <div class="inactive-users-summary">
-              <el-row :gutter="20">
-                <el-col :span="6">
+              <div class="inactive-users-simple">
+                <el-row :gutter="20" class="inactive-users-summary">
+                  <el-col :span="8">
                   <div class="summary-item">
-                    <div class="summary-number">{{ inactiveUsersStats.totalUsers || 0 }}</div>
-                    <div class="summary-label">总用户数</div>
-                  </div>
-                </el-col>
-                <el-col :span="6">
-                  <div class="summary-item">
-                    <div class="summary-number inactive-count">{{ inactiveUsersStats.inactiveCount || 0 }}</div>
+                      <div class="summary-number">{{ inactiveUsers.length }}</div>
                     <div class="summary-label">未活跃用户</div>
                   </div>
                 </el-col>
-                <el-col :span="6">
+                  <el-col :span="8">
                   <div class="summary-item">
-                    <div class="summary-number">{{ ((inactiveUsersStats.totalUsers - inactiveUsersStats.inactiveCount) || 0) }}</div>
-                    <div class="summary-label">活跃用户</div>
+                      <div class="summary-number">{{ stats.totalUsers || 0 }}</div>
+                      <div class="summary-label">总用户数</div>
                   </div>
                 </el-col>
-                <el-col :span="6">
+                  <el-col :span="8">
                   <div class="summary-item">
-                    <div class="summary-number">{{ inactiveUsersStats.totalUsers > 0 ? Math.round((inactiveUsersStats.totalUsers - inactiveUsersStats.inactiveCount) / inactiveUsersStats.totalUsers * 100) : 0 }}%</div>
-                    <div class="summary-label">活跃率</div>
+                      <div class="summary-number">{{ Math.round((inactiveUsers.length / (stats.totalUsers || 1)) * 100) }}%</div>
+                      <div class="summary-label">未活跃比例</div>
                   </div>
                 </el-col>
               </el-row>
-            </div>
-
-            <div v-if="inactiveUsersStats.inactiveUsers && inactiveUsersStats.inactiveUsers.length > 0" class="inactive-users-list">
-              <el-table :data="inactiveUsersStats.inactiveUsers" style="width: 100%">
-                <el-table-column prop="realName" label="姓名" min-width="100" />
-                <el-table-column prop="username" label="用户名" min-width="120" />
-                <el-table-column prop="department" label="部门" min-width="120" />
-                <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="assignedTaskCount" label="分配任务数" width="120" align="center">
-                  <template #default="scope">
-                    <el-tag :type="scope.row.assignedTaskCount > 0 ? 'warning' : 'info'">
-                      {{ scope.row.assignedTaskCount }}
+                
+                <div v-if="inactiveUsers.length > 0" class="inactive-users-names">
+                  <div class="names-label">未活跃用户列表：</div>
+                  <div class="user-tags">
+                    <el-tag 
+                      v-for="user in inactiveUsers" 
+                      :key="user.userId"
+                      type="warning"
+                      class="user-tag"
+                    >
+                      {{ user.realName || user.userName }} ({{ user.department || '未分配' }})
                     </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="状态" width="100" align="center">
-                  <template #default="scope">
-                    <el-tag type="danger">未活跃</el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
+                  </div>
             </div>
 
             <div v-else class="no-inactive-users">
-              <el-empty description="该时间段内所有用户都有活动记录" />
-            </div>
-
-            <div v-if="inactiveUsersStats.startDate && inactiveUsersStats.endDate" class="time-range-info">
-              <span class="time-range-text">
-                检查时间范围：{{ inactiveUsersStats.startDate }} 至 {{ inactiveUsersStats.endDate }}
-              </span>
+                  <el-empty description="所有用户都很活跃！" />
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-         <!-- 个人任务统计 -->
-     <el-row :gutter="20" class="lists-row">
-       <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
-         <el-card class="list-card">
+        <!-- 人员工作统计区域 -->
+        <div class="admin-stats-section">
+          <div class="admin-stats-container">
+            <el-row :gutter="20" class="section-header">
+              <el-col :span="24">
+                <h3 class="section-title">
+                  <el-icon><User /></el-icon>
+                  人员工作统计
+                </h3>
+              </el-col>
+            </el-row>
+            
+            <!-- 工作饱和度仪表板 -->
+            <el-row :gutter="20" class="workload-dashboard">
+              <el-col :span="24">
+                <el-card class="stats-card">
            <template #header>
              <div class="card-header">
-               <el-tabs v-model="activePersonalTab" class="personal-stats-tabs">
-                 <el-tab-pane label="本月任务" name="currentMonth" />
-                 <el-tab-pane label="上月任务" name="lastMonth" />
-               </el-tabs>
+                      <span>工作饱和度仪表板</span>
+                      <el-button 
+                        type="primary" 
+                        size="small" 
+                        @click="loadUsersWorkStats"
+                        :loading="loadingUserStats"
+                      >
+                        刷新数据
+                      </el-button>
              </div>
            </template>
-           <div class="personal-stats-container">
-             <div v-if="activePersonalTab === 'currentMonth'" class="chart-container">
-               <v-chart :option="currentMonthUserTaskChartOption" style="height: 300px" />
+                  
+                  <div class="workload-grid">
+                    <div v-if="usersWorkStats.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                      <p>暂无用户工作统计数据</p>
+                      <el-button type="primary" @click="loadUsersWorkStats" :loading="loadingUserStats">
+                        重新加载数据
+                      </el-button>
              </div>
-             <div v-else-if="activePersonalTab === 'lastMonth'" class="chart-container">
-               <v-chart :option="lastMonthUserTaskChartOption" style="height: 300px" />
+                    <div 
+                      v-for="(user, index) in usersWorkStats" 
+                      :key="user.userId || index"
+                      class="user-workload-card"
+                      :class="getWorkloadCardClass(user.workloadStatus)"
+                    >
+                      <div class="user-info">
+                        <div class="user-name">{{ user.realName || user.userName }}</div>
+                        <div class="user-dept">{{ user.department || '未分配部门' }}</div>
+                      </div>
+                      
+                      <div class="workload-indicator">
+                        <div class="workload-circle" :style="{ borderColor: user.workloadStatusColor }">
+                          <span class="workload-percentage">{{ user.workloadUtilization }}%</span>
+                        </div>
+                        <div class="workload-status" :style="{ color: user.workloadStatusColor }">
+                          {{ user.workloadStatusText }}
+                        </div>
+                      </div>
+                      
+                      <div class="workload-details">
+                        <div class="detail-item">
+                          <span class="label">进行中任务:</span>
+                          <span class="value">{{ user.currentActiveTasks }}个</span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="label">按时完成率:</span>
+                          <span class="value">{{ user.onTimeCompletionRate }}%</span>
+                        </div>
+                        <div class="detail-item">
+                          <span class="label">工时:</span>
+                          <span class="value">{{ user.totalManDays }}/{{ user.standardWorkDays }}天</span>
+                        </div>
+                      </div>
              </div>
            </div>
          </el-card>
        </el-col>
      </el-row>
 
-    <!-- 近6个月工时统计 -->
-    <el-row :gutter="20" class="lists-row">
-      <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
-        <el-card class="list-card">
+            <!-- 详细工作统计表格 -->
+            <el-row :gutter="20" class="detailed-stats">
+              <el-col :span="24">
+                <el-card class="stats-card">
           <template #header>
             <div class="card-header">
-              <span>近6个月工时统计</span>
+                      <span>详细工作统计 (数据条数: {{ usersWorkStats.length }})</span>
             </div>
           </template>
-          <div class="monthly-man-days-container">
-            <el-tabs v-model="activeMonthlyTab" class="monthly-tabs">
-              <el-tab-pane 
-                v-for="month in monthlyManDaysData" 
-                :key="month.month" 
-                :label="month.monthName" 
-                :name="month.month"
-              />
-            </el-tabs>
-            <div class="chart-container">
-              <v-chart :key="chartKey" :option="monthlyManDaysChartOption" style="height: 400px" />
+                  
+                  <div v-if="usersWorkStats.length === 0" style="padding: 20px; text-align: center; color: #999;">
+                    <p>暂无统计数据</p>
+                    <el-button type="primary" @click="loadUsersWorkStats" :loading="loadingUserStats">
+                      重新加载数据
+                    </el-button>
             </div>
+                  
+                  <el-table 
+                    :data="usersWorkStats" 
+                    stripe 
+                    class="stats-table"
+                    :default-sort="{ prop: 'workloadUtilization', order: 'descending' }"
+                    style="width: 100%"
+                    :header-cell-style="{ 
+                      textAlign: 'center', 
+                      verticalAlign: 'middle', 
+                      height: '50px',
+                      lineHeight: '50px',
+                      padding: '0',
+                      backgroundColor: '#f8f9fa',
+                      borderBottom: '1px solid #ebeef5'
+                    }"
+                    :cell-style="{ 
+                      textAlign: 'center', 
+                      verticalAlign: 'middle',
+                      height: '60px',
+                      padding: '12px 8px'
+                    }"
+                  >
+                    <el-table-column prop="realName" label="姓名" width="80" align="center" />
+                    <el-table-column prop="department" label="部门" width="120" align="center" />
+                    <el-table-column prop="workloadUtilization" label="工时利用率" width="100" sortable align="center">
+                      <template #default="{ row }">
+                        <span :style="{ color: row.workloadStatusColor, fontWeight: 'bold' }">
+                          {{ row.workloadUtilization }}%
+                        </span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="workloadStatusText" label="工作状态" width="90" align="center">
+                      <template #default="{ row }">
+                        <el-tag 
+                          :style="{ backgroundColor: row.workloadStatusColor, color: '#fff', border: 'none' }"
+                          effect="dark"
+                          size="small"
+                        >
+                          {{ row.workloadStatusText }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="currentActiveTasks" label="进行中任务" width="90" align="center" />
+                    <el-table-column prop="onTimeCompletionRate" label="按时完成率" width="100" sortable align="center">
+                      <template #default="{ row }">
+                        {{ row.onTimeCompletionRate }}%
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="avgDelayDays" label="平均延期天数" width="110" sortable align="center">
+                      <template #default="{ row }">
+                        {{ row.avgDelayDays }}天
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="estimationAccuracy" label="预估准确度" width="100" sortable align="center">
+                      <template #default="{ row }">
+                        {{ row.estimationAccuracy }}%
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="任务分布" min-width="260" align="center">
+                      <template #default="{ row }">
+                        <div class="task-distribution-inline">
+                          <el-tag size="small" type="info">计划: {{ row.plannedTasks }}</el-tag>
+                          <el-tag size="small" type="warning">进行: {{ row.currentActiveTasks }}</el-tag>
+                          <el-tag size="small" type="success">完成: {{ row.completedTasks }}</el-tag>
+                          <el-tag size="small" type="danger">暂停: {{ row.onHoldTasks }}</el-tag>
           </div>
+                      </template>
+                    </el-table-column>
+                  </el-table>
         </el-card>
       </el-col>
     </el-row>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart, LineChart, BarChart } from 'echarts/charts'
@@ -288,13 +395,11 @@ import {
   GridComponent
 } from 'echarts/components'
 import VChart from 'vue-echarts'
-import * as echarts from 'echarts/core'
-import dayjs from 'dayjs'
-import { getTaskStats, getTasks, getMonthlyManDaysStats, getLastWeekInactiveUsers, getInactiveUsersByDateRange } from '@/api/tasks'
-import { getAlerts } from '@/api/alerts'
+import { List, Loading, Check, Clock, WarningFilled, Calendar, User } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
-import { User, Warning, List, Loading, Check, Clock } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { getUsersWorkStats } from '@/api/userStats'
 
 use([
   CanvasRenderer,
@@ -307,42 +412,33 @@ use([
   GridComponent
 ])
 
+// 响应式数据
 const stats = ref({
   totalTasks: 0,
-  plannedTasks: 0,      // 计划中
-  inProgressTasks: 0,   // 进行中
-  completedTasks: 0,    // 已完成
-  onHoldTasks: 0,       // 已暂停
-  cancelledTasks: 0,    // 已取消
-  overdueTasks: 0,      // 超时任务
-  totalManDays: 0,      // 总人天
-  departmentStats: [],  // 部门统计
-  weeklyTrend: [],      // 本周趋势
-  userTaskStats: []     // 个人任务统计
+  inProgressTasks: 0,
+  completedTasks: 0,
+  onHoldTasks: 0,
+  overdueTasks: 0,
+  totalManDays: 0,
+  departmentStats: [],
+  weeklyTrend: [],
+  totalUsers: 0
 })
 
-const recentTasks = ref([])
-const recentAlerts = ref([])
-const overdueTasks = ref([])
-const activePersonalTab = ref('currentMonth')
-const currentMonthUserTaskStats = ref([])
-const lastMonthUserTaskStats = ref([])
-
-// 近6个月工时统计相关数据
-const activeMonthlyTab = ref('')
-const monthlyManDaysData = ref([])
-const chartKey = ref(0) // 用于强制刷新图表
-
-// 未活跃用户统计相关数据
-const inactiveUsersStats = ref({
-  totalUsers: 0,
-  inactiveUsers: [],
-  inactiveCount: 0,
-  startDate: '',
-  endDate: ''
-})
+const inactiveUsers = ref([])
+const inactiveUsersStats = ref({})
 const inactiveUsersTimeRange = ref('lastWeek')
 const customDateRange = ref([])
+
+// 用户工作统计相关数据
+const usersWorkStats = ref([])
+const loadingUserStats = ref(false)
+
+// Auth store
+const authStore = useAuthStore()
+
+// TAB页控制
+const activeTab = ref('overview')
 
 // 饼图配置
 const pieChartOption = computed(() => ({
@@ -379,7 +475,6 @@ const pieChartOption = computed(() => ({
 
 // 部门任务分布图配置
 const departmentChartOption = computed(() => {
-  // 从stats中获取部门数据，如果没有则使用默认数据
   const departmentData = stats.value.departmentStats || [
     { value: 0, name: '运营商' },
     { value: 0, name: '创新业务' },
@@ -415,573 +510,232 @@ const departmentChartOption = computed(() => {
   }
 })
 
-// 折线图配置
+// 本周任务趋势图配置
 const lineChartOption = computed(() => {
-  // 从stats中获取趋势数据，如果没有则使用默认数据
-  const trendData = stats.value.weeklyTrend || [0, 0, 0, 0, 0, 0, 0]
+  const weeklyData = stats.value.weeklyTrend || []
   
-  return {
-    tooltip: {
-      trigger: 'axis'
-    },
-    xAxis: {
-      type: 'category',
-      data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-    },
-    yAxis: {
-      type: 'value'
-    },
-    series: [
-      {
-        name: '新增任务',
-        type: 'line',
-        data: trendData,
-        smooth: true
-      }
-    ]
-  }
-})
-
-// 本月个人任务统计柱状图配置
-const currentMonthUserTaskChartOption = computed(() => {
-  const userTaskData = currentMonthUserTaskStats.value || []
+  // 生成本周的日期标签
+  const today = new Date()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - today.getDay() + 1) // 获取本周一
   
-  if (userTaskData.length === 0) {
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: { type: 'category', data: [] },
-      yAxis: { type: 'value' },
-      series: [{ name: '任务数量', type: 'bar', data: [] }]
-    }
+  const dates = []
+  const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  
+  for (let i = 0; i < 7; i++) {
+    dates.push(dayNames[i])
   }
-
-  // 使用分组柱状图，每个用户显示4种状态
-  const xAxisData = userTaskData.map(item => item.name)
-  const completedData = userTaskData.map(item => item.completed || 0)
-  const inProgressData = userTaskData.map(item => item.inProgress || 0)
-  const onHoldData = userTaskData.map(item => item.onHold || 0)
-  const plannedData = userTaskData.map(item => item.planned || 0)
+  
+  // 如果后端返回的是数字数组，直接使用
+  const taskCounts = Array.isArray(weeklyData) && typeof weeklyData[0] === 'number' 
+    ? weeklyData 
+    : weeklyData.map(item => item.created || 0)
 
   return {
+    title: {
+      text: ''
+    },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' }
-    },
-    legend: {
-      data: ['已完成', '进行中', '计划中', '暂停'],
-      top: 10
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '20%',
-      top: '15%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: xAxisData,
-      axisTick: { 
-        alignWithLabel: true
-      },
-      axisLabel: {
-        fontSize: 10,
-        rotate: 45,
-        interval: 0
-      }
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: '已完成',
-        type: 'bar',
-        data: completedData,
-        itemStyle: { color: '#67C23A' },
-        barWidth: '8%'
-      },
-      {
-        name: '进行中',
-        type: 'bar',
-        data: inProgressData,
-        itemStyle: { color: '#E6A23C' },
-        barWidth: '8%'
-      },
-      {
-        name: '计划中',
-        type: 'bar',
-        data: plannedData,
-        itemStyle: { color: '#909399' },
-        barWidth: '8%'
-      },
-      {
-        name: '暂停',
-        type: 'bar',
-        data: onHoldData,
-        itemStyle: { color: '#F56C6C' },
-        barWidth: '8%'
-      }
-    ]
-  }
-})
-
-// 上月个人任务统计柱状图配置
-const lastMonthUserTaskChartOption = computed(() => {
-  const userTaskData = lastMonthUserTaskStats.value || []
-  
-  if (userTaskData.length === 0) {
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: { type: 'category', data: [] },
-      yAxis: { type: 'value' },
-      series: [{ name: '任务数量', type: 'bar', data: [] }]
-    }
-  }
-
-  // 使用分组柱状图，每个用户显示4种状态
-  const xAxisData = userTaskData.map(item => item.name)
-  const completedData = userTaskData.map(item => item.completed || 0)
-  const inProgressData = userTaskData.map(item => item.inProgress || 0)
-  const onHoldData = userTaskData.map(item => item.onHold || 0)
-  const plannedData = userTaskData.map(item => item.planned || 0)
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' }
-    },
-    legend: {
-      data: ['已完成', '进行中', '计划中', '暂停'],
-      top: 10
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '20%',
-      top: '15%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: xAxisData,
-      axisTick: { 
-        alignWithLabel: true
-      },
-      axisLabel: {
-        fontSize: 10,
-        rotate: 45,
-        interval: 0
-      }
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: '已完成',
-        type: 'bar',
-        data: completedData,
-        itemStyle: { color: '#67C23A' },
-        barWidth: '8%'
-      },
-      {
-        name: '进行中',
-        type: 'bar',
-        data: inProgressData,
-        itemStyle: { color: '#E6A23C' },
-        barWidth: '8%'
-      },
-      {
-        name: '计划中',
-        type: 'bar',
-        data: plannedData,
-        itemStyle: { color: '#909399' },
-        barWidth: '8%'
-      },
-      {
-        name: '暂停',
-        type: 'bar',
-        data: onHoldData,
-        itemStyle: { color: '#F56C6C' },
-        barWidth: '8%'
-      }
-    ]
-  }
-})
-
-// 近6个月工时统计柱状图配置
-const monthlyManDaysChartOption = computed(() => {
-  const currentMonthData = monthlyManDaysData.value.find(month => month.month === activeMonthlyTab.value)
-  
-  console.log('当前月份数据:', currentMonthData)
-  
-  if (!currentMonthData || !currentMonthData.users || currentMonthData.users.length === 0) {
-    console.log('没有找到当前月份数据或用户数据为空')
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: { type: 'category', data: [] },
-      yAxis: { type: 'value' },
-      series: [{ name: '工时(人天)', type: 'bar', data: [] }]
-    }
-  }
-
-  const xAxisData = currentMonthData.users.map(user => user.userName)
-  const manDaysData = currentMonthData.users.map(user => user.manDays)
-
-  const chartOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
       formatter: function(params) {
-        const data = params[0]
-        return `${data.name}<br/>工时: ${data.value} 人天`
+        let result = params[0].name + '<br/>'
+        params.forEach(param => {
+          result += param.marker + param.seriesName + ': ' + param.value + '个<br/>'
+        })
+        return result
       }
+    },
+    legend: {
+      data: ['任务数量']
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '40%',
-      top: '5%',
+      bottom: '3%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: xAxisData,
-      axisTick: { 
-        alignWithLabel: true,
-        show: true
-      },
-      axisLabel: {
-        fontSize: 11,
-        rotate: 60,
-        interval: 0,
-        show: true,
-        textStyle: {
-          color: '#333'
-        },
-        margin: 20
-      },
-      axisLine: {
-        show: true
-      }
+      boundaryGap: false,
+      data: dates
     },
     yAxis: { 
       type: 'value',
-      name: '工时(人天)',
-      nameLocation: 'middle',
-      nameGap: 40,
-      axisLabel: {
-        show: true,
-        textStyle: {
-          color: '#333'
-        }
-      },
-      axisLine: {
-        show: true
-      },
-      axisTick: {
-        show: true
-      }
+      name: '任务数'
     },
     series: [
       {
-        name: '工时(人天)',
-        type: 'bar',
-        data: manDaysData,
+        name: '任务数量',
+        type: 'line',
+        data: taskCounts,
+        smooth: true,
         itemStyle: { 
-          color: function(params) {
-            // 根据工时值设置不同颜色
-            const value = params.value
-            if (value >= 20) return '#67C23A' // 绿色 - 高工时
-            if (value >= 10) return '#E6A23C' // 橙色 - 中等工时
-            return '#909399' // 灰色 - 低工时
-          }
+          color: '#409EFF'
         },
-        barWidth: '25%',
-        label: {
-          show: true,
-          position: 'top',
-          formatter: '{c}'
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+              offset: 0, color: 'rgba(64, 158, 255, 0.6)'
+            }, {
+              offset: 1, color: 'rgba(64, 158, 255, 0.1)'
+            }]
+          }
         }
       }
     ]
   }
-  
-  console.log('图表配置:', chartOption)
-  return chartOption
 })
 
-// 获取状态类型
-const getStatusType = (status) => {
-  const types = {
-    PLANNED: 'info',
-    IN_PROGRESS: 'warning',
-    COMPLETED: 'success',
-    ON_HOLD: 'danger',
-    CANCELLED: 'info'
-  }
-  return types[status] || 'info'
+// 工具函数
+const formatNumber = (num) => {
+  if (num === null || num === undefined) return '0'
+  return parseFloat(num.toFixed(1)).toString()
 }
 
-// 获取状态文本
-const getStatusText = (status) => {
-  const texts = {
-    PLANNED: '计划中',
-    IN_PROGRESS: '进行中',
-    COMPLETED: '已完成',
-    ON_HOLD: '已暂停',
-    CANCELLED: '已取消'
-  }
-  return texts[status] || status
+const isAdmin = () => {
+  return authStore.user?.role === 'ADMIN'
 }
 
-// 格式化时间
-const formatTime = (time) => {
-  return dayjs.utc(time).tz('Asia/Shanghai').format('MM-DD HH:mm')
+const canViewInactiveUsers = () => {
+  const userRole = authStore.user?.role
+  return userRole === 'ADMIN' || userRole === 'MANAGER'
 }
 
-// 格式化日期时间
-const formatDateTime = (date) => {
-  if (!date) return '-'
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
-}
-
-// 获取提醒类型
-const getAlertType = (level) => {
-  const types = {
-    'HIGH': 'danger',
-    'MEDIUM': 'warning',
-    'LOW': 'info'
-  }
-  return types[level] || 'info'
-}
-
-// 获取提醒级别文本
-const getAlertLevelText = (level) => {
-  const texts = {
-    'HIGH': '高',
-    'MEDIUM': '中',
-    'LOW': '低'
-  }
-  return texts[level] || level
-}
-
-// 加载数据
-const loadData = async () => {
+// 数据加载函数
+const loadInactiveUsersStats = async () => {
+  if (!canViewInactiveUsers()) return
+  
   try {
-    // 检查认证状态
-    const authStore = useAuthStore()
-    console.log('当前用户:', authStore.user)
-    console.log('Token存在:', !!authStore.token)
+    let response;
     
-    // 先更新超时任务状态
-    try {
-      await request.post('/tasks/update-overdue-status')
-    } catch (error) {
-      console.error('更新超时状态失败:', error)
+    // 如果是自定义时间范围
+    if (inactiveUsersTimeRange.value === 'custom' && customDateRange.value && customDateRange.value.length === 2) {
+      const startDate = customDateRange.value[0];
+      const endDate = customDateRange.value[1];
+      response = await request.get('/dashboard/inactive-users/range', { 
+        params: { startDate, endDate } 
+      });
+    } 
+    // 其他时间范围使用默认接口（只支持上周）
+    else {
+      response = await request.get('/dashboard/inactive-users');
     }
     
-    // 加载任务统计
-    const taskStats = await getTaskStats()
-    if (taskStats) {
+    // 处理返回数据格式并保存totalUsers
+    if (response.inactiveUsers) {
+      // 直接返回的格式
+      inactiveUsers.value = response.inactiveUsers || [];
+      inactiveUsersStats.value = response || {};
+    } else if (response.users) {
+      // 包装后的格式
+      inactiveUsers.value = response.users || [];
+      inactiveUsersStats.value = response.stats || {};
+    } else {
+      inactiveUsers.value = [];
+      inactiveUsersStats.value = {};
+    }
+    
+    // 如果返回了totalUsers，更新到stats中
+    if (response.totalUsers) {
+      stats.value.totalUsers = response.totalUsers;
+      }
+    } catch (error) {
+    console.error('加载未活跃用户统计失败:', error)
+    inactiveUsers.value = []
+    inactiveUsersStats.value = {}
+  }
+}
+
+const loadDashboardStats = async () => {
+  try {
+    const response = await request.get('/tasks/stats')
+    if (response) {
       stats.value = {
-        totalTasks: taskStats.totalTasks || 0,
-        plannedTasks: taskStats.plannedTasks || 0,
-        inProgressTasks: taskStats.inProgressTasks || 0,
-        completedTasks: taskStats.completedTasks || 0,
-        onHoldTasks: taskStats.onHoldTasks || 0,
-        cancelledTasks: taskStats.cancelledTasks || 0,
-        overdueTasks: taskStats.overdueTasks || 0,
-        totalManDays: taskStats.totalManDays || 0,
-        departmentStats: taskStats.departmentStats || [],
-        weeklyTrend: taskStats.weeklyTrend || [0, 0, 0, 0, 0, 0, 0],
-        userTaskStats: taskStats.userTaskStats || [
-          { name: '张三', value: 0 },
-          { name: '李四', value: 0 },
-          { name: '王五', value: 0 }
-        ]
+        totalTasks: response.totalTasks || 0,
+        inProgressTasks: response.inProgressTasks || 0,
+        completedTasks: response.completedTasks || 0,
+        onHoldTasks: response.onHoldTasks || 0,
+        overdueTasks: response.overdueTasks || 0,
+        totalManDays: response.totalManDays || 0,
+        departmentStats: response.departmentStats || [],
+        weeklyTrend: response.weeklyTrend || [],
+        totalUsers: response.totalUsers || 0
       }
-    }
-    
-    // 加载最近任务
-    try {
-      const tasksResponse = await getTasks({ page: 0, size: 5 })
-      console.log('最近任务API响应:', tasksResponse)
-      recentTasks.value = tasksResponse?.content || []
-      console.log('最近任务数据:', recentTasks.value)
-    } catch (error) {
-      console.error('加载最近任务失败:', error)
-      recentTasks.value = []
-    }
-    
-    // 加载最近提醒
-    try {
-      const alertsResponse = await getAlerts({ page: 0, size: 5 })
-      recentAlerts.value = alertsResponse?.content || []
-    } catch (error) {
-      console.error('加载最近提醒失败:', error)
-      recentAlerts.value = []
-    }
-
-    // 加载超时任务 - 直接从任务列表中获取超时任务
-    try {
-      const tasksResponse = await request.get('/tasks', { params: { size: 1000 } })
-      if (tasksResponse && tasksResponse.content) {
-        // 过滤出超时任务，并按创建时间排序，取前10个
-        const overdueTasksList = tasksResponse.content
-          .filter(task => task.isOverdue)
-          .sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime))
-          .slice(0, 10)
-          .map(task => ({
-            id: task.id,
-            taskName: task.taskName,
-            assignedToName: task.assignedToName,
-            status: task.status
-          }))
-        overdueTasks.value = overdueTasksList
-      } else {
-        overdueTasks.value = []
-      }
-    } catch (error) {
-      console.error('加载超时任务失败:', error)
-      overdueTasks.value = []
-    }
-
-    // 加载本月个人任务统计
-    try {
-      const currentMonthData = await request.get('/tasks/statistics/user-tasks-by-month', {
-        params: { month: 'current' }
-      })
-      currentMonthUserTaskStats.value = currentMonthData || []
-    } catch (error) {
-      console.error('加载本月个人任务统计失败:', error)
-      currentMonthUserTaskStats.value = []
-    }
-
-    // 加载上月个人任务统计
-    try {
-      const lastMonthData = await request.get('/tasks/statistics/user-tasks-by-month', {
-        params: { month: 'last' }
-      })
-      lastMonthUserTaskStats.value = lastMonthData || []
-    } catch (error) {
-      console.error('加载上月个人任务统计失败:', error)
-      lastMonthUserTaskStats.value = []
-    }
-
-    // 加载近6个月工时统计
-    try {
-      const monthlyManDaysResponse = await getMonthlyManDaysStats()
-      console.log('近6个月工时统计API响应:', monthlyManDaysResponse)
-      if (monthlyManDaysResponse && monthlyManDaysResponse.monthlyData) {
-        monthlyManDaysData.value = monthlyManDaysResponse.monthlyData
-        console.log('近6个月工时统计数据:', monthlyManDaysData.value)
-        // 设置默认选中的月份为当前月
-        if (monthlyManDaysData.value.length > 0) {
-          activeMonthlyTab.value = monthlyManDaysData.value[monthlyManDaysData.value.length - 1].month
-          console.log('设置默认选中月份:', activeMonthlyTab.value)
-          // 强制刷新图表
-          chartKey.value++
-        }
-      }
-    } catch (error) {
-      console.error('加载近6个月工时统计失败:', error)
-      monthlyManDaysData.value = []
     }
   } catch (error) {
     console.error('加载仪表板数据失败:', error)
   }
 }
 
-// 时间范围变化处理
-const onTimeRangeChange = () => {
-  if (!canViewInactiveUsers()) return
+// 加载用户工作统计数据
+const loadUsersWorkStats = async () => {
+  if (!isAdmin()) return
   
-  if (inactiveUsersTimeRange.value === 'lastWeek') {
-    loadInactiveUsersStats()
-  } else {
-    // 自定义时间范围时，等待用户选择日期
-    if (customDateRange.value && customDateRange.value.length === 2) {
-      loadInactiveUsersStatsByRange()
-    }
+  loadingUserStats.value = true
+  try {
+    const response = await getUsersWorkStats()
+    
+    // 处理数据，确保每个用户都有必要的显示属性
+    const processedData = (response || []).map(user => ({
+      ...user,
+      workloadStatusText: user.workloadStatusText || getWorkloadStatusText(user.workloadStatus),
+      workloadStatusColor: user.workloadStatusColor || getWorkloadStatusColor(user.workloadStatus)
+    }))
+    
+    usersWorkStats.value = processedData
+    } catch (error) {
+    console.error('加载用户工作统计失败:', error)
+    ElMessage.error('加载用户工作统计失败')
+  } finally {
+    loadingUserStats.value = false
   }
 }
 
-// 自定义日期范围变化处理
-const onCustomDateRangeChange = () => {
-  if (!canViewInactiveUsers()) return
+// 获取工作负载状态文本
+const getWorkloadStatusText = (status) => {
+  const statusMap = {
+    'OVERLOADED': '过载',
+    'SATURATED': '饱和', 
+    'NORMAL': '正常',
+    'IDLE': '空闲'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取工作负载状态颜色
+const getWorkloadStatusColor = (status) => {
+  const colorMap = {
+    'OVERLOADED': '#f56565', // 红色
+    'SATURATED': '#ed8936',  // 橙色
+    'NORMAL': '#48bb78',     // 绿色
+    'IDLE': '#4299e1'        // 蓝色
+  }
+  return colorMap[status] || '#a0aec0'
+}
+
+// 获取工作负载卡片样式类
+const getWorkloadCardClass = (status) => {
+  return {
+    'workload-overloaded': status === 'OVERLOADED',
+    'workload-saturated': status === 'SATURATED', 
+    'workload-normal': status === 'NORMAL',
+    'workload-idle': status === 'IDLE'
+  }
+}
+
+// 页面挂载时加载数据
+onMounted(async () => {
+  await loadDashboardStats()
   
-  if (customDateRange.value && customDateRange.value.length === 2) {
-    loadInactiveUsersStatsByRange()
-  }
-}
-
-// 加载未活跃用户统计（上周）
-const loadInactiveUsersStats = async () => {
-  try {
-    const response = await getLastWeekInactiveUsers()
-    inactiveUsersStats.value = response || {
-      totalUsers: 0,
-      inactiveUsers: [],
-      inactiveCount: 0,
-      startDate: '',
-      endDate: ''
-    }
-    console.log('上周未活跃用户统计:', inactiveUsersStats.value)
-  } catch (error) {
-    console.error('加载上周未活跃用户统计失败:', error)
-    inactiveUsersStats.value = {
-      totalUsers: 0,
-      inactiveUsers: [],
-      inactiveCount: 0,
-      startDate: '',
-      endDate: ''
-    }
-  }
-}
-
-// 加载指定时间范围的未活跃用户统计
-const loadInactiveUsersStatsByRange = async () => {
-  try {
-    const [startDate, endDate] = customDateRange.value
-    const response = await getInactiveUsersByDateRange(startDate, endDate)
-    inactiveUsersStats.value = response || {
-      totalUsers: 0,
-      inactiveUsers: [],
-      inactiveCount: 0,
-      startDate: '',
-      endDate: ''
-    }
-    console.log('自定义时间范围未活跃用户统计:', inactiveUsersStats.value)
-  } catch (error) {
-    console.error('加载自定义时间范围未活跃用户统计失败:', error)
-    inactiveUsersStats.value = {
-      totalUsers: 0,
-      inactiveUsers: [],
-      inactiveCount: 0,
-      startDate: '',
-      endDate: ''
-    }
-  }
-}
-
-// 检查用户是否可以查看未活跃用户统计
-const canViewInactiveUsers = () => {
-  const authStore = useAuthStore()
-  const userRole = authStore.user?.role
-  return userRole === 'ADMIN' || userRole === 'MANAGER'
-}
-
-// 监听月份切换，强制刷新图表
-watch(activeMonthlyTab, () => {
-  chartKey.value++
-})
-
-onMounted(() => {
-  loadData()
-  // 只有管理员和经理才加载未活跃用户统计
-  if (canViewInactiveUsers()) {
+  // 只有管理员才加载管理员专用功能
+  if (isAdmin()) {
     loadInactiveUsersStats()
+    loadUsersWorkStats()
   }
 })
 </script>
@@ -989,6 +743,38 @@ onMounted(() => {
 <style scoped>
 .dashboard {
   padding: 0;
+  position: relative;
+  min-height: 100vh;
+}
+
+/* TAB页样式 */
+.dashboard-tabs {
+  margin-bottom: 20px;
+}
+
+.dashboard-tabs .el-tabs__header {
+  margin: 0 0 20px 0;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 10px 20px 0;
+}
+
+.dashboard-tabs .el-tabs__nav-wrap {
+  padding: 0;
+}
+
+.dashboard-tabs .el-tabs__item {
+  font-size: 16px;
+  font-weight: 500;
+  padding: 0 30px;
+  height: 50px;
+  line-height: 50px;
+}
+
+.dashboard-tabs .el-tabs__item.is-active {
+  color: #409EFF;
+  font-weight: 600;
 }
 
 .stats-row {
@@ -997,12 +783,15 @@ onMounted(() => {
 
 .stats-card {
   height: 120px;
+  position: relative;
+  z-index: 1;
 }
 
 .stats-content {
   display: flex;
   align-items: center;
   height: 100%;
+  padding: 0 10px;
 }
 
 .stats-icon {
@@ -1012,32 +801,32 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 20px;
-  font-size: 24px;
+  margin-right: 15px;
   color: white;
+  font-size: 24px;
 }
 
 .stats-icon.total {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.stats-icon.pending {
+.stats-icon.in-progress {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
-.stats-icon.in-progress {
+.stats-icon.completed {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
-.stats-icon.completed {
+.stats-icon.pending {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
 
 .stats-icon.overdue {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
 }
 
-.stats-icon.man-days {
+.stats-icon.total-days {
   background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
 }
 
@@ -1048,14 +837,14 @@ onMounted(() => {
 .stats-number {
   font-size: 28px;
   font-weight: bold;
-  color: #333;
+  color: #303133;
   line-height: 1;
+  margin-bottom: 5px;
 }
 
 .stats-label {
   font-size: 14px;
-  color: #666;
-  margin-top: 5px;
+  color: #909399;
 }
 
 .charts-row {
@@ -1070,330 +859,73 @@ onMounted(() => {
   height: 300px;
 }
 
-.lists-row {
-  margin-bottom: 20px;
-}
-
-.list-card {
-  height: 400px;
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  color: #303133;
 }
 
-.alert-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.alert-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.alert-item:last-child {
-  border-bottom: none;
-}
-
-.alert-item.unread {
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  padding: 12px;
-  margin: 0 -12px;
-}
-
-.alert-title {
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.alert-message {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.alert-time {
-  color: #999;
-  font-size: 12px;
-}
-
-.task-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.task-item {
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.task-item:last-child {
-  border-bottom: none;
-}
-
-.task-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.task-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.task-name {
-  font-weight: 500;
-  color: #333;
-  line-height: 1.4;
-  flex: 1;
-  word-break: break-word;
-}
-
-.status-tag {
-  flex-shrink: 0;
-}
-
-.overdue-tag {
-  flex-shrink: 0;
-  font-weight: bold;
-}
-
-.task-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-}
-
-.assignee-info {
+.time-range-selector {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: #666;
-}
-
-.assignee-info .el-icon {
-  font-size: 12px;
-  color: #999;
-}
-
-.task-time {
-  color: #999;
-  font-size: 11px;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-}
-
-.task-item {
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid #f0f0f0;
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-.task-item:hover {
-  border-color: #d9d9d9;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.task-item.overdue {
-  border-left: 4px solid #f56c6c;
-  background-color: #fef0f0;
-}
-
-.task-item.overdue:hover {
-  background-color: #fde2e2;
-}
-
-.no-tasks {
-  text-align: center;
-  padding: 40px 0;
-}
-
-.personal-stats-container {
-  height: 100%;
-}
-
-.personal-stats-tabs {
-  height: 100%;
-}
-
-.personal-stats-tabs .el-tabs__content {
-  height: calc(100% - 40px);
-}
-
-.personal-stats-tabs .el-tab-pane {
-  height: 100%;
-}
-
-/* 调整卡片头部的标签页样式 */
-.card-header .el-tabs {
-  margin: 0;
-  width: 100%;
-  position: relative;
-}
-
-.card-header .el-tabs__header {
-  margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: flex-end;
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: auto;
-}
-
-.card-header .el-tabs__nav-wrap {
-  padding: 0;
-  display: flex;
-  justify-content: flex-end;
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: auto;
-}
-
-.card-header .el-tabs__nav {
-  border: none;
-  margin-left: auto;
-  transform: translateX(-200px);
-  position: absolute;
-  right: 20px;
-  top: 0;
-}
-
-.card-header .el-tabs__item {
-  padding: 0 80px;
-  height: 40px;
-  line-height: 40px;
-  font-size: 16px;
-  font-weight: 500;
-  margin-right: 20px;
-}
-
-.card-header .el-tabs__active-bar {
-  background-color: #409EFF;
-  height: 3px;
-}
-
-/* 近6个月工时统计样式 */
-.monthly-man-days-container {
-  height: 100%;
-}
-
-.monthly-tabs {
-  margin-bottom: 20px;
-}
-
-.monthly-tabs .el-tabs__header {
-  margin-bottom: 0;
-}
-
-.monthly-tabs .el-tabs__nav-wrap {
-  padding: 0;
-}
-
-.monthly-tabs .el-tabs__item {
-  padding: 0 20px;
-  height: 40px;
-  line-height: 40px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.monthly-tabs .el-tabs__active-bar {
-  background-color: #409EFF;
-  height: 3px;
 }
 
 /* 未活跃用户统计样式 */
 .inactive-users-row {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
 .inactive-users-card {
-  min-height: 300px;
+  min-height: 200px;
 }
 
-.inactive-users-card .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.date-range-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.custom-date-range {
-  margin-left: 10px;
-}
-
-.inactive-users-content {
-  padding: 10px 0;
+.inactive-users-simple {
+  padding: 20px 0;
 }
 
 .inactive-users-summary {
   margin-bottom: 20px;
-  padding: 20px;
-  background: linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%);
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
+  text-align: center;
 }
 
 .summary-item {
-  text-align: center;
-  padding: 10px;
+  padding: 20px;
+  border-radius: 8px;
+  background: #f8f9fa;
 }
 
 .summary-number {
   font-size: 32px;
   font-weight: bold;
-  color: #333;
-  line-height: 1;
+  color: #303133;
   margin-bottom: 8px;
-}
-
-.summary-number.inactive-count {
-  color: #f56c6c;
 }
 
 .summary-label {
   font-size: 14px;
-  color: #666;
-  font-weight: 500;
+  color: #606266;
 }
 
-.inactive-users-list {
-  margin-bottom: 15px;
+.inactive-users-names {
+  margin-top: 20px;
 }
 
-.inactive-users-list .el-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.inactive-users-list .el-table th {
-  background-color: #f8f9fa;
-  color: #333;
+.names-label {
   font-weight: 600;
+  color: #303133;
+  margin-bottom: 10px;
+}
+
+.user-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.user-tag {
+  margin: 2px;
 }
 
 .no-inactive-users {
@@ -1401,40 +933,385 @@ onMounted(() => {
   text-align: center;
 }
 
-.time-range-info {
-  text-align: center;
-  padding: 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
-  margin-top: 15px;
+/* Admin专用：用户工作统计样式 */
+.admin-stats-section {
+  margin-top: 30px;
+  position: relative;
+  z-index: 1;
+  clear: both;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-.time-range-text {
-  font-size: 13px;
-  color: #666;
+.admin-stats-container {
+  width: 100%;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title .el-icon {
+  color: #409EFF;
+}
+
+/* 工作饱和度仪表板样式 */
+.workload-dashboard {
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+.workload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px 0;
+  position: relative;
+  z-index: 3;
+  max-height: none !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+.user-workload-card {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 4;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.user-workload-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.user-workload-card.workload-overloaded {
+  border-left: 4px solid #f56565;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+}
+
+.user-workload-card.workload-saturated {
+  border-left: 4px solid #ed8936;
+  background: linear-gradient(135deg, #fffaf0 0%, #ffffff 100%);
+}
+
+.user-workload-card.workload-normal {
+  border-left: 4px solid #48bb78;
+  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+}
+
+.user-workload-card.workload-idle {
+  border-left: 4px solid #4299e1;
+  background: linear-gradient(135deg, #ebf8ff 0%, #ffffff 100%);
+}
+
+.user-info {
+  margin-bottom: 12px;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.user-dept {
+  font-size: 12px;
+  color: #909399;
+}
+
+.workload-indicator {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.workload-circle {
+  width: 80px;
+  height: 80px;
+  border: 4px solid #e4e7ed;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.workload-percentage {
+  font-size: 18px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.workload-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.workload-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item .label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.detail-item .value {
+  color: #303133;
   font-weight: 500;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .inactive-users-card .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .date-range-selector {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  
-  .custom-date-range {
-    margin-left: 0;
-    margin-top: 10px;
-  }
-  
-  .inactive-users-summary .el-col {
-    margin-bottom: 10px;
-  }
+/* 详细统计表格样式 */
+.detailed-stats {
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+.stats-table {
+  font-size: 13px;
+  position: relative;
+  z-index: 3;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100%;
+}
+
+.stats-table .el-table__header-wrapper {
+  overflow: visible;
+}
+
+/* 强制表头对齐 */
+.stats-table .el-table__header {
+  table-layout: fixed;
+}
+
+.stats-table .el-table__header tr {
+  height: 50px !important;
+}
+
+.stats-table .el-table__header th {
+  background-color: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  height: 50px !important;
+  line-height: 50px;
+  padding: 0 !important;
+  border-bottom: 1px solid #ebeef5;
+  position: relative;
+}
+
+/* 表头单元格基础样式 */
+.stats-table .el-table__header th .cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 50px !important;
+  line-height: normal !important;
+  padding: 0 8px !important;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* 完全重写排序样式 */
+.stats-table .el-table__header th[class*="sortable"] .cell {
+  flex-direction: row !important;
+  gap: 4px !important;
+}
+
+/* 隐藏默认排序图标 */
+.stats-table .caret-wrapper,
+.stats-table .sort-caret {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* 自定义排序图标 */
+.stats-table .el-table__header th[class*="sortable"] .cell::after {
+  content: "⇅";
+  font-size: 10px;
+  color: #909399;
+  font-weight: normal;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.stats-table .el-table__header th.ascending .cell::after {
+  content: "▲";
+  color: #409EFF;
+  font-size: 8px;
+}
+
+.stats-table .el-table__header th.descending .cell::after {
+  content: "▼";
+  color: #409EFF;
+  font-size: 8px;
+}
+
+/* 强制覆盖Element Plus的默认样式 */
+.stats-table .el-table__header-wrapper .el-table__header th .cell * {
+  display: inline !important;
+}
+
+.stats-table .el-table__header-wrapper .el-table__header th .cell .caret-wrapper {
+  display: none !important;
+}
+
+.stats-table .el-table__body td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 12px 8px;
+  height: 60px;
+}
+
+.stats-table .el-table__body td .cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Element Plus卡片样式 */
+.admin-stats-section .el-card {
+  min-height: 300px;
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+  max-height: none !important;
+  height: auto !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+.admin-stats-section .el-card__body {
+  min-height: 250px;
+  padding: 20px;
+  max-height: none !important;
+  height: auto !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+.admin-stats-section .el-table {
+  min-height: 200px;
+  background: #ffffff;
+  max-height: none !important;
+  height: auto !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+/* 任务分布样式 */
+.task-distribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-distribution-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.task-distribution-inline .el-tag {
+  margin: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.task-item {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  background-color: #f0f2f5;
+  color: #606266;
+}
+
+.task-item.planned {
+  background-color: #e1f3d8;
+  color: #67c23a;
+}
+
+.task-item.progress {
+  background-color: #fdf6ec;
+  color: #e6a23c;
+}
+
+.task-item.completed {
+  background-color: #e8f4fd;
+  color: #409eff;
+}
+
+.task-item.hold {
+  background-color: #fef0f0;
+  color: #f56c6c;
 }
 </style> 

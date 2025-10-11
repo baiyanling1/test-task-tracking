@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import com.testtracking.repository.TestTaskRepository;
+import com.testtracking.repository.UserRepository;
 
 @Slf4j
 @RestController
@@ -38,6 +39,7 @@ public class TestTaskController {
     private final TestTaskService testTaskService;
     private final UserService userService;
     private final TestTaskRepository testTaskRepository;
+    private final UserRepository userRepository;
 
     /**
      * 创建测试任务
@@ -242,12 +244,14 @@ public class TestTaskController {
             Double onHoldManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.ON_HOLD);
             Double cancelledManDays = testTaskRepository.sumManDaysByStatus(TestTask.TaskStatus.CANCELLED);
             
-            // 计算总人天（所有状态的人天总和）
+            // 计算总人天（所有状态的人天总和） - 使用精确计算避免浮点数精度问题
             double totalManDays = (plannedManDays != null ? plannedManDays : 0.0) +
                                  (inProgressManDays != null ? inProgressManDays : 0.0) +
                                  (completedManDays != null ? completedManDays : 0.0) +
                                  (onHoldManDays != null ? onHoldManDays : 0.0) +
                                  (cancelledManDays != null ? cancelledManDays : 0.0);
+            // 保留1位小数，避免浮点数精度问题
+            totalManDays = Math.round(totalManDays * 10.0) / 10.0;
             
             stats.put("totalManDays", totalManDays);
             
@@ -262,18 +266,42 @@ public class TestTaskController {
             }
             stats.put("departmentStats", departmentData);
             
-            // 本周趋势（真实数据）
+            // 本周趋势（完整数据）
             LocalDate now = LocalDate.now();
             LocalDate weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            LocalDate weekEnd = now.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
             
-            List<Integer> weeklyTrend = new ArrayList<>();
+            List<Map<String, Object>> weeklyTrend = new ArrayList<>();
+            String[] dayNames = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+            
             for (int i = 0; i < 7; i++) {
                 LocalDate date = weekStart.plusDays(i);
-                long count = testTaskRepository.countByStartDate(date);
-                weeklyTrend.add((int) count);
+                Map<String, Object> dayData = new HashMap<>();
+                
+                // 日期信息
+                dayData.put("date", dayNames[i]);
+                dayData.put("fullDate", date.toString());
+                
+                // 新建任务数（按创建日期统计）
+                long createdCount = testTaskRepository.countByCreatedDateBetween(
+                    date.atStartOfDay(), 
+                    date.atTime(23, 59, 59)
+                );
+                dayData.put("created", (int) createdCount);
+                
+                // 完成任务数（按完成日期统计）
+                long completedCount = testTaskRepository.countByActualEndDateBetween(
+                    date.atStartOfDay(), 
+                    date.atTime(23, 59, 59)
+                );
+                dayData.put("completed", (int) completedCount);
+                
+                weeklyTrend.add(dayData);
             }
             stats.put("weeklyTrend", weeklyTrend);
+            
+            // 用户总数统计
+            long totalUsers = userRepository.count();
+            stats.put("totalUsers", totalUsers);
             
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
