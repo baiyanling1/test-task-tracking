@@ -615,8 +615,9 @@ const loadInactiveUsersStats = async () => {
     
     // 如果是自定义时间范围
     if (inactiveUsersTimeRange.value === 'custom' && customDateRange.value && customDateRange.value.length === 2) {
-      const startDate = customDateRange.value[0];
-      const endDate = customDateRange.value[1];
+      // 格式化日期为 YYYY-MM-DD 格式
+      const startDate = customDateRange.value[0].toISOString().split('T')[0];
+      const endDate = customDateRange.value[1].toISOString().split('T')[0];
       response = await request.get('/dashboard/inactive-users/range', { 
         params: { startDate, endDate } 
       });
