@@ -120,7 +120,7 @@ public class TestTaskController {
             @RequestParam(required = false) Long assignedToId,
             @RequestParam(required = false) String assignedToName,
             @RequestParam(required = false) String department,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) List<String> status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String testType,
@@ -139,7 +139,24 @@ public class TestTaskController {
                         userService.getUserByUsername("").orElse(null) : null;
             }
             
-            TestTask.TaskStatus taskStatus = status != null ? TestTask.TaskStatus.valueOf(status.toUpperCase()) : null;
+            // 解析多个状态值
+            List<TestTask.TaskStatus> taskStatuses = null;
+            if (status != null && !status.isEmpty()) {
+                taskStatuses = new ArrayList<>();
+                for (String s : status) {
+                    if (s != null && !s.trim().isEmpty()) {
+                        try {
+                            taskStatuses.add(TestTask.TaskStatus.valueOf(s.toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            log.warn("无效的状态值: {}", s);
+                        }
+                    }
+                }
+                if (taskStatuses.isEmpty()) {
+                    taskStatuses = null;
+                }
+            }
+            
             TestTask.TaskPriority taskPriority = priority != null ? TestTask.TaskPriority.valueOf(priority.toUpperCase()) : null;
             TestTask.TestType taskTestType = testType != null ? TestTask.TestType.valueOf(testType.toUpperCase()) : null;
             
@@ -154,7 +171,7 @@ public class TestTaskController {
             }
             
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
-                    assignedTo, assignedToName, department, taskStatus, taskPriority, 
+                    assignedTo, assignedToName, department, taskStatuses, taskPriority, 
                     projectName, taskTestType, startFrom, startTo, isOverdue, 
                     isExpectedCompletionReached, search, pageable);
             
@@ -290,8 +307,8 @@ public class TestTaskController {
                 
                 // 完成任务数（按完成日期统计）
                 long completedCount = testTaskRepository.countByActualEndDateBetween(
-                    date.atStartOfDay(), 
-                    date.atTime(23, 59, 59)
+                    date, 
+                    date
                 );
                 dayData.put("completed", (int) completedCount);
                 

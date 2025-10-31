@@ -241,4 +241,35 @@ public class DashboardController {
             return ResponseEntity.badRequest().body("获取用户工作统计失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 获取用户任务统计数据（支持时间范围筛选）
+     */
+    @GetMapping("/user-task-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUserTaskStats(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        try {
+            java.time.LocalDate start = null;
+            java.time.LocalDate end = null;
+            
+            if (startDate != null && !startDate.isEmpty()) {
+                start = java.time.LocalDate.parse(startDate);
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                end = java.time.LocalDate.parse(endDate);
+            }
+            
+            if (start != null && end != null && start.isAfter(end)) {
+                return ResponseEntity.badRequest().body("开始日期不能晚于结束日期");
+            }
+            
+            List<Map<String, Object>> userTaskStats = dashboardService.getUserTaskStats(start, end);
+            return ResponseEntity.ok(userTaskStats);
+        } catch (Exception e) {
+            log.error("获取用户任务统计失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取用户任务统计失败: " + e.getMessage());
+        }
+    }
 } 

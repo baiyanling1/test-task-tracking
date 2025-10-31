@@ -210,8 +210,140 @@
       </el-col>
     </el-row>
 
-        <!-- 人员工作统计区域 -->
-        <div class="admin-stats-section">
+        <!-- 人员任务统计区域 -->
+        <el-row :gutter="20" class="user-task-stats-row">
+          <el-col :span="24">
+            <el-card class="task-stats-card">
+              <template #header>
+                <div class="card-header">
+                  <span>测试人员任务统计</span>
+                  <div class="time-range-selector">
+                    <el-date-picker
+                      v-model="taskStatsDateRange"
+                      type="daterange"
+                      range-separator="至"
+                      start-placeholder="开始日期"
+                      end-placeholder="结束日期"
+                      @change="loadUserTaskStats"
+                      size="small"
+                      value-format="YYYY-MM-DD"
+                    />
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="loadUserTaskStats"
+                      :loading="loadingTaskStats"
+                      style="margin-left: 10px;"
+                    >
+                      查询
+                    </el-button>
+                    <el-button 
+                      size="small" 
+                      @click="resetTaskStatsDateRange"
+                      style="margin-left: 5px;"
+                    >
+                      重置
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+              
+              <!-- 人员任务数柱状图 -->
+              <div class="chart-section">
+                <h4 class="section-subtitle">各测试人员任务数统计</h4>
+                
+                <!-- 加载中 -->
+                <div v-if="loadingTaskStats" style="height: 400px; display: flex; align-items: center; justify-content: center;">
+                  <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                  <span style="margin-left: 10px; color: #409EFF;">加载中...</span>
+                </div>
+                
+                <!-- 无数据 -->
+                <div v-else-if="!userTaskStats || userTaskStats.length === 0" class="no-data">
+                  <el-empty description="暂无数据" />
+                </div>
+                
+                <!-- 有数据时显示图表 -->
+                <div v-else style="width: 100%; height: 450px;">
+                  <v-chart 
+                    :option="userTaskCountChartOption" 
+                    style="width: 100%; height: 100%;" 
+                    autoresize
+                  />
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- 人员工时统计区域 -->
+        <el-row :gutter="20" class="user-work-hours-row" style="margin-top: 20px;">
+          <el-col :span="24">
+            <el-card class="task-stats-card">
+              <template #header>
+                <div class="card-header">
+                  <span>测试人员工时统计</span>
+                  <div class="time-range-selector">
+                    <el-date-picker
+                      v-model="workHoursDateRange"
+                      type="daterange"
+                      range-separator="至"
+                      start-placeholder="开始日期"
+                      end-placeholder="结束日期"
+                      @change="loadUserWorkHoursStats"
+                      size="small"
+                      value-format="YYYY-MM-DD"
+                    />
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="loadUserWorkHoursStats"
+                      :loading="loadingWorkHours"
+                      style="margin-left: 10px;"
+                    >
+                      查询
+                    </el-button>
+                    <el-button 
+                      size="small" 
+                      @click="resetWorkHoursDateRange"
+                      style="margin-left: 5px;"
+                    >
+                      重置
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+              
+              <!-- 人员实际工时统计柱状图 -->
+              <div class="chart-section">
+                <h4 class="section-subtitle">各测试人员实际工时统计</h4>
+                
+                <!-- 加载中 -->
+                <div v-if="loadingWorkHours" style="height: 400px; display: flex; align-items: center; justify-content: center;">
+                  <el-icon class="is-loading" :size="40"><Loading /></el-icon>
+                  <span style="margin-left: 10px; color: #409EFF;">加载中...</span>
+                </div>
+                
+                <!-- 无数据 -->
+                <div v-else-if="!userWorkHoursStats || userWorkHoursStats.length === 0" class="no-data">
+                  <el-empty description="暂无数据" />
+                </div>
+                
+                <!-- 有数据时显示图表 -->
+                <div v-else style="width: 100%; height: 450px;">
+                  <v-chart 
+                    :option="userWorkHoursChartOption" 
+                    style="width: 100%; height: 100%;" 
+                    autoresize
+                  />
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- 人员工作统计区域 - 已屏蔽 -->
+        <!-- <div class="admin-stats-section">
           <div class="admin-stats-container">
             <el-row :gutter="20" class="section-header">
               <el-col :span="24">
@@ -222,7 +354,6 @@
               </el-col>
             </el-row>
             
-            <!-- 工作饱和度仪表板 -->
             <el-row :gutter="20" class="workload-dashboard">
               <el-col :span="24">
                 <el-card class="stats-card">
@@ -287,7 +418,6 @@
        </el-col>
      </el-row>
 
-            <!-- 详细工作统计表格 -->
             <el-row :gutter="20" class="detailed-stats">
               <el-col :span="24">
                 <el-card class="stats-card">
@@ -377,14 +507,14 @@
       </el-col>
     </el-row>
           </div>
-        </div>
+        </div> -->
       </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick, watch } from 'vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart, LineChart, BarChart } from 'echarts/charts'
@@ -399,7 +529,7 @@ import { List, Loading, Check, Clock, WarningFilled, Calendar, User } from '@ele
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import { getUsersWorkStats } from '@/api/userStats'
+// import { getUsersWorkStats } from '@/api/userStats' // 已屏蔽
 
 use([
   CanvasRenderer,
@@ -430,9 +560,19 @@ const inactiveUsersStats = ref({})
 const inactiveUsersTimeRange = ref('lastWeek')
 const customDateRange = ref([])
 
-// 用户工作统计相关数据
-const usersWorkStats = ref([])
-const loadingUserStats = ref(false)
+// 用户任务统计相关数据
+const userTaskStats = ref([])
+const taskStatsDateRange = ref([])
+const loadingTaskStats = ref(false)
+
+// 用户工时统计相关数据
+const userWorkHoursStats = ref([])
+const workHoursDateRange = ref([])
+const loadingWorkHours = ref(false)
+
+// 用户工作统计相关数据 - 已屏蔽
+// const usersWorkStats = ref([])
+// const loadingUserStats = ref(false)
 
 // Auth store
 const authStore = useAuthStore()
@@ -591,6 +731,146 @@ const lineChartOption = computed(() => {
   }
 })
 
+// 用户任务数柱状图配置
+const userTaskCountChartOption = computed(() => {
+  const userData = userTaskStats.value || []
+  
+  return {
+    title: {
+      text: ''
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: function(params) {
+        let result = params[0].name + '<br/>'
+        params.forEach(param => {
+          result += param.marker + param.seriesName + ': ' + param.value + '个<br/>'
+        })
+        return result
+      }
+    },
+    legend: {
+      data: ['任务总数', '已完成', '进行中', '计划中']
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: userData.map(user => user.realName || user.userName),
+      axisLabel: {
+        interval: 0,
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '任务数'
+    },
+    series: [
+      {
+        name: '任务总数',
+        type: 'bar',
+        data: userData.map(user => user.totalTasks || 0),
+        itemStyle: { color: '#409EFF' }
+      },
+      {
+        name: '已完成',
+        type: 'bar',
+        data: userData.map(user => user.completedTasks || 0),
+        itemStyle: { color: '#67C23A' }
+      },
+      {
+        name: '进行中',
+        type: 'bar',
+        data: userData.map(user => user.inProgressTasks || 0),
+        itemStyle: { color: '#E6A23C' }
+      },
+      {
+        name: '计划中',
+        type: 'bar',
+        data: userData.map(user => user.plannedTasks || 0),
+        itemStyle: { color: '#909399' }
+      }
+    ]
+  }
+})
+
+// 用户工时统计柱状图配置
+const userWorkHoursChartOption = computed(() => {
+  const userData = userWorkHoursStats.value || []
+  
+  return {
+    title: {
+      text: ''
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: function(params) {
+        let result = params[0].name + '<br/>'
+        params.forEach(param => {
+          result += param.marker + param.seriesName + ': ' + param.value + '人天<br/>'
+        })
+        return result
+      }
+    },
+    legend: {
+      data: ['实际工时', '预计工时']
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: userData.map(user => user.realName || user.userName),
+      axisLabel: {
+        interval: 0,
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '工时(人天)'
+    },
+    series: [
+      {
+        name: '实际工时',
+        type: 'bar',
+        data: userData.map(user => user.totalActualManDays ? user.totalActualManDays.toFixed(1) : 0),
+        itemStyle: { color: '#409EFF' },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}'
+        }
+      },
+      {
+        name: '预计工时',
+        type: 'bar',
+        data: userData.map(user => user.totalPlannedManDays ? user.totalPlannedManDays.toFixed(1) : 0),
+        itemStyle: { color: '#E6A23C' },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}'
+        }
+      }
+    ]
+  }
+})
+
 // 工具函数
 const formatNumber = (num) => {
   if (num === null || num === undefined) return '0'
@@ -604,6 +884,14 @@ const isAdmin = () => {
 const canViewInactiveUsers = () => {
   const userRole = authStore.user?.role
   return userRole === 'ADMIN' || userRole === 'MANAGER'
+}
+
+// 工时完成率标签类型
+const getWorkHoursRateType = (rate) => {
+  if (!rate) return 'info'
+  if (rate >= 90) return 'success'
+  if (rate >= 70) return 'warning'
+  return 'danger'
 }
 
 // 数据加载函数
@@ -673,7 +961,98 @@ const loadDashboardStats = async () => {
   }
 }
 
-// 加载用户工作统计数据
+// 加载用户任务统计数据
+const loadUserTaskStats = async () => {
+  if (!isAdmin()) return
+  
+  loadingTaskStats.value = true
+  try {
+    let params = {}
+    
+    // 如果选择了时间范围
+    if (taskStatsDateRange.value && taskStatsDateRange.value.length === 2) {
+      params.startDate = taskStatsDateRange.value[0]
+      params.endDate = taskStatsDateRange.value[1]
+    }
+    
+    const response = await request.get('/dashboard/user-task-stats', { params })
+    
+    if (response && Array.isArray(response)) {
+      // 处理数据，计算工时完成率
+      userTaskStats.value = response.map(user => ({
+        ...user,
+        workHoursRate: user.totalPlannedManDays > 0 
+          ? Math.round((user.totalActualManDays / user.totalPlannedManDays) * 100)
+          : 0
+      }))
+      
+      // 等待DOM更新
+      await nextTick()
+    } else {
+      userTaskStats.value = []
+    }
+  } catch (error) {
+    console.error('加载用户任务统计失败:', error)
+    ElMessage.error('加载用户任务统计失败')
+    userTaskStats.value = []
+  } finally {
+    loadingTaskStats.value = false
+  }
+}
+
+// 重置任务统计时间范围
+const resetTaskStatsDateRange = () => {
+  taskStatsDateRange.value = []
+  loadUserTaskStats()
+}
+
+// 加载用户工时统计数据
+const loadUserWorkHoursStats = async () => {
+  if (!isAdmin()) return
+  
+  loadingWorkHours.value = true
+  try {
+    let params = {}
+    
+    // 如果选择了时间范围
+    if (workHoursDateRange.value && workHoursDateRange.value.length === 2) {
+      params.startDate = workHoursDateRange.value[0]
+      params.endDate = workHoursDateRange.value[1]
+    }
+    
+    const response = await request.get('/dashboard/user-task-stats', { params })
+    
+    if (response && Array.isArray(response)) {
+      // 处理数据，计算工时完成率
+      userWorkHoursStats.value = response.map(user => ({
+        ...user,
+        workHoursRate: user.totalPlannedManDays > 0 
+          ? Math.round((user.totalActualManDays / user.totalPlannedManDays) * 100)
+          : 0
+      }))
+      
+      // 等待DOM更新
+      await nextTick()
+    } else {
+      userWorkHoursStats.value = []
+    }
+  } catch (error) {
+    console.error('加载用户工时统计失败:', error)
+    ElMessage.error('加载用户工时统计失败')
+    userWorkHoursStats.value = []
+  } finally {
+    loadingWorkHours.value = false
+  }
+}
+
+// 重置工时统计时间范围
+const resetWorkHoursDateRange = () => {
+  workHoursDateRange.value = []
+  loadUserWorkHoursStats()
+}
+
+// 加载用户工作统计数据 - 已屏蔽
+/*
 const loadUsersWorkStats = async () => {
   if (!isAdmin()) return
   
@@ -728,6 +1107,7 @@ const getWorkloadCardClass = (status) => {
     'workload-idle': status === 'IDLE'
   }
 }
+*/
 
 // 页面挂载时加载数据
 onMounted(async () => {
@@ -736,7 +1116,9 @@ onMounted(async () => {
   // 只有管理员才加载管理员专用功能
   if (isAdmin()) {
     loadInactiveUsersStats()
-    loadUsersWorkStats()
+    loadUserTaskStats() // 加载用户任务统计
+    loadUserWorkHoursStats() // 加载用户工时统计
+    // loadUsersWorkStats() // 已屏蔽
   }
 })
 </script>
@@ -786,6 +1168,13 @@ onMounted(async () => {
   height: 120px;
   position: relative;
   z-index: 1;
+}
+
+/* 任务统计卡片 - 不限制高度 */
+.task-stats-card {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 20px;
 }
 
 .stats-content {
@@ -881,6 +1270,39 @@ onMounted(async () => {
 .inactive-users-card {
   min-height: 200px;
 }
+
+/* 用户任务统计样式 */
+.user-task-stats-row {
+  margin-bottom: 30px;
+}
+
+.chart-section {
+  margin-bottom: 40px;
+}
+
+.table-section {
+  margin-top: 40px;
+}
+
+.section-subtitle {
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-left: 10px;
+  border-left: 4px solid #409EFF;
+}
+
+.no-data {
+  padding: 40px 0;
+  text-align: center;
+}
+
+.work-hours-table {
+  margin-top: 20px;
+}
+
+/* 未活跃用户统计样式 - 继续 */
 
 .inactive-users-simple {
   padding: 20px 0;

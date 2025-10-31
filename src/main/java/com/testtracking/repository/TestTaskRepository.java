@@ -58,7 +58,7 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "(:assignedTo IS NULL OR t.assignedTo = :assignedTo) AND " +
            "(:assignedToName IS NULL OR t.assignedTo.realName = :assignedToName) AND " +
            "(:department IS NULL OR t.department = :department) AND " +
-           "(:status IS NULL OR t.status = :status) AND " +
+           "(COALESCE(:statuses, NULL) IS NULL OR t.status IN :statuses) AND " +
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:projectName IS NULL OR t.projectName = :projectName) AND " +
            "(:testType IS NULL OR t.testType = :testType) AND " +
@@ -70,7 +70,7 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     Page<TestTask> findByFilters(@Param("assignedTo") User assignedTo,
                                  @Param("assignedToName") String assignedToName,
                                  @Param("department") String department,
-                                 @Param("status") TestTask.TaskStatus status,
+                                 @Param("statuses") List<TestTask.TaskStatus> statuses,
                                  @Param("priority") TestTask.TaskPriority priority,
                                  @Param("projectName") String projectName,
                                  @Param("testType") TestTask.TestType testType,
@@ -136,6 +136,14 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     // 按开始日期统计任务数量
     @Query("SELECT COUNT(t) FROM TestTask t WHERE t.startDate = :date")
     Long countByStartDate(@Param("date") LocalDate date);
+
+    // 按创建日期范围统计任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.createdTime BETWEEN :startTime AND :endTime")
+    Long countByCreatedDateBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    // 按实际结束日期范围统计任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.actualEndDate IS NOT NULL AND t.actualEndDate BETWEEN :startDate AND :endDate")
+    Long countByActualEndDateBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     // 个人任务统计
     @Query("SELECT t.assignedTo.realName, COUNT(t) FROM TestTask t " +

@@ -62,8 +62,7 @@
           </el-select>
         </el-col>
         <el-col :span="3">
-          <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch">
-            <el-option label="全部" value="" />
+          <el-select v-model="statusFilter" placeholder="状态筛选" multiple clearable @change="handleSearch">
             <el-option label="计划中" value="PLANNED" />
             <el-option label="进行中" value="IN_PROGRESS" />
             <el-option label="已暂停" value="ON_HOLD" />
@@ -113,7 +112,7 @@
         style="width: 100%"
       >
         <el-table-column prop="taskName" label="任务名称" min-width="200" />
-                         <el-table-column prop="taskDescription" label="描述" min-width="200">
+          <!-- <el-table-column prop="taskDescription" label="描述" min-width="200">
           <template #default="{ row }">
             <div 
               style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;"
@@ -124,7 +123,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="department" label="部门" width="120" />
+        <el-table-column prop="department" label="部门" width="120" /> -->
         <el-table-column prop="assignedToName" label="负责人" width="120" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -867,7 +866,7 @@ const departments = ref([])
 const searchQuery = ref('')
 const assignedToFilter = ref('')
 const departmentFilter = ref('')
-const statusFilter = ref('')
+const statusFilter = ref([]) // 改为数组支持多选
 const priorityFilter = ref('')
 const overdueFilter = ref('') // 超时状态筛选（包含超预期、延期完成）
 const startDateRange = ref([]) // 新增：开始时间范围
@@ -1109,7 +1108,8 @@ const loadTasks = async () => {
       search: searchQuery.value || undefined,
       assignedToName: assignedToFilter.value || undefined,
       department: departmentFilter.value || undefined,
-      status: statusFilter.value || undefined,
+      // 多状态筛选：将数组中的每个状态值作为独立的status参数传递
+      status: statusFilter.value && statusFilter.value.length > 0 ? statusFilter.value : undefined,
       priority: priorityFilter.value || undefined,
       isOverdue: overdueFilter.value === 'overdue' ? true : overdueFilter.value === 'normal' ? false : undefined,
       startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,

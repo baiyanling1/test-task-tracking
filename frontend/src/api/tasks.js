@@ -5,7 +5,10 @@ export const getTasks = (params) => {
   return request({
     url: '/tasks',
     method: 'get',
-    params
+    params,
+    paramsSerializer: {
+      indexes: null // 这会让数组参数序列化为 status=value1&status=value2 而不是 status[]=value1&status[]=value2
+    }
   })
 }
 

@@ -630,4 +630,65 @@ public class DashboardService {
         
         return workDays;
     }
+    
+    /**
+     * 获取用户任务统计数据（支持时间范围筛选）
+     */
+    public List<Map<String, Object>> getUserTaskStats(LocalDate startDate, LocalDate endDate) {
+        List<User> users = userRepository.findAll();
+        List<Map<String, Object>> userStats = new ArrayList<>();
+        
+        for (User user : users) {
+            // 获取用户的任务
+            List<TestTask> userTasks;
+            if (startDate != null && endDate != null) {
+                // 按时间范围筛选任务
+                userTasks = testTaskRepository.findByAssignedToAndDateRange(user, startDate, endDate);
+            } else {
+                // 获取所有任务
+                userTasks = testTaskRepository.findByAssignedTo(user);
+            }
+            
+            if (userTasks.isEmpty()) {
+                continue; // 跳过没有任务的用户
+            }
+            
+            Map<String, Object> stats = new HashMap<>();
+            
+            // 基本信息
+            stats.put("userId", user.getId());
+            stats.put("userName", user.getUsername());
+            stats.put("realName", user.getRealName());
+            stats.put("department", user.getDepartment() != null ? user.getDepartment() : "未分配");
+            
+            // 任务统计
+            stats.put("totalTasks", userTasks.size());
+            stats.put("completedTasks", userTasks.stream()
+                .filter(task -> task.getStatus() == TestTask.TaskStatus.COMPLETED)
+                .count());
+            stats.put("inProgressTasks", userTasks.stream()
+                .filter(task -> task.getStatus() == TestTask.TaskStatus.IN_PROGRESS)
+                .count());
+            stats.put("plannedTasks", userTasks.stream()
+                .filter(task -> task.getStatus() == TestTask.TaskStatus.PLANNED)
+                .count());
+            
+            // 工时统计
+            double totalActualManDays = userTasks.stream()
+                .filter(task -> task.getActualManDays() != null)
+                .mapToDouble(TestTask::getActualManDays)
+                .sum();
+            stats.put("totalActualManDays", Math.round(totalActualManDays * 10.0) / 10.0);
+            
+            double totalPlannedManDays = userTasks.stream()
+                .filter(task -> task.getManDays() != null)
+                .mapToDouble(TestTask::getManDays)
+                .sum();
+            stats.put("totalPlannedManDays", Math.round(totalPlannedManDays * 10.0) / 10.0);
+            
+            userStats.add(stats);
+        }
+        
+        return userStats;
+    }
 } 

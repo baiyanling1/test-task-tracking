@@ -227,14 +227,14 @@ public class TestTaskService {
      */
     @Transactional(readOnly = true)
     public Page<TestTaskDto> getTasksWithFilters(User assignedTo, String assignedToName, String department,
-                                                TestTask.TaskStatus status, 
+                                                List<TestTask.TaskStatus> statuses, 
                                                 TestTask.TaskPriority priority, String projectName, 
                                                 TestTask.TestType testType, 
                                                 LocalDate startDateFrom, LocalDate startDateTo,
                                                 Boolean isOverdue, Boolean isExpectedCompletionReached, 
                                                 String search, Pageable pageable) {
         Page<TestTask> tasks = testTaskRepository.findByFilters(assignedTo, assignedToName, department, 
-                                                               status, priority, projectName, testType, 
+                                                               statuses, priority, projectName, testType, 
                                                                startDateFrom, startDateTo, isOverdue, 
                                                                isExpectedCompletionReached, search, pageable);
         return tasks.map(TestTaskDto::fromEntity);
