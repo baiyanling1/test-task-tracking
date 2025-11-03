@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.HashMap;
 import com.testtracking.service.DingTalkNotificationService;
 import com.testtracking.service.DingTalkConfigService;
+import com.testtracking.service.FeiShuNotificationService;
+import com.testtracking.service.FeiShuConfigService;
 
 @Slf4j
 @RestController
@@ -31,6 +33,8 @@ public class NotificationController {
     private final UserService userService;
     private final DingTalkNotificationService dingTalkNotificationService;
     private final DingTalkConfigService dingTalkConfigService;
+    private final FeiShuNotificationService feiShuNotificationService;
+    private final FeiShuConfigService feiShuConfigService;
 
     /**
      * 获取当前用户的通知列表
@@ -250,13 +254,9 @@ public class NotificationController {
         try {
             log.info("保存钉钉配置: enabled={}, webhookUrl={}", request.isEnabled(), request.getWebhookUrl());
             
-            // 验证webhook地址格式
+            // 验证webhook地址
             if (request.isEnabled() && (request.getWebhookUrl() == null || request.getWebhookUrl().trim().isEmpty())) {
                 return ResponseEntity.badRequest().body("启用钉钉通知时必须提供webhook地址");
-            }
-            
-            if (request.isEnabled() && !request.getWebhookUrl().contains("oapi.dingtalk.com/robot/send")) {
-                return ResponseEntity.badRequest().body("webhook地址格式不正确，请使用钉钉机器人webhook地址");
             }
             
             // 保存配置
@@ -266,6 +266,65 @@ public class NotificationController {
         } catch (Exception e) {
             log.error("保存钉钉配置失败: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body("保存钉钉配置失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试飞书通知配置
+     */
+    @PostMapping("/test-feishu")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> testFeiShuNotification() {
+        try {
+            String result = feiShuNotificationService.sendTestNotification();
+            return ResponseEntity.ok("飞书通知测试成功: " + result);
+        } catch (Exception e) {
+            log.error("飞书通知测试失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("飞书通知测试失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取飞书配置信息
+     */
+    @GetMapping("/feishu-config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getFeiShuConfig() {
+        try {
+            FeiShuConfigService.FeiShuConfig config = feiShuConfigService.loadConfig();
+            Map<String, Object> response = new HashMap<>();
+            response.put("enabled", config.isEnabled());
+            response.put("webhookUrl", config.getWebhookUrl());
+            response.put("secret", config.getSecret());
+            response.put("isConfigured", config.isEnabled() && !config.getWebhookUrl().isEmpty());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("获取飞书配置失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("获取飞书配置失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 保存飞书配置
+     */
+    @PostMapping("/feishu-config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> saveFeiShuConfig(@RequestBody FeiShuConfigRequest request) {
+        try {
+            log.info("保存飞书配置: enabled={}, webhookUrl={}", request.isEnabled(), request.getWebhookUrl());
+            
+            // 验证webhook地址
+            if (request.isEnabled() && (request.getWebhookUrl() == null || request.getWebhookUrl().trim().isEmpty())) {
+                return ResponseEntity.badRequest().body("启用飞书通知时必须提供webhook地址");
+            }
+            
+            // 保存配置
+            feiShuConfigService.saveConfig(request.isEnabled(), request.getWebhookUrl(), request.getSecret());
+            
+            return ResponseEntity.ok("飞书配置保存成功");
+        } catch (Exception e) {
+            log.error("保存飞书配置失败: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body("保存飞书配置失败: " + e.getMessage());
         }
     }
 
@@ -289,6 +348,36 @@ public class NotificationController {
 
     // 内部类
     public static class DingTalkConfigRequest {
+        private boolean enabled;
+        private String webhookUrl;
+        private String secret;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getWebhookUrl() {
+            return webhookUrl;
+        }
+
+        public void setWebhookUrl(String webhookUrl) {
+            this.webhookUrl = webhookUrl;
+        }
+
+        public String getSecret() {
+            return secret;
+        }
+
+        public void setSecret(String secret) {
+            this.secret = secret;
+        }
+    }
+
+    public static class FeiShuConfigRequest {
         private boolean enabled;
         private String webhookUrl;
         private String secret;

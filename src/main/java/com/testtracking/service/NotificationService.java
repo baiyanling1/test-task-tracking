@@ -33,6 +33,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final DingTalkNotificationService dingTalkNotificationService;
+    private final FeiShuNotificationService feiShuNotificationService;
     private final ScheduledTaskRepository scheduledTaskRepository;
 
     /**
@@ -90,12 +91,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 
@@ -117,12 +119,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 
@@ -148,12 +151,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 
@@ -180,12 +184,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 
@@ -212,12 +217,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 
@@ -236,12 +242,13 @@ public class NotificationService {
         
         createNotification(notificationDto);
         
-        // 发送钉钉通知
+        // 发送钉钉和飞书通知
         try {
             Notification savedNotification = notificationRepository.save(notificationDto.toEntity());
             dingTalkNotificationService.sendNotificationToDingTalk(savedNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
-            log.error("发送钉钉通知失败: {}", e.getMessage());
+            log.error("发送Webhook通知失败: {}", e.getMessage());
         }
     }
 

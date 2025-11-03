@@ -45,9 +45,9 @@ const routes = [
         meta: { requiresAdmin: true }
       },
       {
-        path: 'dingtalk-config',
-        name: 'DingTalkConfig',
-        component: () => import('@/views/DingTalkTest.vue'),
+        path: 'webhook-config',
+        name: 'WebhookConfig',
+        component: () => import('@/views/WebhookConfig.vue'),
         meta: { requiresAdmin: true }
       },
       {

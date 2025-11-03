@@ -27,6 +27,9 @@ public class AlertNotificationConfig {
     @Column(name = "dingtalk_enabled")
     private Boolean dingtalkEnabled = false;
 
+    @Column(name = "feishu_enabled")
+    private Boolean feishuEnabled = false;
+
     @Column(name = "created_time")
     private LocalDateTime createdTime;
 

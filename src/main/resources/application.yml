@@ -45,6 +45,13 @@ dingtalk:
     url: https://oapi.dingtalk.com/robot/send?access_token=98b6b18dfda2b07323b01b7050fce8a34ffce394815428c85eef1cff4ee41726  # 钉钉机器人webhook地址
   secret:   # 钉钉机器人签名密钥（可选）
 
+# 飞书通知配置
+feishu:
+  enabled: false  # 是否启用飞书通知
+  webhook:
+    url:   # 飞书机器人webhook地址
+  secret:   # 飞书机器人签名密钥（可选）
+
 # 数据库备份配置
 backup:
   path: /backup  # 备份文件存储路径

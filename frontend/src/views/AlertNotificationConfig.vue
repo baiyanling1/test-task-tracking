@@ -2,12 +2,12 @@
   <div class="alert-notification-config-container">
     <div class="page-header">
       <h1>告警通知配置</h1>
-      <p class="page-description">配置哪些类型的告警需要发送钉钉通知</p>
+      <p class="page-description">配置哪些类型的告警需要发送钉钉/飞书通知</p>
     </div>
 
     <el-card>
       <template #header>
-        <span>钉钉通知配置</span>
+        <span>通知平台配置</span>
         <el-button style="float: right; padding: 3px 0" type="text" @click="saveAllConfigs" :loading="saving">
           保存所有配置
         </el-button>
@@ -30,6 +30,17 @@
           <template #default="{ row }">
             <el-switch
               v-model="row.dingtalkEnabled"
+              @change="handleConfigChange(row)"
+              active-text="启用"
+              inactive-text="禁用"
+            />
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="feishuEnabled" label="飞书通知" width="150">
+          <template #default="{ row }">
+            <el-switch
+              v-model="row.feishuEnabled"
               @change="handleConfigChange(row)"
               active-text="启用"
               inactive-text="禁用"
@@ -62,7 +73,8 @@
         
         <h4>配置说明：</h4>
         <ul>
-          <li>只有启用的告警类型才会发送钉钉通知</li>
+          <li>只有启用的告警类型才会发送对应平台的通知</li>
+          <li>可以同时启用钉钉和飞书通知，系统会向两个平台都发送消息</li>
           <li>系统内部通知不受此配置影响，仍会正常发送</li>
           <li>配置会立即生效，无需重启系统</li>
         </ul>

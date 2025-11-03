@@ -47,9 +47,9 @@
           <span>定时任务管理</span>
         </el-menu-item>
         
-        <el-menu-item index="/dingtalk-config" v-if="isAdmin">
+        <el-menu-item index="/webhook-config" v-if="isAdmin">
           <el-icon><Message /></el-icon>
-          <span>钉钉配置</span>
+          <span>Webhook配置</span>
         </el-menu-item>
         
         <el-menu-item index="/task-tracking-config" v-if="isAdmin">
@@ -119,7 +119,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
-import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold, Clock, UserFilled, Setting } from '@element-plus/icons-vue'
+import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold, Clock, UserFilled, Setting, Message } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

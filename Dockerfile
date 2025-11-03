@@ -22,7 +22,11 @@ FROM openjdk:11-jre-slim
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# 安装mysqldump工具
+# 使用国内镜像源（解决DNS和加速apt-get）
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# 安装mysqldump工具（数据库备份功能需要）
 RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

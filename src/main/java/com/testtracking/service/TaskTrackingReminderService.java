@@ -35,6 +35,7 @@ public class TaskTrackingReminderService {
     private final TestTaskRepository testTaskRepository;
     private final NotificationService notificationService;
     private final DingTalkNotificationService dingTalkNotificationService;
+    private final FeiShuNotificationService feiShuNotificationService;
     private final ScheduledTaskRepository scheduledTaskRepository;
     private final TaskTrackingConfigService taskTrackingConfigService;
 
@@ -199,10 +200,10 @@ public class TaskTrackingReminderService {
     }
 
     /**
-     * 发送钉钉通知
+     * 发送钉钉和飞书通知
      */
     private void sendDingTalkNotification(String message) {
-        // 创建临时通知对象用于钉钉发送
+        // 创建临时通知对象用于钉钉和飞书发送
         Notification notification = new Notification();
         notification.setTitle("任务跟踪表填写提醒");
         notification.setContent(message);
@@ -210,7 +211,9 @@ public class TaskTrackingReminderService {
         notification.setPriority(Notification.NotificationPriority.HIGH);
         notification.setCreatedTime(LocalDateTime.now());
         
+        // 发送到钉钉和飞书
         dingTalkNotificationService.sendNotificationToDingTalk(notification);
+        feiShuNotificationService.sendNotificationToFeiShu(notification);
     }
 
     /**

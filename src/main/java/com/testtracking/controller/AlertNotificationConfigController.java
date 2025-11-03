@@ -43,11 +43,23 @@ public class AlertNotificationConfigController {
             @RequestBody Map<String, Boolean> request) {
         try {
             Boolean dingtalkEnabled = request.get("dingtalkEnabled");
-            if (dingtalkEnabled == null) {
-                return ResponseEntity.badRequest().body("缺少dingtalkEnabled参数");
+            Boolean feishuEnabled = request.get("feishuEnabled");
+            
+            if (dingtalkEnabled == null && feishuEnabled == null) {
+                return ResponseEntity.badRequest().body("至少需要提供dingtalkEnabled或feishuEnabled参数");
             }
             
-            alertNotificationConfigService.updateConfig(alertType, dingtalkEnabled);
+            // 如果只提供了其中一个，则使用当前值
+            AlertNotificationConfig currentConfig = alertNotificationConfigService.getConfigByType(alertType);
+            if (currentConfig == null) {
+                return ResponseEntity.badRequest().body("告警类型不存在: " + alertType);
+            }
+            
+            boolean finalDingtalkEnabled = dingtalkEnabled != null ? dingtalkEnabled : currentConfig.getDingtalkEnabled();
+            boolean finalFeishuEnabled = feishuEnabled != null ? feishuEnabled : 
+                (currentConfig.getFeishuEnabled() != null ? currentConfig.getFeishuEnabled() : false);
+            
+            alertNotificationConfigService.updateConfig(alertType, finalDingtalkEnabled, finalFeishuEnabled);
             return ResponseEntity.ok("配置更新成功");
         } catch (Exception e) {
             log.error("更新告警通知配置失败: {}", e.getMessage(), e);

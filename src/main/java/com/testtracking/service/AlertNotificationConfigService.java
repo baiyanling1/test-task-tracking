@@ -43,7 +43,32 @@ public class AlertNotificationConfigService {
     }
 
     /**
+     * 检查指定告警类型是否启用飞书通知
+     */
+    @Transactional(readOnly = true)
+    public boolean isFeiShuEnabled(String alertType) {
+        AlertNotificationConfig config = getConfigByType(alertType);
+        return config != null && Boolean.TRUE.equals(config.getFeishuEnabled());
+    }
+
+    /**
      * 更新告警通知配置
+     */
+    @Transactional
+    public void updateConfig(String alertType, boolean dingtalkEnabled, boolean feishuEnabled) {
+        AlertNotificationConfig config = getConfigByType(alertType);
+        if (config != null) {
+            config.setDingtalkEnabled(dingtalkEnabled);
+            config.setFeishuEnabled(feishuEnabled);
+            alertNotificationConfigRepository.save(config);
+            log.info("更新告警通知配置: {} -> 钉钉通知: {}, 飞书通知: {}", alertType, dingtalkEnabled, feishuEnabled);
+        } else {
+            log.warn("告警类型配置不存在: {}", alertType);
+        }
+    }
+
+    /**
+     * 更新告警通知配置（兼容旧版本）
      */
     @Transactional
     public void updateConfig(String alertType, boolean dingtalkEnabled) {
@@ -63,7 +88,8 @@ public class AlertNotificationConfigService {
     @Transactional
     public void updateConfigs(List<AlertNotificationConfig> configs) {
         for (AlertNotificationConfig config : configs) {
-            updateConfig(config.getAlertType(), config.getDingtalkEnabled());
+            updateConfig(config.getAlertType(), config.getDingtalkEnabled(), 
+                        config.getFeishuEnabled() != null ? config.getFeishuEnabled() : false);
         }
         log.info("批量更新告警通知配置完成，共更新 {} 个配置", configs.size());
     }

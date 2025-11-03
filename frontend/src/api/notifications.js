@@ -72,3 +72,26 @@ export function saveDingTalkConfig(config) {
     data: config
   })
 }
+
+// 飞书配置相关API
+export function getFeiShuConfig() {
+  return request({
+    url: '/notifications/feishu-config',
+    method: 'get'
+  })
+}
+
+export function testFeiShuNotification() {
+  return request({
+    url: '/notifications/test-feishu',
+    method: 'post'
+  })
+}
+
+export function saveFeiShuConfig(config) {
+  return request({
+    url: '/notifications/feishu-config',
+    method: 'post',
+    data: config
+  })
+}
