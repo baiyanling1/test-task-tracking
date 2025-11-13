@@ -1,5 +1,6 @@
 package com.testtracking.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.testtracking.entity.User;
 import lombok.Data;
 
@@ -33,14 +34,17 @@ public class UserUpdateDto {
 
     private Boolean isActive;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime lastLoginTime;
 
     private String department;
 
     private String position;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime createdTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime updatedTime;
 
     // 从UserUpdateDto转换为UserDto

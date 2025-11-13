@@ -1,5 +1,6 @@
 package com.testtracking.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.testtracking.entity.TestTask;
 import lombok.Data;
 
@@ -29,9 +30,16 @@ public class TestTaskDto {
     private TestTask.TestType testType;
     private Boolean isOverdue;
     private Integer overdueDays;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime lastProgressUpdate;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime createdTime;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime updatedTime;
+    
     private String department;
     private String delayReason;
     private Boolean isDelayedCompletion;

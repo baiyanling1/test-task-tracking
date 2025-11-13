@@ -1,5 +1,6 @@
 package com.testtracking.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.testtracking.entity.ScheduledTask;
 import lombok.Data;
 
@@ -15,9 +16,15 @@ public class ScheduledTaskDto {
     private String beanName;
     private String methodName;
     private boolean enabled;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime lastExecuteTime;
+    
     private String lastExecuteResult; // 执行结果：SUCCESS, FAILED
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime nextExecuteTime;
+    
     private ScheduledTask.TaskStatus status;
 
     // 从实体转换为DTO

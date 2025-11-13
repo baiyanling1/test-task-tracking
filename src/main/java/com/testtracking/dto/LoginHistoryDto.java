@@ -1,5 +1,6 @@
 package com.testtracking.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.testtracking.entity.LoginHistory;
 import lombok.Data;
 
@@ -11,7 +12,10 @@ public class LoginHistoryDto {
     private Long userId;
     private String username;
     private String realName;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime loginTime;
+    
     private String ipAddress;
     private String userAgent;
     private LoginHistory.LoginStatus status;

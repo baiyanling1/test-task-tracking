@@ -40,9 +40,10 @@ public class TaskTrackingReminderService {
     private final TaskTrackingConfigService taskTrackingConfigService;
 
     /**
-     * 每周一早上9点半检查上周五任务跟踪表填写情况
+     * 每周一早上9点半检查上周五任务跟踪表填写情况（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 30 9 * * MON")
+    // @Scheduled(cron = "0 30 9 * * MON") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void checkFridayTaskTracking() {
         log.info("开始检查上周五任务跟踪表填写情况...");
         

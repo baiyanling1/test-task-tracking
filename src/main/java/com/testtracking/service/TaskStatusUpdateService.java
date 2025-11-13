@@ -18,9 +18,10 @@ public class TaskStatusUpdateService {
     private TestTaskRepository testTaskRepository;
 
     /**
-     * 每天凌晨2点自动检查和更新任务状态
+     * 每天凌晨2点自动检查和更新任务状态（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 2 * * ?")
+    // @Scheduled(cron = "0 0 2 * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     @Transactional
     public void updateTaskStatuses() {
         log.info("开始自动更新任务状态...");
@@ -56,9 +57,10 @@ public class TaskStatusUpdateService {
     }
 
     /**
-     * 每小时检查一次预期完成时间到达的任务
+     * 每小时检查一次预期完成时间到达的任务（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 * * * ?")
+    // @Scheduled(cron = "0 0 * * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     @Transactional
     public void checkExpectedCompletionReached() {
         log.info("检查预期完成时间到达的任务...");

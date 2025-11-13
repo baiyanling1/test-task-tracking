@@ -22,10 +22,11 @@ public class ScheduledTaskService {
     private final ScheduledTaskRepository scheduledTaskRepository;
 
     /**
-     * 每天凌晨2点清理一个月前的登录历史记录
+     * 每天凌晨2点清理一个月前的登录历史记录（已由动态调度器管理，此注解已禁用）
      * cron表达式：秒 分 时 日 月 周
      */
-    @Scheduled(cron = "0 0 2 * * ?")
+    // @Scheduled(cron = "0 0 2 * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void cleanOldLoginHistory() {
         log.info("开始执行登录历史清理任务");
         

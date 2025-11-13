@@ -48,9 +48,10 @@ public class DatabaseBackupService {
     private int retentionDays;
 
     /**
-     * 每周一凌晨2点执行数据库备份
+     * 每周一凌晨2点执行数据库备份（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 2 * * MON")
+    // @Scheduled(cron = "0 0 2 * * MON") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void scheduledBackup() {
         log.info("开始执行定时数据库备份...");
         

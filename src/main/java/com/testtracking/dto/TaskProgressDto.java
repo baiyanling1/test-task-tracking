@@ -1,5 +1,6 @@
 package com.testtracking.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.testtracking.entity.TaskProgress;
 import com.testtracking.entity.TestTask;
 import lombok.Data;
@@ -27,10 +28,12 @@ public class TaskProgressDto {
 
     private String progressNotes;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime updateTime;
 
     private TestTask.TaskStatus taskStatus;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
     private LocalDateTime createdTime;
     
     // 实际结束时间（可选）

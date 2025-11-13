@@ -19,7 +19,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ScheduledFuture;
 
 @Slf4j
 @Service
@@ -27,14 +26,13 @@ import java.util.concurrent.ScheduledFuture;
 public class ScheduledTaskManagementService {
 
     private final ScheduledTaskRepository scheduledTaskRepository;
-    private final ApplicationContext applicationContext;
     private final TestTaskService testTaskService;
     private final ScheduledTaskService scheduledTaskService;
     private final DatabaseBackupService databaseBackupService;
     private final NotificationService notificationService;
     private final TaskTrackingReminderService taskTrackingReminderService;
-    private final TaskScheduler taskScheduler;
     private final CronExpressionTestService cronExpressionTestService;
+    private final DynamicScheduledTaskService dynamicScheduledTaskService;
 
     /**
      * 获取所有定时任务列表
@@ -125,6 +123,13 @@ public class ScheduledTaskManagementService {
         task.setStatus(enabled ? ScheduledTask.TaskStatus.ENABLED : ScheduledTask.TaskStatus.DISABLED);
         scheduledTaskRepository.save(task);
         
+        // 动态调整任务调度
+        if (enabled) {
+            dynamicScheduledTaskService.enableTask(taskName);
+        } else {
+            dynamicScheduledTaskService.disableTask(taskName);
+        }
+        
         log.info("任务 {} 状态已更新为: {}", taskName, enabled ? "启用" : "禁用");
     }
 
@@ -152,6 +157,9 @@ public class ScheduledTaskManagementService {
         task.setNextExecuteTime(nextExecuteTime);
         
         scheduledTaskRepository.save(task);
+        
+        // 动态重新调度任务
+        dynamicScheduledTaskService.rescheduleTask(taskName);
         
         log.info("任务 {} 执行计划已更新为: {}, 下次执行时间: {}", taskName, cronExpression, nextExecuteTime);
     }
@@ -207,9 +215,9 @@ public class ScheduledTaskManagementService {
                 LocalDateTime nextTime = LocalDateTime.ofInstant(nextExecution.toInstant(), ZoneId.of("Asia/Shanghai"));
                 log.debug("计算得到下次执行时间: {}", nextTime);
                 return nextTime;
-            } else {
-                log.warn("无法计算下次执行时间，cron表达式: {}", cronExpression);
             }
+            log.warn("无法计算下次执行时间，cron表达式: {}", cronExpression);
+            return null;
         } catch (IllegalArgumentException e) {
             log.error("cron表达式格式错误: {}, error: {}", cronExpression, e.getMessage());
         } catch (Exception e) {

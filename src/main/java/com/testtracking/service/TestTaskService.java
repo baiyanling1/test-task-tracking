@@ -526,9 +526,10 @@ public class TestTaskService {
     }
 
     /**
-     * 定时检查超时任务
+     * 定时检查超时任务（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 1 * * ?") // 每天凌晨1点执行
+    // @Scheduled(cron = "0 0 1 * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void checkOverdueTasks() {
         log.info("开始检查超时任务...");
         

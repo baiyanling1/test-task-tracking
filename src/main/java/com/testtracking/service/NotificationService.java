@@ -297,9 +297,10 @@ public class NotificationService {
     }
 
     /**
-     * 删除过期通知（定时任务）
+     * 删除过期通知（定时任务）（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 2 * * ?") // 每天凌晨2点执行
+    // @Scheduled(cron = "0 0 2 * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void deleteExpiredNotifications() {
         log.info("开始清理过期通知");
         
@@ -325,9 +326,10 @@ public class NotificationService {
     }
 
     /**
-     * 检查超时任务并发送通知（定时任务）
+     * 检查超时任务并发送通知（定时任务）（已由动态调度器管理，此注解已禁用）
      */
-    @Scheduled(cron = "0 0 9 * * ?") // 每天上午9点执行
+    // @Scheduled(cron = "0 0 9 * * ?") // 已禁用：由DynamicScheduledTaskService动态管理
+    // @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "scheduler.enabled", havingValue = "false", matchIfMissing = false)
     public void checkOverdueTasksAndNotify() {
         log.info("开始检查超时任务");
         // 这里需要注入TestTaskService来获取超时任务

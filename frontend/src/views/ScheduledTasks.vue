@@ -175,47 +175,42 @@ const cancelEditCron = () => {
   editCronForm.value.cronExpression = ''
 }
 
-// 格式化日期时间（后端返回的时间已经是Asia/Shanghai时区，直接显示）
+// 格式化日期时间（后端返回的时间已经是Asia/Shanghai时区的格式化字符串，直接显示）
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
+  
+  // 如果是字符串且格式为 "yyyy-MM-dd HH:mm:ss"，直接返回
+  if (typeof dateTime === 'string') {
+    const s = dateTime.trim()
+    // 后端已经返回格式化好的 Asia/Shanghai 时区时间字符串，直接显示
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) {
+      return s
+    }
+  }
+  
+  // 其他情况（如果有的话）作为兜底处理
   try {
     let d
-    // 数字时间戳（毫秒）
     if (typeof dateTime === 'number') {
       d = new Date(dateTime)
     } else if (typeof dateTime === 'string') {
-      const s = dateTime.trim()
-      // 后端返回的时间格式通常是 "2024-01-01 12:00:00" 或 ISO 格式
-      // 由于后端已配置 time-zone: Asia/Shanghai，这些时间已经是Asia/Shanghai时区
-      if (s.includes('T')) {
-        // ISO 格式，直接解析（后端已设置时区）
-        d = new Date(s)
-      } else if (s.includes(' ')) {
-        // 空格分隔格式 "2024-01-01 12:00:00"，直接解析
-        d = new Date(s.replace(' ', 'T'))
-      } else if (/^\d+$/.test(s)) {
-        // 纯数字字符串，当作毫秒时间戳
-        d = new Date(parseInt(s, 10))
-      } else {
-        // 兜底
-        d = new Date(s)
-      }
+      // 对于带时区的 ISO 格式，直接解析
+      d = new Date(dateTime)
     } else {
       d = new Date(dateTime)
     }
-
+    
     if (isNaN(d.getTime())) return '-'
-
-    // 直接使用后端返回的时间，不进行时区转换
-    return d.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Shanghai' // 明确指定时区
-    })
+    
+    // 格式化为 yyyy-MM-dd HH:mm:ss
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hour = String(d.getHours()).padStart(2, '0')
+    const minute = String(d.getMinutes()).padStart(2, '0')
+    const second = String(d.getSeconds()).padStart(2, '0')
+    
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`
   } catch (error) {
     console.error('格式化时间失败:', dateTime, error)
     return '-'
