@@ -120,13 +120,10 @@ public class FeiShuNotificationService {
 
     /**
      * 构建飞书工作流消息（富文本格式）
-     * 格式符合飞书官方文档：{"msg_type":"post","content":{"post":{...}}}
+     * 工作流webhook通常直接接收纯文本或简单的键值对
      */
     private Map<String, Object> buildWorkflowMessage(Notification notification) {
         Map<String, Object> message = new HashMap<>();
-        
-        // 使用纯文本格式，适合工作流webhook
-        message.put("msg_type", "text");
         
         // 构建纯文本内容
         StringBuilder textBuilder = new StringBuilder();
@@ -144,15 +141,32 @@ public class FeiShuNotificationService {
                 .append(notification.getCreatedTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         }
         
-        // 构建content对象
-        Map<String, Object> content = new HashMap<>();
-        content.put("text", textBuilder.toString());
-        message.put("content", content);
+        String fullText = textBuilder.toString();
+        
+        // 工作流webhook支持多种格式，我们提供3种常见格式
+        // 格式1: 直接使用text字段（最简单）
+        message.put("text", fullText);
+        
+        // 格式2: 使用title和content分开（推荐）
+        message.put("title", notification.getTitle());
+        message.put("content", cleanContent);
+        
+        // 格式3: 兼容msg_type格式
+        message.put("msg_type", "text");
+        Map<String, Object> contentObj = new HashMap<>();
+        contentObj.put("text", fullText);
+        message.put("content", contentObj);
+        
+        // 添加额外的元数据字段
+        message.put("notification_type", notification.getType() != null ? notification.getType().name() : "SYSTEM_ALERT");
+        message.put("priority", notification.getPriority() != null ? notification.getPriority().name() : "NORMAL");
+        message.put("time", notification.getCreatedTime() != null ? 
+            notification.getCreatedTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
         
         // 打印完整的JSON格式（美化输出）
         try {
             String prettyJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(message);
-            log.info("构建飞书工作流消息（纯文本格式）:\n{}", prettyJson);
+            log.info("构建飞书工作流消息（兼容多种格式）:\n{}", prettyJson);
         } catch (Exception e) {
             log.warn("JSON格式化失败: {}", e.getMessage());
             log.debug("构建工作流消息: {}", message);
@@ -250,6 +264,33 @@ public class FeiShuNotificationService {
         divider.put("tag", "hr");
         elements.add(divider);
         
+        // 添加按钮（如果有相关任务，显示查看任务按钮）
+        Map<String, Object> actions = new HashMap<>();
+        actions.put("tag", "action");
+        
+        java.util.List<Map<String, Object>> actionButtons = new java.util.ArrayList<>();
+        
+        // 添加"查看任务跟踪平台"按钮
+        Map<String, Object> viewButton = new HashMap<>();
+        viewButton.put("tag", "button");
+        viewButton.put("text", createButtonText("查看任务跟踪平台"));
+        viewButton.put("type", "primary");
+        viewButton.put("url", getSystemUrl() + "/tasks"); // 跳转到任务列表页面
+        actionButtons.add(viewButton);
+        
+        // 如果有关联任务，添加"查看任务详情"按钮
+        if (notification.getRelatedTask() != null) {
+            Map<String, Object> taskButton = new HashMap<>();
+            taskButton.put("tag", "button");
+            taskButton.put("text", createButtonText("查看任务详情"));
+            taskButton.put("type", "default");
+            taskButton.put("url", getSystemUrl() + "/tasks?id=" + notification.getRelatedTask().getId());
+            actionButtons.add(taskButton);
+        }
+        
+        actions.put("actions", actionButtons);
+        elements.add(actions);
+        
         // 添加备注
         Map<String, Object> note = new HashMap<>();
         note.put("tag", "note");
@@ -272,6 +313,25 @@ public class FeiShuNotificationService {
         }
         
         return message;
+    }
+
+    /**
+     * 创建按钮文本
+     */
+    private Map<String, Object> createButtonText(String text) {
+        Map<String, Object> buttonText = new HashMap<>();
+        buttonText.put("tag", "plain_text");
+        buttonText.put("content", text);
+        return buttonText;
+    }
+
+    /**
+     * 获取系统访问地址
+     */
+    private String getSystemUrl() {
+        // TODO: 从配置文件读取系统地址，这里先使用默认值
+        // 您可以在 application.yml 中添加配置项：system.base-url
+        return "http://10.18.50.48:3000"; // 替换为您的实际系统地址
     }
 
     /**
