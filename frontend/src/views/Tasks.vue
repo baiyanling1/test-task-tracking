@@ -1263,8 +1263,29 @@ const saveTask = async () => {
     }
 
     if (editingTask.value) {
+      // 编辑任务
       await updateTask(editingTask.value.id, taskForm)
-      ElMessage.success('任务更新成功')
+      
+      // 如果有进度描述，创建进度历史记录
+      if (taskForm.progressNotes && taskForm.progressNotes.trim()) {
+        try {
+          const progressData = {
+            progressPercentage: taskForm.progressPercentage || 0,
+            progressNotes: taskForm.progressNotes,
+            actualEndDate: taskForm.actualEndDate || '',
+            updatedByUserId: authStore.user.id,
+            actualManDays: taskForm.actualManDays || null
+          }
+          
+          await addTaskProgress(editingTask.value.id, progressData)
+          ElMessage.success('任务和进度历史更新成功')
+        } catch (progressError) {
+          console.error('创建进度历史失败:', progressError)
+          ElMessage.warning('任务更新成功，但进度历史创建失败：' + (progressError.response?.data || progressError.message || '未知错误'))
+        }
+      } else {
+        ElMessage.success('任务更新成功')
+      }
     } else {
       // 新建任务
       const response = await createTask(taskForm)
@@ -1277,10 +1298,10 @@ const saveTask = async () => {
             progressPercentage: taskForm.progressPercentage || 0,
             progressNotes: taskForm.progressNotes,
             actualEndDate: taskForm.actualEndDate || '',
-            updatedByUserId: authStore.user.id
+            updatedByUserId: authStore.user.id,
+            actualManDays: taskForm.actualManDays || null
           }
           
-          // 获取新创建的任务ID
           const newTaskId = response?.id
           if (newTaskId) {
             await addTaskProgress(newTaskId, progressData)

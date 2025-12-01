@@ -45,17 +45,34 @@ public class TaskProgressService {
      */
     @Transactional
     public TaskProgressDto addTaskProgress(TaskProgressDto progressDto) {
+        log.info("开始添加任务进度 - taskId: {}, updatedByUserId: {}, progressPercentage: {}, progressNotes: {}", 
+                progressDto.getTaskId(), progressDto.getUpdatedByUserId(), 
+                progressDto.getProgressPercentage(), progressDto.getProgressNotes());
+        
         TestTask task = testTaskRepository.findById(progressDto.getTaskId())
                 .orElseThrow(() -> new RuntimeException("任务不存在: " + progressDto.getTaskId()));
         
+        log.info("找到任务 - taskName: {}, assignedTo: {}, createdByUser: {}", 
+                task.getTaskName(), 
+                task.getAssignedTo() != null ? task.getAssignedTo().getRealName() : "未分配",
+                task.getCreatedByUser() != null ? task.getCreatedByUser().getRealName() : "未知");
+        
         User updatedByUser = userRepository.findById(progressDto.getUpdatedByUserId())
                 .orElseThrow(() -> new RuntimeException("用户不存在: " + progressDto.getUpdatedByUserId()));
+        
+        log.info("操作用户 - username: {}, realName: {}, role: {}", 
+                updatedByUser.getUsername(), updatedByUser.getRealName(), updatedByUser.getRole());
 
         // 权限检查：只有管理员、测试经理或任务负责人可以更新进度
-        if (!canUpdateProgress(task, updatedByUser)) {
+        boolean canUpdate = canUpdateProgress(task, updatedByUser);
+        log.info("权限检查结果: {}", canUpdate);
+        
+        if (!canUpdate) {
             String assigneeName = task.getAssignedTo() != null ? task.getAssignedTo().getRealName() : "未分配";
             String creatorName = task.getCreatedByUser() != null ? task.getCreatedByUser().getRealName() : "未知";
-            throw new RuntimeException(String.format("权限不足：您只能更新分配给您的任务或您创建的任务。当前任务负责人：%s，创建者：%s", assigneeName, creatorName));
+            String errorMsg = String.format("权限不足：您只能更新分配给您的任务或您创建的任务。当前任务负责人：%s，创建者：%s", assigneeName, creatorName);
+            log.error("权限检查失败: {}", errorMsg);
+            throw new RuntimeException(errorMsg);
         }
 
         TaskProgress progress = new TaskProgress();
@@ -69,6 +86,7 @@ public class TaskProgressService {
         progress.setUpdateTime(LocalDateTime.now());
 
         TaskProgress savedProgress = taskProgressRepository.save(progress);
+        log.info("进度历史保存成功 - progressId: {}", savedProgress.getId());
         
         // 更新任务的进度百分比和状态
         task.updateProgress(progressDto.getProgressPercentage());
