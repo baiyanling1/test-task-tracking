@@ -124,7 +124,7 @@
       >
         <el-table-column prop="taskName" label="任务名称" min-width="280">
           <template #default="{ row }">
-            <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0' }">
+            <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0', display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: '40px' }">
               <el-tag 
                 v-if="row.taskType === 'VERSION'" 
                 type="primary" 
@@ -424,8 +424,7 @@
             placeholder="选择实际结束时间（可选）"
             value-format="YYYY-MM-DD"
             style="width: 100%"
-            @change="onActualEndDateChange"
-            @change="calculateActualManDays"
+            @change="handleActualEndDateChange"
           />
         </el-form-item>
         <el-form-item label="实际工时(人/天)" prop="actualManDays" v-if="taskForm.status === 'COMPLETED' || taskForm.actualEndDate">
@@ -559,8 +558,8 @@
                <p>{{ selectedTask.delayReason }}</p>
              </div>
              
-             <!-- 进度历史显示 -->
-             <div class="progress-section" style="margin-top: 30px;">
+             <!-- 进度历史显示（非版本任务显示） -->
+             <div v-if="selectedTask?.taskType !== 'VERSION'" class="progress-section" style="margin-top: 30px;">
                <h4>进度更新历史</h4>
                
                <div v-if="progressHistory.length === 0" class="no-progress">
@@ -591,18 +590,18 @@
              <div v-if="selectedTask?.taskType === 'VERSION' && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">
                <h4>子需求更新历史</h4>
                <div class="progress-timeline">
-                 <div v-for="progress in childrenProgressHistory" :key="`child-${progress.id}`" class="progress-item">
+                 <div v-for="progress in childrenProgressHistory" :key="`child-${progress.id}`" class="progress-item" style="border-left: 3px solid #67c23a; padding-left: 12px;">
                    <div class="progress-header">
-                     <div class="progress-info">
-                       <el-tag type="success" size="small" style="margin-right: 8px;">{{ progress.childTaskName }}</el-tag>
-                       <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
-                       <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
+                     <div class="progress-info" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                       <span style="font-weight: 600; color: #409eff;">【{{ progress.childTaskName }}】</span>
+                       <span class="progress-percentage" style="color: #67c23a; font-weight: bold;">{{ progress.progressPercentage }}%</span>
+                       <span class="progress-time" style="color: #909399;">{{ formatDateTime(progress.updateTime) }}</span>
                      </div>
-                     <div class="progress-user">
+                     <div class="progress-user" style="color: #606266; font-size: 13px;">
                        更新人: {{ progress.updatedByUserName }}
                      </div>
                    </div>
-                   <div v-if="progress.progressNotes" class="progress-notes">
+                   <div v-if="progress.progressNotes" class="progress-notes" style="margin-top: 8px; padding: 8px; background: #f5f7fa; border-radius: 4px;">
                      <strong>进度描述:</strong>
                      <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
                    </div>
@@ -2024,6 +2023,12 @@ const onActualEndDateChange = (value) => {
       // 用户选择保持当前进度
     });
   }
+};
+
+// 合并处理实际结束日期变化的事件
+const handleActualEndDateChange = (value) => {
+  onActualEndDateChange(value);
+  calculateActualManDays();
 };
 
 // 处理状态变化

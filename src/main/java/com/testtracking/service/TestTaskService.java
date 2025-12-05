@@ -315,7 +315,15 @@ public class TestTaskService {
             throw new RuntimeException("没有权限删除此任务");
         }
         
+        // 保存父任务ID（删除前）
+        Long parentId = task.getParentId();
+        
         testTaskRepository.delete(task);
+        
+        // 如果是需求任务，删除后更新父任务（版本）的进度和投入人数
+        if (parentId != null) {
+            updateVersionProgress(parentId);
+        }
     }
 
     /**
@@ -717,7 +725,7 @@ public class TestTaskService {
         double totalManDays = 0;
         double actualManDays = 0;
         int completedCount = 0;
-        int totalParticipants = 0;  // 总投入人数
+        java.util.Set<Long> assigneeIds = new java.util.HashSet<>();  // 责任人ID集合（去重）
         
         for (TestTask child : childTasks) {
             double manDays = child.getManDays() != null ? child.getManDays() : 1;
@@ -733,9 +741,13 @@ public class TestTaskService {
                 actualManDays += child.getActualManDays() != null ? child.getActualManDays() : 0;
             }
             
-            // 累加投入人数
-            totalParticipants += child.getParticipantCount() != null ? child.getParticipantCount() : 0;
+            // 按责任人去重计算投入人数
+            if (child.getAssignedTo() != null) {
+                assigneeIds.add(child.getAssignedTo().getId());
+            }
         }
+        
+        int totalParticipants = assigneeIds.size();  // 投入人数 = 不同责任人的数量
         
         // 更新版本任务进度
         int versionProgress = totalWeight > 0 ? (int) Math.round(completedWeight / totalWeight * 100) : 0;
