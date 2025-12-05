@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Data
 public class TestTaskDto {
@@ -43,6 +45,15 @@ public class TestTaskDto {
     private String department;
     private String delayReason;
     private Boolean isDelayedCompletion;
+    
+    // ========== 层级结构字段 ==========
+    private Long parentId;                      // 父任务ID
+    private TestTask.TaskType taskType;         // 任务类型
+    private String versionCode;                 // 版本号
+    private List<TestTaskDto> children;         // 子任务列表（用于树形展示）
+    private Integer childCount;                 // 子任务数量
+    private Integer completedChildCount;        // 已完成子任务数量
+    private Boolean hasChildren;                // 是否有子任务
 
     public static TestTaskDto fromEntity(TestTask task) {
         TestTaskDto dto = new TestTaskDto();
@@ -71,6 +82,13 @@ public class TestTaskDto {
         dto.setDepartment(task.getDepartment());
         dto.setDelayReason(task.getDelayReason());
         dto.setIsDelayedCompletion(task.getIsDelayedCompletion());
+        
+        // 层级结构字段
+        dto.setParentId(task.getParentId());
+        dto.setTaskType(task.getTaskType());
+        dto.setVersionCode(task.getVersionCode());
+        dto.setChildren(new ArrayList<>());  // 初始化空列表
+        dto.setHasChildren(false);  // 默认没有子任务
         
         // 安全地获取关联用户信息，避免懒加载异常
         if (task.getAssignedTo() != null) {

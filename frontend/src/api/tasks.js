@@ -109,4 +109,31 @@ export const getInactiveUsersByDateRange = (startDate, endDate) => {
       endDate
     }
   })
+}
+
+// ========== 版本任务层级管理 ==========
+
+// 获取版本任务的子任务列表
+export const getChildTasks = (parentId) => {
+  return request({
+    url: `/tasks/${parentId}/children`,
+    method: 'get'
+  })
+}
+
+// 添加需求任务到版本
+export const addRequirementToVersion = (versionId, data) => {
+  return request({
+    url: `/tasks/${versionId}/requirements`,
+    method: 'post',
+    data
+  })
+}
+
+// 刷新版本任务进度
+export const refreshVersionProgress = (versionId) => {
+  return request({
+    url: `/tasks/${versionId}/refresh-progress`,
+    method: 'post'
+  })
 } 

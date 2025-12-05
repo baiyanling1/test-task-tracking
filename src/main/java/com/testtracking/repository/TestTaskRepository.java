@@ -62,6 +62,7 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
            "(:priority IS NULL OR t.priority = :priority) AND " +
            "(:projectName IS NULL OR t.projectName = :projectName) AND " +
            "(:testType IS NULL OR t.testType = :testType) AND " +
+           "(:taskType IS NULL OR t.taskType = :taskType) AND " +
            "(:startDateFrom IS NULL OR t.startDate >= :startDateFrom) AND " +
            "(:startDateTo IS NULL OR t.startDate <= :startDateTo) AND " +
            "(:isOverdue IS NULL OR t.isOverdue = :isOverdue) AND " +
@@ -74,6 +75,7 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
                                  @Param("priority") TestTask.TaskPriority priority,
                                  @Param("projectName") String projectName,
                                  @Param("testType") TestTask.TestType testType,
+                                 @Param("taskType") TestTask.TaskType taskType,
                                  @Param("startDateFrom") LocalDate startDateFrom,
                                  @Param("startDateTo") LocalDate startDateTo,
                                  @Param("isOverdue") Boolean isOverdue,
@@ -225,4 +227,29 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
     List<TestTask> findByAssignedToAndDateRange(@Param("user") User user, 
                                                @Param("startDate") LocalDate startDate, 
                                                @Param("endDate") LocalDate endDate);
+
+    // ========== 层级结构查询 ==========
+    
+    // 根据父任务ID查询子任务
+    List<TestTask> findByParentIdOrderByIdAsc(Long parentId);
+    
+    // 查询所有版本任务
+    List<TestTask> findByTaskTypeOrderByCreatedTimeDesc(TestTask.TaskType taskType);
+    
+    // 查询顶层任务（没有父任务的）
+    List<TestTask> findByParentIdIsNullOrderByCreatedTimeDesc();
+    
+    // 统计子任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.parentId = :parentId")
+    Integer countByParentId(@Param("parentId") Long parentId);
+    
+    // 统计已完成的子任务数量
+    @Query("SELECT COUNT(t) FROM TestTask t WHERE t.parentId = :parentId AND t.status = 'COMPLETED'")
+    Integer countCompletedByParentId(@Param("parentId") Long parentId);
+    
+    // 查询版本任务及其子任务的进度汇总
+    @Query("SELECT t.parentId, SUM(t.manDays), SUM(t.actualManDays), " +
+           "SUM(CASE WHEN t.status = 'COMPLETED' THEN 1 ELSE 0 END), COUNT(t) " +
+           "FROM TestTask t WHERE t.parentId = :parentId GROUP BY t.parentId")
+    Object[] getVersionProgressSummary(@Param("parentId") Long parentId);
 } 

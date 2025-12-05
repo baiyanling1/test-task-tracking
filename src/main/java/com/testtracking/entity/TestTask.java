@@ -108,6 +108,35 @@ public class TestTask extends BaseEntity {
     @Column(name = "is_expected_completion_reached")
     private Boolean isExpectedCompletionReached = false;
 
+    // ========== 层级结构字段 ==========
+    
+    @Column(name = "parent_id")
+    private Long parentId;  // 父任务ID（版本任务）
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type")
+    private TaskType taskType = TaskType.NORMAL;  // 任务类型
+    
+    @Column(name = "version_code")
+    private String versionCode;  // 版本号，如 V3.1.0
+    
+    // 任务类型枚举
+    public enum TaskType {
+        VERSION("版本任务"),      // 版本任务（父）
+        REQUIREMENT("需求任务"),  // 需求任务（子）
+        NORMAL("独立任务");       // 普通独立任务
+        
+        private final String description;
+        
+        TaskType(String description) {
+            this.description = description;
+        }
+        
+        public String getDescription() {
+            return description;
+        }
+    }
+
     // 计算人天
     public void calculateManDays() {
         if (startDate != null && expectedEndDate != null && participantCount != null) {

@@ -124,6 +124,7 @@ public class TestTaskController {
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String projectName,
             @RequestParam(required = false) String testType,
+            @RequestParam(required = false) String taskType,
             @RequestParam(required = false) String startDateFrom,
             @RequestParam(required = false) String startDateTo,
             @RequestParam(required = false) Boolean isOverdue,
@@ -159,6 +160,7 @@ public class TestTaskController {
             
             TestTask.TaskPriority taskPriority = priority != null ? TestTask.TaskPriority.valueOf(priority.toUpperCase()) : null;
             TestTask.TestType taskTestType = testType != null ? TestTask.TestType.valueOf(testType.toUpperCase()) : null;
+            TestTask.TaskType taskTaskType = taskType != null ? TestTask.TaskType.valueOf(taskType.toUpperCase()) : null;
             
             // 解析开始时间范围
             LocalDate startFrom = null;
@@ -172,7 +174,7 @@ public class TestTaskController {
             
             Page<TestTaskDto> tasks = testTaskService.getTasksWithFilters(
                     assignedTo, assignedToName, department, taskStatuses, taskPriority, 
-                    projectName, taskTestType, startFrom, startTo, isOverdue, 
+                    projectName, taskTestType, taskTaskType, startFrom, startTo, isOverdue, 
                     isExpectedCompletionReached, search, pageable);
             
             return ResponseEntity.ok(tasks);
@@ -428,5 +430,53 @@ public class TestTaskController {
         return authentication.getName();
     }
 
+    // ========== 版本任务层级管理 API ==========
 
+    /**
+     * 获取版本任务的子任务列表
+     */
+    @GetMapping("/{taskId}/children")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> getChildTasks(@PathVariable Long taskId) {
+        try {
+            List<TestTaskDto> children = testTaskService.getChildTasks(taskId);
+            return ResponseEntity.ok(children);
+        } catch (Exception e) {
+            log.error("获取子任务列表失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("获取子任务列表失败");
+        }
+    }
+
+    /**
+     * 添加需求任务到版本
+     */
+    @PostMapping("/{versionId}/requirements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> addRequirementToVersion(
+            @PathVariable Long versionId,
+            @Valid @RequestBody TestTaskDto requirementDto) {
+        try {
+            String currentUsername = getCurrentUsername();
+            TestTaskDto createdTask = testTaskService.addRequirementToVersion(versionId, requirementDto, currentUsername);
+            return ResponseEntity.ok(createdTask);
+        } catch (Exception e) {
+            log.error("添加需求任务失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 手动刷新版本进度
+     */
+    @PostMapping("/{versionId}/refresh-progress")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TESTER')")
+    public ResponseEntity<?> refreshVersionProgress(@PathVariable Long versionId) {
+        try {
+            testTaskService.updateVersionProgress(versionId);
+            return ResponseEntity.ok("版本进度已更新");
+        } catch (Exception e) {
+            log.error("刷新版本进度失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("刷新版本进度失败");
+        }
+    }
 } 

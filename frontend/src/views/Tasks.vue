@@ -78,8 +78,16 @@
             <el-option label="低" value="LOW" />
           </el-select>
         </el-col>
-        <el-col :span="3">
-          <el-select v-model="overdueFilter" placeholder="超时状态筛选" clearable @change="handleSearch">
+        <el-col :span="2">
+          <el-select v-model="taskTypeFilter" placeholder="任务类型" clearable @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option label="版本任务" value="VERSION" />
+            <el-option label="需求任务" value="REQUIREMENT" />
+            <el-option label="独立任务" value="NORMAL" />
+          </el-select>
+        </el-col>
+        <el-col :span="2">
+          <el-select v-model="overdueFilter" placeholder="超时状态" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="超预期/延期" value="overdue" />
             <el-option label="正常" value="normal" />
@@ -110,8 +118,38 @@
         v-loading="loading"
         stripe
         style="width: 100%"
+        row-key="id"
+        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+        default-expand-all
       >
-        <el-table-column prop="taskName" label="任务名称" min-width="200" />
+        <el-table-column prop="taskName" label="任务名称" min-width="250">
+          <template #default="{ row }">
+            <div class="task-name-cell">
+              <el-tag 
+                v-if="row.taskType === 'VERSION'" 
+                type="primary" 
+                size="small" 
+                style="margin-right: 8px;"
+              >版本</el-tag>
+              <el-tag 
+                v-else-if="row.taskType === 'REQUIREMENT'" 
+                type="success" 
+                size="small" 
+                style="margin-right: 8px;"
+              >需求</el-tag>
+              <span>{{ row.taskName }}</span>
+              <span v-if="row.versionCode" style="color: #909399; margin-left: 8px;">
+                {{ row.versionCode }}
+              </span>
+              <el-tag 
+                v-if="row.taskType === 'VERSION' && row.childCount" 
+                type="info" 
+                size="small" 
+                style="margin-left: 8px;"
+              >{{ row.completedChildCount || 0 }}/{{ row.childCount }}需求</el-tag>
+            </div>
+          </template>
+        </el-table-column>
           <!-- <el-table-column prop="taskDescription" label="描述" min-width="200">
           <template #default="{ row }">
             <div 
@@ -189,16 +227,27 @@
             {{ formatDateTime(row.updatedTime) }}
           </template>
         </el-table-column>
-                 <el-table-column label="操作" width="280" fixed="right" align="center">
+                 <el-table-column label="操作" width="350" fixed="right" align="center">
            <template #default="{ row }">
              <div class="action-buttons">
+               <el-button 
+                 v-if="row.taskType === 'VERSION'" 
+                 size="small" 
+                 type="success"
+                 @click="addRequirement(row)"
+               >添加需求</el-button>
                <el-button 
                  v-if="canEditTask(row)" 
                  size="small" 
                  @click="editTask(row)"
                >编辑</el-button>
                <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
-               <el-button size="small" type="warning" @click="viewProgress(row)">进度更新</el-button>
+               <el-button 
+                 v-if="row.taskType !== 'VERSION'"
+                 size="small" 
+                 type="warning" 
+                 @click="viewProgress(row)"
+               >进度更新</el-button>
                <el-button 
                  v-if="canDeleteTask(row)" 
                  size="small" 
@@ -247,6 +296,19 @@
             :rows="3"
             placeholder="请输入任务描述"
           />
+        </el-form-item>
+        <el-form-item label="任务类型" prop="taskType">
+          <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
+            <el-radio-button value="NORMAL">独立任务</el-radio-button>
+            <el-radio-button value="VERSION">版本任务</el-radio-button>
+          </el-radio-group>
+          <div v-if="taskForm.taskType === 'VERSION'" style="margin-top: 10px;">
+            <el-input 
+              v-model="taskForm.versionCode" 
+              placeholder="请输入版本号，如 V3.1.0"
+              style="width: 200px;"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="部门" prop="department">
           <el-select v-model="taskForm.department" placeholder="选择部门" style="width: 100%">
@@ -868,6 +930,7 @@ const assignedToFilter = ref('')
 const departmentFilter = ref('')
 const statusFilter = ref([]) // 改为数组支持多选
 const priorityFilter = ref('')
+const taskTypeFilter = ref('') // 任务类型筛选
 const overdueFilter = ref('') // 超时状态筛选（包含超预期、延期完成）
 const startDateRange = ref([]) // 新增：开始时间范围
 const currentPage = ref(1)
@@ -963,7 +1026,11 @@ const taskForm = reactive({
   delayReason: '',
   manDays: 0,
   actualManDays: null,
-  progressNotes: ''
+  progressNotes: '',
+  // 层级字段
+  taskType: 'NORMAL',
+  parentId: null,
+  versionCode: ''
 })
 
 // 标记实际工时是否为手动输入
@@ -1097,6 +1164,36 @@ const loadDepartments = async () => {
   }
 }
 
+// 构建任务树形结构
+const buildTaskTree = (flatTasks) => {
+  const taskMap = new Map()
+  const rootTasks = []
+  
+  // 首先创建任务映射
+  flatTasks.forEach(task => {
+    taskMap.set(task.id, { ...task, children: [] })
+  })
+  
+  // 构建父子关系
+  flatTasks.forEach(task => {
+    const current = taskMap.get(task.id)
+    if (task.parentId && taskMap.has(task.parentId)) {
+      // 有父任务且父任务在列表中
+      const parent = taskMap.get(task.parentId)
+      parent.children.push(current)
+      parent.hasChildren = true
+    } else if (!task.parentId) {
+      // 没有父任务，是顶层任务
+      rootTasks.push(current)
+    } else {
+      // 有父任务但父任务不在列表中（可能是筛选导致），作为独立任务显示
+      rootTasks.push(current)
+    }
+  })
+  
+  return rootTasks
+}
+
 const loadTasks = async () => {
   loading.value = true
   try {
@@ -1111,6 +1208,7 @@ const loadTasks = async () => {
       // 多状态筛选：将数组中的每个状态值作为独立的status参数传递
       status: statusFilter.value && statusFilter.value.length > 0 ? statusFilter.value : undefined,
       priority: priorityFilter.value || undefined,
+      taskType: taskTypeFilter.value || undefined,
       isOverdue: overdueFilter.value === 'overdue' ? true : overdueFilter.value === 'normal' ? false : undefined,
       startDateFrom: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[0] : undefined,
       startDateTo: startDateRange.value && startDateRange.value.length === 2 ? startDateRange.value[1] : undefined
@@ -1119,15 +1217,20 @@ const loadTasks = async () => {
     const response = await getTasks(params)
     // 确保tasks数组正确初始化，并添加数据验证
     if (response && response.content) {
-      tasks.value = response.content.map(task => ({
+      const rawTasks = response.content.map(task => ({
         ...task,
         taskName: task.taskName || '',
         taskDescription: task.taskDescription || '',
         assignedToName: task.assignedToName || '',
         department: task.department || '',
         status: task.status || 'PLANNED',
-        priority: task.priority || 'MEDIUM'
+        priority: task.priority || 'MEDIUM',
+        taskType: task.taskType || 'NORMAL',
+        children: task.children || [],
+        hasChildren: task.hasChildren || false
       }))
+      // 构建树形结构
+      tasks.value = buildTaskTree(rawTasks)
     } else {
       tasks.value = []
     }
@@ -1183,11 +1286,52 @@ const createNewTask = () => {
     delayReason: '',
     manDays: null,
     actualManDays: null,
-    progressNotes: ''
+    progressNotes: '',
+    taskType: 'NORMAL',
+    parentId: null,
+    versionCode: ''
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
   showCreateDialog.value = true
+}
+
+// 添加需求任务到版本
+const addRequirement = (versionTask) => {
+  editingTask.value = null
+  Object.assign(taskForm, {
+    taskName: '',
+    taskDescription: '',
+    department: versionTask.department || authStore.user?.department || '',
+    assignedToName: '', // 需求任务需要单独指定负责人
+    participantCount: 1,
+    priority: 'MEDIUM',
+    startDate: versionTask.startDate || '',
+    expectedEndDate: versionTask.expectedEndDate || '',
+    actualEndDate: '',
+    progressPercentage: 0,
+    status: 'PLANNED',
+    delayReason: '',
+    manDays: null,
+    actualManDays: null,
+    progressNotes: '',
+    taskType: 'REQUIREMENT',
+    parentId: versionTask.id,
+    versionCode: ''
+  })
+  isActualManDaysManual.value = false
+  showCreateDialog.value = true
+}
+
+// 任务类型变化处理
+const handleTaskTypeChange = (newType) => {
+  if (newType === 'VERSION') {
+    // 版本任务默认不需要指定负责人
+    taskForm.assignedToName = ''
+  } else if (newType === 'NORMAL') {
+    taskForm.versionCode = ''
+    taskForm.parentId = null
+  }
 }
 
 const handleDialogClose = () => {
@@ -1208,7 +1352,10 @@ const handleDialogClose = () => {
     delayReason: '',
     manDays: null,
     actualManDays: null,
-    progressNotes: ''
+    progressNotes: '',
+    taskType: 'NORMAL',
+    parentId: null,
+    versionCode: ''
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
@@ -1231,7 +1378,10 @@ const editTask = (task) => {
     delayReason: task.delayReason || '',
     manDays: task.manDays || 0,
     actualManDays: task.actualManDays || null,
-    progressNotes: task.progressNotes || ''
+    progressNotes: task.progressNotes || '',
+    taskType: task.taskType || 'NORMAL',
+    parentId: task.parentId || null,
+    versionCode: task.versionCode || ''
   })
   // 如果任务已经有实际工时值，标记为手动输入，避免被自动覆盖
   isActualManDaysManual.value = task.actualManDays && task.actualManDays > 0
