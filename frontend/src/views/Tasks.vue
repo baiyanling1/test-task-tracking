@@ -25,11 +25,11 @@
 
     <!-- 搜索和筛选 -->
     <div class="search-section">
-      <el-row :gutter="20">
-        <el-col :span="4">
+      <el-row :gutter="12">
+        <el-col :span="3">
           <el-input
             v-model="searchQuery"
-            placeholder="搜索任务名称或描述"
+            placeholder="搜索任务"
             clearable
             @keyup.enter="handleSearch"
             @clear="handleSearch"
@@ -39,8 +39,8 @@
             </template>
           </el-input>
         </el-col>
-        <el-col :span="3">
-          <el-select v-model="departmentFilter" placeholder="部门筛选" clearable @change="handleDepartmentChange">
+        <el-col :span="2">
+          <el-select v-model="departmentFilter" placeholder="部门" clearable @change="handleDepartmentChange">
             <el-option label="全部" value="" />
             <el-option
               v-for="dept in departments"
@@ -50,8 +50,8 @@
             />
           </el-select>
         </el-col>
-        <el-col :span="3">
-          <el-select v-model="assignedToFilter" placeholder="负责人筛选" clearable @change="handleSearch">
+        <el-col :span="2">
+          <el-select v-model="assignedToFilter" placeholder="负责人" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option
               v-for="user in filteredUsers"
@@ -62,7 +62,7 @@
           </el-select>
         </el-col>
         <el-col :span="3">
-          <el-select v-model="statusFilter" placeholder="状态筛选" multiple clearable @change="handleSearch">
+          <el-select v-model="statusFilter" placeholder="状态" multiple clearable @change="handleSearch">
             <el-option label="计划中" value="PLANNED" />
             <el-option label="进行中" value="IN_PROGRESS" />
             <el-option label="已暂停" value="ON_HOLD" />
@@ -70,8 +70,8 @@
             <el-option label="已取消" value="CANCELLED" />
           </el-select>
         </el-col>
-        <el-col :span="3">
-          <el-select v-model="priorityFilter" placeholder="优先级筛选" clearable @change="handleSearch">
+        <el-col :span="2">
+          <el-select v-model="priorityFilter" placeholder="优先级" clearable @change="handleSearch">
             <el-option label="全部" value="" />
             <el-option label="高" value="HIGH" />
             <el-option label="中" value="MEDIUM" />
@@ -81,31 +81,31 @@
         <el-col :span="2">
           <el-select v-model="taskTypeFilter" placeholder="任务类型" clearable @change="handleSearch">
             <el-option label="全部" value="" />
-            <el-option label="版本任务" value="VERSION" />
-            <el-option label="需求任务" value="REQUIREMENT" />
-            <el-option label="独立任务" value="NORMAL" />
+            <el-option label="版本" value="VERSION" />
+            <el-option label="需求" value="REQUIREMENT" />
+            <el-option label="独立" value="NORMAL" />
           </el-select>
         </el-col>
         <el-col :span="2">
           <el-select v-model="overdueFilter" placeholder="超时状态" clearable @change="handleSearch">
             <el-option label="全部" value="" />
-            <el-option label="超预期/延期" value="overdue" />
+            <el-option label="超期" value="overdue" />
             <el-option label="正常" value="normal" />
           </el-select>
         </el-col>
-        <el-col :span="3">
+        <el-col :span="5">
           <el-date-picker
             v-model="startDateRange"
             type="daterange"
             range-separator="至"
-            start-placeholder="开始时间（起）"
-            end-placeholder="开始时间（止）"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
             value-format="YYYY-MM-DD"
             @change="handleSearch"
             style="width: 100%"
           />
         </el-col>
-        <el-col :span="2">
+        <el-col :span="1">
           <el-button type="primary" @click="loadTasks">刷新</el-button>
         </el-col>
       </el-row>
@@ -298,15 +298,16 @@
           />
         </el-form-item>
         <el-form-item label="任务类型" prop="taskType">
-          <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
-            <el-radio-button value="NORMAL">独立任务</el-radio-button>
-            <el-radio-button value="VERSION">版本任务</el-radio-button>
-          </el-radio-group>
-          <div v-if="taskForm.taskType === 'VERSION'" style="margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
+              <el-radio-button value="NORMAL">独立任务</el-radio-button>
+              <el-radio-button value="VERSION">版本任务</el-radio-button>
+            </el-radio-group>
             <el-input 
+              v-if="taskForm.taskType === 'VERSION'"
               v-model="taskForm.versionCode" 
-              placeholder="请输入版本号，如 V3.1.0"
-              style="width: 200px;"
+              placeholder="版本号，如 V3.1.0"
+              style="width: 180px;"
             />
           </div>
         </el-form-item>
