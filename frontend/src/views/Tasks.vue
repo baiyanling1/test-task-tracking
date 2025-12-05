@@ -122,9 +122,9 @@
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         default-expand-all
       >
-        <el-table-column prop="taskName" label="任务名称" min-width="250">
+        <el-table-column prop="taskName" label="任务名称" min-width="280">
           <template #default="{ row }">
-            <div class="task-name-cell">
+            <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0' }">
               <el-tag 
                 v-if="row.taskType === 'VERSION'" 
                 type="primary" 
@@ -276,7 +276,7 @@
     <!-- 创建/编辑任务对话框 -->
     <el-dialog
       v-model="showCreateDialog"
-      :title="editingTask ? '编辑任务' : '新建任务'"
+      :title="editingTask ? '编辑任务' : (parentVersionTask ? `添加需求 - ${parentVersionTask.taskName}` : '新建任务')"
       width="600px"
       @close="handleDialogClose"
     >
@@ -297,13 +297,17 @@
             placeholder="请输入任务描述"
           />
         </el-form-item>
-        <el-form-item label="任务类型" prop="taskType">
+        <!-- 添加需求时显示所属版本，否则显示任务类型选择 -->
+        <el-form-item v-if="parentVersionTask" label="所属版本">
+          <el-tag type="primary" size="large">{{ parentVersionTask.taskName }} {{ parentVersionTask.versionCode }}</el-tag>
+        </el-form-item>
+        <el-form-item v-else label="任务类型" prop="taskType">
           <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
             <el-radio-button value="NORMAL">独立任务</el-radio-button>
             <el-radio-button value="VERSION">版本</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="taskForm.taskType === 'VERSION'" label="版本号">
+        <el-form-item v-if="taskForm.taskType === 'VERSION' && !parentVersionTask" label="版本号">
           <el-input 
             v-model="taskForm.versionCode" 
             placeholder="请输入版本号，如 V3.1.0"
@@ -574,6 +578,29 @@
                      </div>
                    </div>
                    
+                   <div v-if="progress.progressNotes" class="progress-notes">
+                     <strong>进度描述:</strong>
+                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+             
+             <!-- 版本任务：显示子需求的进度历史 -->
+             <div v-if="selectedTask?.taskType === 'VERSION' && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">
+               <h4>子需求更新历史</h4>
+               <div class="progress-timeline">
+                 <div v-for="progress in childrenProgressHistory" :key="`child-${progress.id}`" class="progress-item">
+                   <div class="progress-header">
+                     <div class="progress-info">
+                       <el-tag type="success" size="small" style="margin-right: 8px;">{{ progress.childTaskName }}</el-tag>
+                       <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
+                       <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
+                     </div>
+                     <div class="progress-user">
+                       更新人: {{ progress.updatedByUserName }}
+                     </div>
+                   </div>
                    <div v-if="progress.progressNotes" class="progress-notes">
                      <strong>进度描述:</strong>
                      <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
@@ -947,8 +974,10 @@ const showAddProgressDialog = ref(false)
 const showHelpDialog = ref(false)
 const editingTask = ref(null)
 const selectedTask = ref(null)
+const parentVersionTask = ref(null) // 添加需求时保存父版本任务信息
 const activeTab = ref('basic')
 const progressHistory = ref([])
+const childrenProgressHistory = ref([]) // 子需求的进度历史
 const activeHelpItems = ref(['dates']) // 默认展开第一个帮助项
 
 // 进度表单
@@ -1270,6 +1299,7 @@ const handleCurrentChange = (page) => {
 
 const createNewTask = () => {
   editingTask.value = null
+  parentVersionTask.value = null // 清空父版本任务
   // 确保表单完全重置
   Object.assign(taskForm, {
     taskName: '',
@@ -1299,6 +1329,7 @@ const createNewTask = () => {
 // 添加需求任务到版本
 const addRequirement = (versionTask) => {
   editingTask.value = null
+  parentVersionTask.value = versionTask // 保存父版本任务信息
   Object.assign(taskForm, {
     taskName: '',
     taskDescription: '',
@@ -1336,6 +1367,7 @@ const handleTaskTypeChange = (newType) => {
 
 const handleDialogClose = () => {
   editingTask.value = null
+  parentVersionTask.value = null // 清空父版本任务
   // 确保表单完全重置
   Object.assign(taskForm, {
     taskName: '',
@@ -1536,6 +1568,12 @@ const viewDetails = (task) => {
   showProgressDialog.value = true
   // 详情页面也加载进度历史
   loadProgressHistory(task.id)
+  // 如果是版本任务，加载子需求的进度历史
+  if (task.taskType === 'VERSION' && task.children && task.children.length > 0) {
+    loadChildrenProgressHistory(task.children)
+  } else {
+    childrenProgressHistory.value = []
+  }
 }
 
 const loadProgressHistory = async (taskId) => {
@@ -1545,6 +1583,29 @@ const loadProgressHistory = async (taskId) => {
   } catch (error) {
     console.error('加载进度历史失败:', error)
     progressHistory.value = []
+  }
+}
+
+// 加载子需求的进度历史
+const loadChildrenProgressHistory = async (children) => {
+  try {
+    const allProgress = []
+    for (const child of children) {
+      const response = await getTaskProgress(child.id, { page: 0, size: 50 })
+      const childProgress = (response?.content || []).map(p => ({
+        ...p,
+        childTaskName: child.taskName,
+        childTaskId: child.id
+      }))
+      allProgress.push(...childProgress)
+    }
+    // 按更新时间倒序排列
+    childrenProgressHistory.value = allProgress.sort((a, b) => 
+      new Date(b.updateTime) - new Date(a.updateTime)
+    )
+  } catch (error) {
+    console.error('加载子需求进度历史失败:', error)
+    childrenProgressHistory.value = []
   }
 }
 
