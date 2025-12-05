@@ -121,6 +121,7 @@
         row-key="id"
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         default-expand-all
+        :cell-style="{ verticalAlign: 'middle' }"
       >
         <el-table-column prop="taskName" label="任务名称" min-width="280">
           <template #default="{ row }">

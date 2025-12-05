@@ -753,8 +753,9 @@ public class TestTaskService {
         int versionProgress = totalWeight > 0 ? (int) Math.round(completedWeight / totalWeight * 100) : 0;
         versionTask.setProgressPercentage(versionProgress);
         versionTask.setManDays(totalManDays);
-        // 只有有已完成任务时才显示实际工时
-        versionTask.setActualManDays(completedCount > 0 ? actualManDays : null);
+        // 只有当所有子任务都完成时才显示实际工时
+        boolean allCompleted = completedCount == childTasks.size() && childTasks.size() > 0;
+        versionTask.setActualManDays(allCompleted ? actualManDays : null);
         // 更新投入人数（所有子任务的总和）
         versionTask.setParticipantCount(totalParticipants > 0 ? totalParticipants : 1);
         
