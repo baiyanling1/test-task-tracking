@@ -298,18 +298,17 @@
           />
         </el-form-item>
         <el-form-item label="任务类型" prop="taskType">
-          <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-            <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
-              <el-radio-button value="NORMAL">独立任务</el-radio-button>
-              <el-radio-button value="VERSION">版本任务</el-radio-button>
-            </el-radio-group>
-            <el-input 
-              v-if="taskForm.taskType === 'VERSION'"
-              v-model="taskForm.versionCode" 
-              placeholder="版本号，如 V3.1.0"
-              style="width: 180px;"
-            />
-          </div>
+          <el-radio-group v-model="taskForm.taskType" @change="handleTaskTypeChange">
+            <el-radio-button value="NORMAL">独立任务</el-radio-button>
+            <el-radio-button value="VERSION">版本</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="taskForm.taskType === 'VERSION'" label="版本号">
+          <el-input 
+            v-model="taskForm.versionCode" 
+            placeholder="请输入版本号，如 V3.1.0"
+            style="width: 100%;"
+          />
         </el-form-item>
         <el-form-item label="部门" prop="department">
           <el-select v-model="taskForm.department" placeholder="选择部门" style="width: 100%">
