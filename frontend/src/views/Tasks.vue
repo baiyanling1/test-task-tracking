@@ -123,7 +123,7 @@
         default-expand-all
         :cell-style="{ verticalAlign: 'middle' }"
       >
-        <el-table-column prop="taskName" label="任务名称" min-width="280">
+        <el-table-column prop="taskName" label="任务名称" min-width="320" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0', display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: '40px' }">
               <el-tag 
@@ -189,12 +189,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="participantCount" label="投入人数" width="100" />
-        <el-table-column prop="manDays" label="工时(人/天)" width="160">
+        <el-table-column prop="manDays" label="工时(人/天)" width="120">
           <template #default="{ row }">
-            <div>
-              <div>预计: {{ row.manDays ? row.manDays.toFixed(1) : '-' }}</div>
-              <div>实际: {{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</div>
-            </div>
+            <span>{{ row.manDays ? row.manDays.toFixed(1) : '-' }} / {{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="progressPercentage" label="进度" width="120">
@@ -2082,6 +2079,36 @@ onMounted(() => {
 <style scoped>
 .tasks-container {
   padding: 20px;
+}
+
+/* 任务名称列样式 - 不换行，超长省略 */
+.task-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-name-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 树形表格展开按钮对齐 */
+:deep(.el-table__expand-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* 树形表格行内容垂直居中 */
+:deep(.el-table__row .el-table__cell:first-child .cell) {
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
 .page-header {
