@@ -424,6 +424,7 @@
             placeholder="选择实际结束时间（可选）"
             value-format="YYYY-MM-DD"
             style="width: 100%"
+            @change="onActualEndDateChange"
             @change="calculateActualManDays"
           />
         </el-form-item>
@@ -1562,15 +1563,27 @@ const viewProgress = (task) => {
   loadProgressHistory(task.id)
 }
 
-const viewDetails = (task) => {
+const viewDetails = async (task) => {
   selectedTask.value = task
   activeTab.value = 'basic'
   showProgressDialog.value = true
   // 详情页面也加载进度历史
   loadProgressHistory(task.id)
   // 如果是版本任务，加载子需求的进度历史
-  if (task.taskType === 'VERSION' && task.children && task.children.length > 0) {
-    loadChildrenProgressHistory(task.children)
+  if (task.taskType === 'VERSION') {
+    // 使用 API 获取子任务（因为表格中的 children 可能为空）
+    try {
+      const { getChildTasks } = await import('@/api/tasks')
+      const children = await getChildTasks(task.id)
+      if (children && children.length > 0) {
+        loadChildrenProgressHistory(children)
+      } else {
+        childrenProgressHistory.value = []
+      }
+    } catch (error) {
+      console.error('获取子任务失败:', error)
+      childrenProgressHistory.value = []
+    }
   } else {
     childrenProgressHistory.value = []
   }
@@ -1979,6 +1992,10 @@ const onProgressChange = (value) => {
   if (value === 100) {
     taskForm.status = 'COMPLETED';
   }
+  // 如果进度从0变为>0，自动设置状态为进行中
+  else if (value > 0 && taskForm.status === 'PLANNED') {
+    taskForm.status = 'IN_PROGRESS';
+  }
   // 如果进度从100%降低，且状态是已完成，则根据进度调整状态
   else if (value < 100 && taskForm.status === 'COMPLETED') {
     if (value === 0) {
@@ -1986,6 +2003,26 @@ const onProgressChange = (value) => {
     } else {
       taskForm.status = 'IN_PROGRESS';
     }
+  }
+};
+
+// 处理实际结束日期变化
+const onActualEndDateChange = (value) => {
+  if (value && taskForm.progressPercentage < 100) {
+    ElMessageBox.confirm(
+      '您已填写实际结束日期，是否将任务进度更新为100%？',
+      '提示',
+      {
+        confirmButtonText: '是，更新为100%',
+        cancelButtonText: '否，保持当前进度',
+        type: 'warning'
+      }
+    ).then(() => {
+      taskForm.progressPercentage = 100;
+      taskForm.status = 'COMPLETED';
+    }).catch(() => {
+      // 用户选择保持当前进度
+    });
   }
 };
 

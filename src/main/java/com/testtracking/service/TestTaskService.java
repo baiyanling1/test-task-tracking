@@ -717,6 +717,7 @@ public class TestTaskService {
         double totalManDays = 0;
         double actualManDays = 0;
         int completedCount = 0;
+        int totalParticipants = 0;  // 总投入人数
         
         for (TestTask child : childTasks) {
             double manDays = child.getManDays() != null ? child.getManDays() : 1;
@@ -725,18 +726,25 @@ public class TestTaskService {
             totalWeight += manDays;
             completedWeight += manDays * progress / 100.0;
             totalManDays += manDays;
-            actualManDays += child.getActualManDays() != null ? child.getActualManDays() : 0;
             
+            // 只有已完成的任务才计算实际工时
             if (child.getStatus() == TestTask.TaskStatus.COMPLETED) {
                 completedCount++;
+                actualManDays += child.getActualManDays() != null ? child.getActualManDays() : 0;
             }
+            
+            // 累加投入人数
+            totalParticipants += child.getParticipantCount() != null ? child.getParticipantCount() : 0;
         }
         
         // 更新版本任务进度
         int versionProgress = totalWeight > 0 ? (int) Math.round(completedWeight / totalWeight * 100) : 0;
         versionTask.setProgressPercentage(versionProgress);
         versionTask.setManDays(totalManDays);
-        versionTask.setActualManDays(actualManDays);
+        // 只有有已完成任务时才显示实际工时
+        versionTask.setActualManDays(completedCount > 0 ? actualManDays : null);
+        // 更新投入人数（所有子任务的总和）
+        versionTask.setParticipantCount(totalParticipants > 0 ? totalParticipants : 1);
         
         // 自动更新版本状态
         if (completedCount == childTasks.size() && childTasks.size() > 0) {
