@@ -69,18 +69,20 @@ public class NotificationService {
     }
 
     /**
-     * 发送任务超时通知
+     * 发送任务超时通知（单个任务）
      */
     public void sendTaskOverdueNotification(TestTask task) {
         if (task.getAssignedTo() == null) {
             return;
         }
         
+        String assigneeName = task.getAssignedTo().getRealName();
+        
         // 创建系统内部通知
         NotificationDto notificationDto = new NotificationDto();
         notificationDto.setTitle("任务超时提醒");
-        notificationDto.setContent(String.format("任务「%s」已超时%d天，请及时处理", 
-                task.getTaskName(), task.getOverdueDays()));
+        notificationDto.setContent(String.format("任务「%s」已超时%d天，请及时处理\n责任人：%s", 
+                task.getTaskName(), task.getOverdueDays(), assigneeName));
         notificationDto.setType(Notification.NotificationType.TASK_OVERDUE);
         notificationDto.setPriority(Notification.NotificationPriority.HIGH);
         notificationDto.setRecipientId(task.getAssignedTo().getId());
@@ -98,6 +100,68 @@ public class NotificationService {
             feiShuNotificationService.sendNotificationToFeiShu(savedNotification);
         } catch (Exception e) {
             log.error("发送Webhook通知失败: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * 发送合并的超时任务通知（多个任务合并成一条通知）
+     */
+    public void sendBatchOverdueNotification(List<TestTask> overdueTasks) {
+        if (overdueTasks == null || overdueTasks.isEmpty()) {
+            log.info("没有超时任务需要通知");
+            return;
+        }
+        
+        log.info("准备发送合并超时通知，共 {} 个任务", overdueTasks.size());
+        
+        // 构建合并通知内容
+        StringBuilder contentBuilder = new StringBuilder();
+        contentBuilder.append(String.format("您有 %d 个任务已超时，请及时处理：\n\n", overdueTasks.size()));
+        
+        int index = 1;
+        for (TestTask task : overdueTasks) {
+            String assigneeName = task.getAssignedTo() != null ? task.getAssignedTo().getRealName() : "未分配";
+            contentBuilder.append(String.format("%d. 【%s】超时%d天 - 责任人：%s\n", 
+                    index++, task.getTaskName(), task.getOverdueDays(), assigneeName));
+        }
+        
+        String content = contentBuilder.toString();
+        
+        // 创建系统内部通知（发给所有相关责任人）
+        java.util.Set<Long> notifiedUserIds = new java.util.HashSet<>();
+        for (TestTask task : overdueTasks) {
+            if (task.getAssignedTo() != null && !notifiedUserIds.contains(task.getAssignedTo().getId())) {
+                NotificationDto notificationDto = new NotificationDto();
+                notificationDto.setTitle("任务超时提醒");
+                notificationDto.setContent(content);
+                notificationDto.setType(Notification.NotificationType.TASK_OVERDUE);
+                notificationDto.setPriority(Notification.NotificationPriority.HIGH);
+                notificationDto.setRecipientId(task.getAssignedTo().getId());
+                notificationDto.setRelatedEntityType("TestTask");
+                notificationDto.setActionUrl("/tasks?isOverdue=true");
+                
+                createNotification(notificationDto);
+                notifiedUserIds.add(task.getAssignedTo().getId());
+            }
+        }
+        
+        // 发送一条合并的钉钉和飞书通知
+        try {
+            Notification batchNotification = new Notification();
+            batchNotification.setTitle("任务超时提醒");
+            batchNotification.setContent(content);
+            batchNotification.setType(Notification.NotificationType.TASK_OVERDUE);
+            batchNotification.setPriority(Notification.NotificationPriority.HIGH);
+            batchNotification.setRelatedEntityType("TestTask");
+            batchNotification.setCreatedTime(LocalDateTime.now());
+            
+            // 只发送一条合并通知到钉钉和飞书
+            dingTalkNotificationService.sendNotificationToDingTalk(batchNotification);
+            feiShuNotificationService.sendNotificationToFeiShu(batchNotification);
+            
+            log.info("合并超时通知发送成功，共通知 {} 个用户", notifiedUserIds.size());
+        } catch (Exception e) {
+            log.error("发送合并Webhook通知失败: {}", e.getMessage());
         }
     }
 

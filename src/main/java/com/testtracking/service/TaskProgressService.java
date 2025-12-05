@@ -111,6 +111,9 @@ public class TaskProgressService {
             task.setStatus(TestTask.TaskStatus.IN_PROGRESS);
         }
         
+        // 重新计算超时状态（确保基于正确的实际结束时间）
+        task.checkOverdue();
+        
         testTaskRepository.save(task);
         
         return TaskProgressDto.fromEntity(savedProgress);

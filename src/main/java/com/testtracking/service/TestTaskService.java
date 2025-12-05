@@ -539,29 +539,42 @@ public class TestTaskService {
         try {
             List<TestTask> allTasks = testTaskRepository.findAll();
             int updatedCount = 0;
-            int alertCount = 0;
+            
+            // 收集所有超时且未完成的任务（用于每日合并通知）
+            List<TestTask> allOverdueTasks = new ArrayList<>();
             
             for (TestTask task : allTasks) {
                 boolean wasOverdue = task.getIsOverdue();
                 task.checkOverdue();
                 
+                // 如果超时状态发生变化，保存更新
                 if (wasOverdue != task.getIsOverdue()) {
                     testTaskRepository.save(task);
                     updatedCount++;
-                    
-                    // 如果任务变为超时状态，发送通知
-                    if (task.getIsOverdue()) {
-                        try {
-                            notificationService.sendTaskOverdueNotification(task);
-                            alertCount++;
-                        } catch (Exception e) {
-                            log.error("为超时任务发送通知失败: taskId={}, error={}", task.getId(), e.getMessage());
-                        }
-                    }
+                }
+                
+                // 收集所有超时且状态为"计划中"或"进行中"的任务（每天都通知）
+                // 排除：已完成、暂停、取消的任务
+                if (task.getIsOverdue() && 
+                    (task.getStatus() == TestTask.TaskStatus.PLANNED || 
+                     task.getStatus() == TestTask.TaskStatus.IN_PROGRESS)) {
+                    allOverdueTasks.add(task);
                 }
             }
             
-            log.info("超时任务检查完成，更新了 {} 个任务，创建了 {} 个告警", updatedCount, alertCount);
+            // 发送合并通知（每天通知所有超时未完成的任务）
+            if (!allOverdueTasks.isEmpty()) {
+                try {
+                    notificationService.sendBatchOverdueNotification(allOverdueTasks);
+                    log.info("已发送合并超时通知，包含 {} 个未完成的超时任务", allOverdueTasks.size());
+                } catch (Exception e) {
+                    log.error("发送合并超时通知失败: {}", e.getMessage());
+                }
+            } else {
+                log.info("没有超时未完成的任务需要通知");
+            }
+            
+            log.info("超时任务检查完成，更新了 {} 个任务，当前超时未完成 {} 个", updatedCount, allOverdueTasks.size());
             
             // 更新定时任务执行记录
             updateScheduledTaskExecution("checkOverdueTasks", executeTime, "SUCCESS", null);

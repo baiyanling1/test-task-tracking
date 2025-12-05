@@ -177,7 +177,10 @@ public class TestTask extends BaseEntity {
         
         if (progressPercentage >= 100) {
             this.status = TaskStatus.COMPLETED;
-            this.actualEndDate = LocalDate.now();
+            // 只有在没有设置实际结束时间时，才默认设置为当天
+            if (this.actualEndDate == null) {
+                this.actualEndDate = LocalDate.now();
+            }
             // 重新检查超时状态（基于实际结束时间）
             this.checkTaskStatusAndOverdue();
         } else if (progressPercentage > 0) {
