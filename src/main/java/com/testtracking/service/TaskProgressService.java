@@ -7,8 +7,8 @@ import com.testtracking.entity.User;
 import com.testtracking.repository.TaskProgressRepository;
 import com.testtracking.repository.TestTaskRepository;
 import com.testtracking.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,13 +20,23 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class TaskProgressService {
 
     private final TaskProgressRepository taskProgressRepository;
     private final TestTaskRepository testTaskRepository;
     private final UserRepository userRepository;
+    private final TestTaskService testTaskService;
+
+    public TaskProgressService(TaskProgressRepository taskProgressRepository,
+                               TestTaskRepository testTaskRepository,
+                               UserRepository userRepository,
+                               @Lazy TestTaskService testTaskService) {
+        this.taskProgressRepository = taskProgressRepository;
+        this.testTaskRepository = testTaskRepository;
+        this.userRepository = userRepository;
+        this.testTaskService = testTaskService;
+    }
 
     /**
      * 根据任务ID获取进度列表
@@ -115,6 +125,14 @@ public class TaskProgressService {
         task.checkOverdue();
         
         testTaskRepository.save(task);
+        log.info("任务进度已保存 - taskId: {}, progress: {}%, parentId: {}", task.getId(), task.getProgressPercentage(), task.getParentId());
+        
+        // 如果是需求任务，更新父任务（版本）的进度
+        if (task.getParentId() != null) {
+            log.info("检测到子任务，开始更新父版本进度 - parentId: {}", task.getParentId());
+            testTaskService.updateVersionProgress(task.getParentId());
+            log.info("父版本进度更新完成 - parentId: {}", task.getParentId());
+        }
         
         return TaskProgressDto.fromEntity(savedProgress);
     }

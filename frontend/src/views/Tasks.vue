@@ -189,9 +189,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="participantCount" label="投入人数" width="100" />
-        <el-table-column prop="manDays" label="工时(人/天)" width="120">
+        <el-table-column prop="manDays" label="工时(人/天)" width="160">
           <template #default="{ row }">
-            <span>{{ row.manDays ? row.manDays.toFixed(1) : '-' }} / {{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</span>
+            <div>预计：{{ row.manDays ? row.manDays.toFixed(1) : '-' }}</div>
+            <div>实际：{{ row.actualManDays ? row.actualManDays.toFixed(1) : '-' }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="progressPercentage" label="进度" width="120">
@@ -313,7 +314,12 @@
           />
         </el-form-item>
         <el-form-item label="部门" prop="department">
-          <el-select v-model="taskForm.department" placeholder="选择部门" style="width: 100%">
+          <el-select 
+            v-model="taskForm.department" 
+            placeholder="选择部门" 
+            style="width: 100%"
+            @change="handleFormDepartmentChange"
+          >
             <el-option
               v-for="dept in departments"
               :key="dept.id"
@@ -330,9 +336,14 @@
           </el-select>
         </el-form-item>
         <el-form-item label="负责人" prop="assignedToName">
-          <el-select v-model="taskForm.assignedToName" placeholder="选择负责人" style="width: 100%">
+          <el-select 
+            v-model="taskForm.assignedToName" 
+            placeholder="选择负责人" 
+            style="width: 100%"
+            filterable
+          >
             <el-option
-              v-for="user in users"
+              v-for="user in formFilteredUsers"
               :key="user.id"
               :label="user.realName"
               :value="user.realName"
@@ -1172,6 +1183,14 @@ const filteredUsers = computed(() => {
   return users.value.filter(user => user.department === departmentFilter.value)
 })
 
+// 表单中的负责人列表：根据表单中选择的部门过滤
+const formFilteredUsers = computed(() => {
+  if (!taskForm.department) {
+    return users.value
+  }
+  return users.value.filter(user => user.department === taskForm.department)
+})
+
 // 方法
 const loadUsers = async () => {
   try {
@@ -1360,6 +1379,15 @@ const handleTaskTypeChange = (newType) => {
   } else if (newType === 'NORMAL') {
     taskForm.versionCode = ''
     taskForm.parentId = null
+  }
+}
+
+// 部门变化处理：清空负责人（因为负责人列表已过滤）
+const handleFormDepartmentChange = () => {
+  // 检查当前选择的负责人是否在新部门中
+  const currentUser = users.value.find(u => u.realName === taskForm.assignedToName)
+  if (!currentUser || currentUser.department !== taskForm.department) {
+    taskForm.assignedToName = ''
   }
 }
 

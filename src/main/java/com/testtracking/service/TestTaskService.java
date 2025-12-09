@@ -318,6 +318,15 @@ public class TestTaskService {
         // 保存父任务ID（删除前）
         Long parentId = task.getParentId();
         
+        // 如果是版本任务，先删除所有子需求
+        if (task.getTaskType() == TestTask.TaskType.VERSION) {
+            List<TestTask> children = testTaskRepository.findByParentIdOrderByIdAsc(taskId);
+            if (!children.isEmpty()) {
+                log.info("删除版本任务 {} 的 {} 个子需求", taskId, children.size());
+                testTaskRepository.deleteAll(children);
+            }
+        }
+        
         testTaskRepository.delete(task);
         
         // 如果是需求任务，删除后更新父任务（版本）的进度和投入人数
