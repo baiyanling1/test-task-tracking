@@ -113,9 +113,9 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="content" label="告警内容" min-width="200">
+        <el-table-column prop="content" label="告警内容" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="row.content">{{ row.content }}</span>
+            <span v-if="row.content" class="alert-content">{{ row.content }}</span>
             <span v-else class="text-muted">无内容</span>
           </template>
         </el-table-column>
@@ -338,10 +338,34 @@ const handleSelectionChange = (selection) => {
 // 查看详情
 const viewDetails = async (alert) => {
   try {
-    ElMessage.info('告警详情功能开发中...')
+    // 显示完整的告警详情
+    ElMessageBox.alert(
+      `<div style="max-height: 400px; overflow-y: auto;">
+        <p><strong>告警标题：</strong>${alert.title}</p>
+        <p><strong>告警级别：</strong>${getLevelText(alert.priority)}</p>
+        <p><strong>告警状态：</strong>${alert.isRead ? '已读' : '未读'}</p>
+        <p><strong>告警内容：</strong></p>
+        <div style="white-space: pre-wrap; padding: 10px; background: #f5f7fa; border-radius: 4px; margin-top: 8px;">${alert.content || '无内容'}</div>
+        <p style="margin-top: 12px;"><strong>关联任务：</strong>${alert.relatedTaskName || '无'}</p>
+        <p><strong>创建时间：</strong>${formatDateTime(alert.createdTime)}</p>
+        <p><strong>阅读时间：</strong>${alert.readTime ? formatDateTime(alert.readTime) : '未读'}</p>
+      </div>`,
+      '告警详情',
+      {
+        confirmButtonText: '确定',
+        dangerouslyUseHTMLString: true,
+        customClass: 'alert-detail-dialog'
+      }
+    )
+    
+    // 如果是未读状态，标记为已读
+    if (!alert.isRead) {
+      await markAlertAsRead(alert.id)
+      loadAlerts() // 刷新列表
+    }
   } catch (error) {
-    console.error('获取告警详情失败:', error)
-    ElMessage.error('获取告警详情失败')
+    console.error('查看告警详情失败:', error)
+    ElMessage.error('查看告警详情失败')
   }
 }
 
@@ -579,5 +603,27 @@ onMounted(() => {
   margin: 0;
   padding: 4px 8px;
   font-size: 12px;
+}
+
+/* 告警内容样式 - 限制显示行数 */
+.alert-content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5;
+  max-height: 3em;
+}
+
+/* 详情对话框样式 */
+:deep(.alert-detail-dialog) {
+  width: 600px;
+  max-width: 90%;
+}
+
+:deep(.alert-detail-dialog .el-message-box__content) {
+  max-height: 500px;
+  overflow-y: auto;
 }
 </style> 
