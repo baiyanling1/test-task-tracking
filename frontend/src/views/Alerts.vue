@@ -335,20 +335,102 @@ const handleSelectionChange = (selection) => {
   selectedAlerts.value = selection
 }
 
+// 获取告警级别的颜色
+const getPriorityColor = (priority) => {
+  const colors = {
+    'LOW': '#67c23a',
+    'NORMAL': '#409eff',
+    'HIGH': '#e6a23c',
+    'URGENT': '#f56c6c'
+  }
+  return colors[priority] || '#909399'
+}
+
+// 获取告警级别的图标
+const getPriorityIcon = (priority) => {
+  const icons = {
+    'LOW': '✓',
+    'NORMAL': 'ℹ',
+    'HIGH': '⚠',
+    'URGENT': '⚡'
+  }
+  return icons[priority] || 'ℹ'
+}
+
 // 查看详情
 const viewDetails = async (alert) => {
   try {
+    const priorityColor = getPriorityColor(alert.priority)
+    const priorityIcon = getPriorityIcon(alert.priority)
+    const statusColor = alert.isRead ? '#67c23a' : '#f56c6c'
+    
     // 显示完整的告警详情
     ElMessageBox.alert(
-      `<div style="max-height: 400px; overflow-y: auto;">
-        <p><strong>告警标题：</strong>${alert.title}</p>
-        <p><strong>告警级别：</strong>${getLevelText(alert.priority)}</p>
-        <p><strong>告警状态：</strong>${alert.isRead ? '已读' : '未读'}</p>
-        <p><strong>告警内容：</strong></p>
-        <div style="white-space: pre-wrap; padding: 10px; background: #f5f7fa; border-radius: 4px; margin-top: 8px;">${alert.content || '无内容'}</div>
-        <p style="margin-top: 12px;"><strong>关联任务：</strong>${alert.relatedTaskName || '无'}</p>
-        <p><strong>创建时间：</strong>${formatDateTime(alert.createdTime)}</p>
-        <p><strong>阅读时间：</strong>${alert.readTime ? formatDateTime(alert.readTime) : '未读'}</p>
+      `<div class="alert-detail-content">
+        <!-- 头部区域 -->
+        <div class="alert-header" style="border-left: 4px solid ${priorityColor}; background: linear-gradient(135deg, ${priorityColor}15 0%, ${priorityColor}05 100%);">
+          <div class="alert-title-row">
+            <span class="alert-icon" style="background: ${priorityColor};">${priorityIcon}</span>
+            <h3 style="margin: 0; flex: 1; color: #303133; font-size: 16px;">${alert.title}</h3>
+          </div>
+          <div class="alert-meta">
+            <span class="meta-tag" style="background: ${priorityColor}20; color: ${priorityColor};">
+              ${getLevelText(alert.priority)}
+            </span>
+            <span class="meta-tag" style="background: ${statusColor}20; color: ${statusColor};">
+              ${alert.isRead ? '已读' : '未读'}
+            </span>
+          </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="alert-body">
+          <div class="info-section">
+            <div class="info-label">
+              <svg class="icon" viewBox="0 0 1024 1024" width="14" height="14">
+                <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64z m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z" fill="currentColor"/>
+                <path d="M464 336a48 48 0 1 0 96 0 48 48 0 1 0-96 0z m72 112h-48c-4.4 0-8 3.6-8 8v272c0 4.4 3.6 8 8 8h48c4.4 0 8-3.6 8-8V456c0-4.4-3.6-8-8-8z" fill="currentColor"/>
+              </svg>
+              告警内容
+            </div>
+            <div class="info-content">${alert.content || '无内容'}</div>
+          </div>
+
+          ${alert.relatedTaskName ? `
+          <div class="info-section">
+            <div class="info-label">
+              <svg class="icon" viewBox="0 0 1024 1024" width="14" height="14">
+                <path d="M854.6 288.6L639.4 73.4c-6-6-14.1-9.4-22.6-9.4H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V311.3c0-8.5-3.4-16.7-9.4-22.7zM790.2 326H602V137.8L790.2 326z m1.8 562H232V136h302v216a42 42 0 0 0 42 42h216v494z" fill="currentColor"/>
+              </svg>
+              关联任务
+            </div>
+            <div class="info-value">${alert.relatedTaskName}</div>
+          </div>
+          ` : ''}
+
+          <div class="info-section">
+            <div class="info-label">
+              <svg class="icon" viewBox="0 0 1024 1024" width="14" height="14">
+                <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64z m0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z" fill="currentColor"/>
+                <path d="M686.7 638.6L544.1 535.5V288c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v275.4c0 2.6 1.2 5 3.3 6.5l165.4 120.6c3.6 2.6 8.6 1.8 11.2-1.7l28.6-39c2.6-3.7 1.8-8.7-1.9-11.2z" fill="currentColor"/>
+              </svg>
+              创建时间
+            </div>
+            <div class="info-value">${formatDateTime(alert.createdTime)}</div>
+          </div>
+
+          ${alert.readTime ? `
+          <div class="info-section">
+            <div class="info-label">
+              <svg class="icon" viewBox="0 0 1024 1024" width="14" height="14">
+                <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64z m193.5 301.7l-210.6 292c-12.7 17.7-39 17.7-51.7 0L318.5 484.9c-3.8-5.3 0-12.7 6.5-12.7h46.9c10.2 0 19.9 4.9 25.9 13.3l71.2 98.8 157.2-218c6-8.3 15.6-13.3 25.9-13.3H699c6.5 0 10.3 7.4 6.5 12.7z" fill="currentColor"/>
+              </svg>
+              阅读时间
+            </div>
+            <div class="info-value">${formatDateTime(alert.readTime)}</div>
+          </div>
+          ` : ''}
+        </div>
       </div>`,
       '告警详情',
       {
@@ -618,12 +700,123 @@ onMounted(() => {
 
 /* 详情对话框样式 */
 :deep(.alert-detail-dialog) {
-  width: 600px;
+  width: 650px;
   max-width: 90%;
 }
 
 :deep(.alert-detail-dialog .el-message-box__content) {
-  max-height: 500px;
+  padding: 0;
+  max-height: 600px;
   overflow-y: auto;
+}
+
+:deep(.alert-detail-dialog .el-message-box__message) {
+  padding: 0;
+}
+
+/* 告警详情内容样式 */
+.alert-detail-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.alert-header {
+  padding: 20px;
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 20px;
+}
+
+.alert-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.alert-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.alert-body {
+  padding: 0 20px 20px;
+}
+
+.info-section {
+  margin-bottom: 20px;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.info-label .icon {
+  color: #909399;
+}
+
+.info-content {
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 16px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.8;
+  color: #303133;
+  font-size: 14px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.info-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.info-content::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 3px;
+}
+
+.info-content::-webkit-scrollbar-thumb:hover {
+  background: #c0c4cc;
+}
+
+.info-value {
+  background: #fafafa;
+  border-left: 3px solid #409eff;
+  padding: 10px 12px;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 14px;
 }
 </style> 
