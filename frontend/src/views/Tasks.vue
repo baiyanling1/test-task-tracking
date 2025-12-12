@@ -1256,10 +1256,12 @@ const buildTaskTree = (flatTasks) => {
     } else if (!task.parentId) {
       // 没有父任务，是顶层任务
       rootTasks.push(current)
-    } else {
-      // 有父任务但父任务不在列表中（可能是筛选导致），作为独立任务显示
-      rootTasks.push(current)
     }
+    // 注释掉：不再把找不到父任务的子任务显示为独立任务
+    // else {
+    //   // 有父任务但父任务不在列表中（可能是筛选导致），作为独立任务显示
+    //   rootTasks.push(current)
+    // }
   })
   
   return rootTasks
