@@ -1,8 +1,31 @@
 <template>
-  <div class="tasks-container">
+  <div class="tasks-container" :class="`theme-${currentTheme}`">
          <div class="page-header">
        <h1>测试任务管理</h1>
        <div class="header-actions">
+         <!-- 主题切换按钮 -->
+         <el-dropdown @command="changeTheme" style="margin-right: 10px;">
+           <el-button size="small" type="default">
+             🎨 {{ themeLabels[currentTheme] }}
+           </el-button>
+           <template #dropdown>
+             <el-dropdown-menu>
+               <el-dropdown-item command="default">
+                 🔵 默认主题
+               </el-dropdown-item>
+               <el-dropdown-item command="minimal">
+                 ⚪ 极简商务
+               </el-dropdown-item>
+               <el-dropdown-item command="dark">
+                 🌙 深色模式
+               </el-dropdown-item>
+               <el-dropdown-item command="card">
+                 📇 卡片风格
+               </el-dropdown-item>
+             </el-dropdown-menu>
+           </template>
+         </el-dropdown>
+         
          <el-button 
            type="info" 
            size="small"
@@ -121,31 +144,44 @@
         row-key="id"
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         :cell-style="{ verticalAlign: 'middle' }"
+        @header-dragend="handleColumnResize"
       >
-        <el-table-column prop="taskName" label="任务名称" min-width="320" show-overflow-tooltip>
+        <el-table-column 
+          prop="taskName" 
+          label="任务名称" 
+          :width="columnWidths.taskName || undefined"
+          min-width="350" 
+          show-overflow-tooltip
+          resizable
+        >
           <template #default="{ row }">
-            <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0', display: 'flex', alignItems: 'center', flexWrap: 'wrap', minHeight: '40px' }">
+            <div class="task-name-cell" :style="{ paddingLeft: row.parentId ? '24px' : '0', display: 'flex', alignItems: 'center', gap: '6px' }">
+              <!-- 任务类型标签 -->
               <el-tag 
                 v-if="row.taskType === 'VERSION'" 
                 type="primary" 
-                size="small" 
-                style="margin-right: 8px;"
+                size="small"
               >版本</el-tag>
               <el-tag 
                 v-else-if="row.taskType === 'REQUIREMENT'" 
                 type="success" 
-                size="small" 
-                style="margin-right: 8px;"
+                size="small"
               >需求</el-tag>
-              <span>{{ row.taskName }}</span>
-              <span v-if="row.versionCode" style="color: #909399; margin-left: 8px;">
-                {{ row.versionCode }}
+              
+              <!-- 任务名称和版本号（用括号更紧凑） -->
+              <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {{ row.taskName }}
+                <span v-if="row.versionCode" style="color: #909399; font-size: 12px;">
+                  ({{ row.versionCode }})
+                </span>
               </span>
+              
+              <!-- 需求个数标签 -->
               <el-tag 
                 v-if="row.taskType === 'VERSION' && row.childCount" 
                 type="info" 
-                size="small" 
-                style="margin-left: 8px;"
+                size="small"
+                style="flex-shrink: 0;"
               >{{ row.completedChildCount || 0 }}/{{ row.childCount }}需求</el-tag>
             </div>
           </template>
@@ -971,6 +1007,38 @@ const startDateRange = ref([]) // 新增：开始时间范围
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalTasks = ref(0)
+
+// 列宽管理 - 从 localStorage 加载或使用默认值
+const COLUMN_WIDTHS_KEY = 'task_table_column_widths'
+const columnWidths = ref({
+  taskName: parseInt(localStorage.getItem(`${COLUMN_WIDTHS_KEY}_taskName`)) || null
+})
+
+// 处理列宽调整并保存到 localStorage
+const handleColumnResize = (newWidth, oldWidth, column) => {
+  const prop = column.property
+  if (prop && newWidth) {
+    columnWidths.value[prop] = newWidth
+    localStorage.setItem(`${COLUMN_WIDTHS_KEY}_${prop}`, newWidth)
+  }
+}
+
+// 主题管理
+const THEME_KEY = 'task_table_theme'
+const currentTheme = ref(localStorage.getItem(THEME_KEY) || 'default')
+const themeLabels = {
+  default: '默认主题',
+  minimal: '极简商务',
+  dark: '深色模式',
+  card: '卡片风格'
+}
+
+// 切换主题
+const changeTheme = (theme) => {
+  currentTheme.value = theme
+  localStorage.setItem(THEME_KEY, theme)
+  ElMessage.success(`已切换至${themeLabels[theme]}`)
+}
 
 
 
@@ -2510,5 +2578,203 @@ onMounted(() => {
 .tooltip-content {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ==================== 主题样式 ==================== */
+
+/* 主题：极简商务风格 */
+.theme-minimal .search-section {
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.theme-minimal .page-header {
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.theme-minimal :deep(.el-table) {
+  border: none !important;
+}
+
+.theme-minimal :deep(.el-table::before) {
+  display: none;
+}
+
+.theme-minimal :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+.theme-minimal :deep(.el-table td),
+.theme-minimal :deep(.el-table th.is-leaf) {
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.theme-minimal :deep(.el-table th) {
+  background-color: #fafafa !important;
+  color: #606266 !important;
+  font-weight: 500 !important;
+  border-right: none !important;
+}
+
+.theme-minimal :deep(.el-table__row:hover > td) {
+  background-color: #fafafa !important;
+  transform: scale(1.001);
+  transition: all 0.2s ease;
+}
+
+.theme-minimal :deep(.el-tag) {
+  border-radius: 12px;
+  padding: 0 12px;
+}
+
+/* 主题：深色模式 */
+.theme-dark {
+  background-color: #1a1a1a;
+  color: #e6e6e6;
+}
+
+.theme-dark .tasks-container {
+  background-color: #1a1a1a;
+}
+
+.theme-dark .page-header {
+  border-bottom-color: #3d3d3d;
+}
+
+.theme-dark .page-header h1 {
+  color: #e6e6e6;
+}
+
+.theme-dark .search-section {
+  background: #2d2d2d;
+  border: 1px solid #3d3d3d;
+}
+
+.theme-dark :deep(.el-input__wrapper) {
+  background-color: #3d3d3d !important;
+  box-shadow: 0 0 0 1px #4d4d4d inset !important;
+}
+
+.theme-dark :deep(.el-input__inner) {
+  color: #e6e6e6 !important;
+}
+
+.theme-dark :deep(.el-select .el-input__wrapper) {
+  background-color: #3d3d3d !important;
+}
+
+.theme-dark :deep(.el-table) {
+  background-color: #2d2d2d !important;
+  color: #e6e6e6 !important;
+}
+
+.theme-dark :deep(.el-table th),
+.theme-dark :deep(.el-table tr) {
+  background-color: #2d2d2d !important;
+  color: #e6e6e6 !important;
+}
+
+.theme-dark :deep(.el-table td),
+.theme-dark :deep(.el-table th.is-leaf) {
+  border-bottom-color: #3d3d3d !important;
+}
+
+.theme-dark :deep(.el-table__row:hover > td) {
+  background-color: #3d3d3d !important;
+}
+
+.theme-dark :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background-color: #252525 !important;
+}
+
+.theme-dark :deep(.el-tag) {
+  background-color: #3d3d3d !important;
+  border-color: #4d4d4d !important;
+}
+
+.theme-dark :deep(.el-button--primary) {
+  background-color: #58a6ff !important;
+  border-color: #58a6ff !important;
+}
+
+.theme-dark :deep(.el-pagination) {
+  color: #e6e6e6;
+}
+
+.theme-dark :deep(.el-pagination button) {
+  background-color: #2d2d2d !important;
+  color: #e6e6e6 !important;
+}
+
+.theme-dark :deep(.el-pager li) {
+  background-color: #2d2d2d !important;
+  color: #e6e6e6 !important;
+}
+
+.theme-dark :deep(.el-pager li.is-active) {
+  background-color: #58a6ff !important;
+  color: #ffffff !important;
+}
+
+/* 主题：卡片风格 */
+.theme-card .search-section {
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.theme-card .page-header {
+  border-bottom: none;
+  margin-bottom: 30px;
+}
+
+.theme-card :deep(.el-table) {
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.theme-card :deep(.el-table th) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.theme-card :deep(.el-table__row) {
+  transition: all 0.3s ease;
+}
+
+.theme-card :deep(.el-table__row:hover > td) {
+  background-color: #f5f7fa !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-card :deep(.el-tag) {
+  border-radius: 20px;
+  padding: 4px 16px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-card :deep(.el-button) {
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.theme-card :deep(.el-button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.theme-card :deep(.el-progress-bar__outer) {
+  border-radius: 10px;
+}
+
+.theme-card :deep(.el-progress-bar__inner) {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 </style> 
