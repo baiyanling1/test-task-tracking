@@ -735,7 +735,7 @@ onMounted(() => {
 
 /* 详情对话框样式 */
 :deep(.alert-detail-dialog) {
-  width: 800px;  /* 增大宽度 */
+  width: 1200px;  /* 增大到1200px，是原来的2倍 */
   max-width: 95%;
 }
 
@@ -749,56 +749,67 @@ onMounted(() => {
   padding: 0;
 }
 
+:deep(.alert-detail-dialog .el-message-box__title) {
+  font-size: 18px;
+  font-weight: 600;
+}
+
 /* 告警详情内容样式 */
 .alert-detail-content {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  user-select: text;  /* 允许选择文本 */
 }
 
 .alert-header {
-  padding: 24px;  /* 增加内边距 */
+  padding: 28px;  /* 增加内边距 */
   border-radius: 4px 4px 0 0;
-  margin-bottom: 24px;  /* 增加间距 */
+  margin-bottom: 28px;  /* 增加间距 */
+  user-select: none;  /* 禁止选择，避免误选 */
 }
 
 .alert-title-row {
   display: flex;
   align-items: center;
-  gap: 16px;  /* 增加间距 */
-  margin-bottom: 16px;  /* 增加间距 */
+  gap: 18px;  /* 增加间距 */
+  margin-bottom: 18px;  /* 增加间距 */
+  user-select: none;  /* 禁止选择 */
 }
 
 .alert-icon {
-  width: 36px;  /* 增大图标 */
-  height: 36px;
+  width: 40px;  /* 增大图标 */
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 20px;  /* 增大字体 */
+  font-size: 22px;  /* 增大字体 */
   font-weight: bold;
   flex-shrink: 0;
+  user-select: none;  /* 禁止选择 */
 }
 
 .alert-meta {
   display: flex;
-  gap: 10px;  /* 增加间距 */
+  gap: 12px;  /* 增加间距 */
   flex-wrap: wrap;
+  user-select: none;  /* 禁止选择 */
 }
 
 .meta-tag {
-  padding: 6px 16px;  /* 增大标签 */
-  border-radius: 14px;
-  font-size: 13px;  /* 增大字体 */
+  padding: 8px 20px;  /* 增大标签 */
+  border-radius: 16px;  /* 增大圆角 */
+  font-size: 14px;  /* 增大字体 */
   font-weight: 500;
+  user-select: none;  /* 禁止选择 */
 }
 
 .alert-body {
-  padding: 0 24px 24px;  /* 增加内边距 */
+  padding: 0 28px 28px;  /* 增加内边距 */
 }
 
 .info-section {
-  margin-bottom: 24px;  /* 增加间距 */
+  margin-bottom: 28px;  /* 增加间距 */
 }
 
 .info-section:last-child {
@@ -808,30 +819,31 @@ onMounted(() => {
 .info-label {
   display: flex;
   align-items: center;
-  gap: 8px;  /* 增加间距 */
-  font-size: 14px;  /* 增大字体 */
+  gap: 10px;  /* 增加间距 */
+  font-size: 15px;  /* 增大字体 */
   font-weight: 600;
   color: #606266;
-  margin-bottom: 12px;  /* 增加间距 */
+  margin-bottom: 14px;  /* 增加间距 */
+  user-select: none;  /* 禁止选择标签 */
 }
 
 .info-label .icon {
   color: #909399;
-  width: 16px;  /* 增大图标 */
-  height: 16px;
+  width: 18px;  /* 增大图标 */
+  height: 18px;
 }
 
 .info-content {
   background: #f5f7fa;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;  /* 增大圆角 */
-  padding: 20px;  /* 增大内边距 */
+  border-radius: 10px;  /* 增大圆角 */
+  padding: 24px;  /* 增大内边距 */
   white-space: pre-wrap;
   word-wrap: break-word;
   line-height: 2;  /* 增大行高 */
   color: #303133;
-  font-size: 14px;
-  max-height: 500px;  /* 增大最大高度 */
+  font-size: 15px;  /* 增大字体 */
+  max-height: 600px;  /* 增大最大高度 */
   overflow-y: auto;
 }
 
@@ -839,19 +851,21 @@ onMounted(() => {
 .info-content .task-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px;
+  gap: 16px;  /* 增大间距 */
+  margin-bottom: 18px;  /* 增大间距 */
+  padding: 16px 20px;  /* 增大内边距 */
   background: white;
-  border-radius: 6px;
-  border-left: 3px solid #409eff;
+  border-radius: 8px;  /* 增大圆角 */
+  border-left: 4px solid #409eff;  /* 增粗边框 */
   transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);  /* 添加轻微阴影 */
 }
 
 .info-content .task-item:hover {
   background: #f0f9ff;
   border-left-color: #66b1ff;
-  transform: translateX(4px);
+  transform: translateX(6px);  /* 增大平移距离 */
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);  /* 悬停阴影 */
 }
 
 .info-content .task-item:last-child {
@@ -862,20 +876,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  height: 28px;
+  min-width: 32px;  /* 增大徽章 */
+  height: 32px;
   background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
   color: white;
   border-radius: 50%;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;  /* 增大字体 */
   flex-shrink: 0;
 }
 
 .info-content .task-content {
   flex: 1;
-  line-height: 1.8;
+  line-height: 2;  /* 增大行高 */
   color: #606266;
+  font-size: 15px;  /* 增大字体 */
 }
 
 .info-content .task-content strong {
@@ -884,21 +899,21 @@ onMounted(() => {
 }
 
 .info-content .text-line {
-  margin-bottom: 8px;
-  line-height: 1.8;
+  margin-bottom: 10px;  /* 增大间距 */
+  line-height: 2;
 }
 
 .info-content .text-line-gap {
-  height: 12px;
+  height: 16px;  /* 增大空白间距 */
 }
 
 .info-content::-webkit-scrollbar {
-  width: 8px;  /* 增大滚动条 */
+  width: 10px;  /* 增大滚动条 */
 }
 
 .info-content::-webkit-scrollbar-thumb {
   background: #dcdfe6;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .info-content::-webkit-scrollbar-thumb:hover {
@@ -907,11 +922,11 @@ onMounted(() => {
 
 .info-value {
   background: #fafafa;
-  border-left: 3px solid #409eff;
-  padding: 14px 16px;  /* 增大内边距 */
-  border-radius: 6px;  /* 增大圆角 */
+  border-left: 4px solid #409eff;  /* 增粗边框 */
+  padding: 16px 20px;  /* 增大内边距 */
+  border-radius: 8px;  /* 增大圆角 */
   color: #606266;
-  font-size: 14px;
-  line-height: 1.8;  /* 增加行高 */
+  font-size: 15px;  /* 增大字体 */
+  line-height: 2;  /* 增大行高 */
 }
 </style> 
