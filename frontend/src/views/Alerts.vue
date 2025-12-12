@@ -483,18 +483,18 @@ const viewDetails = async (alert) => {
     
     // 延迟设置宽度，确保 DOM 已渲染
     // 使用多次尝试，确保设置成功
-    const setDialogWidth = () => {
-      const dialog = document.querySelector('.alert-detail-dialog')
-      if (dialog) {
-        dialog.style.setProperty('width', '1600px', 'important')
-        dialog.style.setProperty('max-width', '95vw', 'important')
+      const setDialogWidth = () => {
+        const dialog = document.querySelector('.alert-detail-dialog')
+        if (dialog) {
+          dialog.style.setProperty('width', '1200px', 'important')
+          dialog.style.setProperty('max-width', '95vw', 'important')
+        }
+        const msgBox = document.querySelector('.alert-detail-dialog .el-message-box')
+        if (msgBox) {
+          msgBox.style.setProperty('width', '1200px', 'important')
+          msgBox.style.setProperty('max-width', '95vw', 'important')
+        }
       }
-      const msgBox = document.querySelector('.alert-detail-dialog .el-message-box')
-      if (msgBox) {
-        msgBox.style.setProperty('width', '1600px', 'important')
-        msgBox.style.setProperty('max-width', '95vw', 'important')
-      }
-    }
     
     // 立即执行一次
     setTimeout(setDialogWidth, 0)
@@ -762,24 +762,24 @@ onMounted(() => {
 
 /* 详情对话框样式 - 多层强制覆盖 */
 :deep(.alert-detail-dialog) {
-  width: 1600px !important;  /* 强制设置宽度 */
+  width: 1200px !important;  /* 强制设置宽度 */
   max-width: 95vw !important;  /* 使用视口单位 */
 }
 
 :deep(.alert-detail-dialog .el-message-box) {
-  width: 1600px !important;
+  width: 1200px !important;
   max-width: 95vw !important;
   margin: 0 auto !important;
 }
 
 /* 全局覆盖 - 更高优先级 */
 :deep(.el-overlay .alert-detail-dialog) {
-  width: 1600px !important;
+  width: 1200px !important;
   max-width: 95vw !important;
 }
 
 :deep(.el-overlay .alert-detail-dialog .el-message-box) {
-  width: 1600px !important;
+  width: 1200px !important;
   max-width: 95vw !important;
 }
 
@@ -853,6 +853,7 @@ onMounted(() => {
   font-weight: bold;
   flex-shrink: 0;
   user-select: none;  /* 禁止选择 */
+  line-height: 1;  /* 防止图标撑高 */
 }
 
 .alert-meta {
@@ -868,6 +869,8 @@ onMounted(() => {
   font-size: 14px;  /* 增大字体 */
   font-weight: 500;
   user-select: none;  /* 禁止选择 */
+  display: inline-block;  /* 防止换行问题 */
+  line-height: 1.4;
 }
 
 .alert-body {
@@ -891,12 +894,15 @@ onMounted(() => {
   color: #606266;
   margin-bottom: 14px;  /* 增加间距 */
   user-select: none;  /* 禁止选择标签 */
+  line-height: 1.4;  /* 统一行高 */
 }
 
 .info-label .icon {
   color: #909399;
   width: 18px;  /* 增大图标 */
   height: 18px;
+  flex-shrink: 0;  /* 防止图标被压缩 */
+  display: block;  /* 防止inline导致的布局问题 */
 }
 
 .info-content {
@@ -993,6 +999,27 @@ onMounted(() => {
   border-radius: 8px;  /* 增大圆角 */
   color: #606266;
   font-size: 15px;  /* 增大字体 */
-  line-height: 2;  /* 增大行高 */
+  line-height: 1.8;  /* 增大行高 */
+  word-break: break-word;  /* 长文本换行 */
+  white-space: normal;  /* 允许换行 */
+}
+
+/* 任务列表容器 */
+.info-content .task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 任务项前的提示文本 */
+.info-content .text-line {
+  margin-bottom: 16px;  /* 增大间距 */
+  line-height: 2;
+  color: #606266;
+  font-size: 15px;
+}
+
+.info-content .text-line-gap {
+  height: 16px;  /* 增大空白间距 */
 }
 </style> 
