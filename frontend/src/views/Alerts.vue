@@ -474,9 +474,27 @@ const viewDetails = async (alert) => {
       {
         confirmButtonText: '确定',
         dangerouslyUseHTMLString: true,
-        customClass: 'alert-detail-dialog'
+        customClass: 'alert-detail-dialog',
+        beforeClose: (action, instance, done) => {
+          done()
+        },
+        callback: () => {}
       }
-    )
+    ).then(() => {
+      // 使用 nextTick 确保 DOM 已渲染，然后强制设置宽度
+      setTimeout(() => {
+        const dialog = document.querySelector('.alert-detail-dialog')
+        if (dialog) {
+          dialog.style.width = '1400px'
+          dialog.style.maxWidth = '95vw'
+        }
+        const msgBox = document.querySelector('.alert-detail-dialog .el-message-box')
+        if (msgBox) {
+          msgBox.style.width = '1400px'
+          msgBox.style.maxWidth = '95vw'
+        }
+      }, 50)
+    })
     
     // 如果是未读状态，标记为已读
     if (!alert.isRead) {
@@ -736,15 +754,28 @@ onMounted(() => {
   max-height: 3em;
 }
 
-/* 详情对话框样式 */
+/* 详情对话框样式 - 多层强制覆盖 */
 :deep(.alert-detail-dialog) {
-  width: 1200px !important;  /* 强制设置宽度 */
+  width: 1400px !important;  /* 强制设置宽度 */
   max-width: 95vw !important;  /* 使用视口单位 */
 }
 
 :deep(.alert-detail-dialog .el-message-box) {
-  width: 1200px !important;
+  width: 1400px !important;
   max-width: 95vw !important;
+  margin: 0 auto !important;
+}
+
+:deep(.alert-detail-dialog .el-message-box__header) {
+  padding: 20px 28px !important;
+}
+
+:deep(.alert-detail-dialog .el-message-box__content) {
+  width: 100% !important;
+}
+
+:deep(.alert-detail-dialog .el-message-box__btns) {
+  padding: 15px 28px 28px !important;
 }
 
 :deep(.alert-detail-dialog .el-message-box__content) {
