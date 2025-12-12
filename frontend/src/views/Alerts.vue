@@ -477,24 +477,30 @@ const viewDetails = async (alert) => {
         customClass: 'alert-detail-dialog',
         beforeClose: (action, instance, done) => {
           done()
-        },
-        callback: () => {}
+        }
       }
-    ).then(() => {
-      // 使用 nextTick 确保 DOM 已渲染，然后强制设置宽度
-      setTimeout(() => {
-        const dialog = document.querySelector('.alert-detail-dialog')
-        if (dialog) {
-          dialog.style.width = '1400px'
-          dialog.style.maxWidth = '95vw'
-        }
-        const msgBox = document.querySelector('.alert-detail-dialog .el-message-box')
-        if (msgBox) {
-          msgBox.style.width = '1400px'
-          msgBox.style.maxWidth = '95vw'
-        }
-      }, 50)
-    })
+    )
+    
+    // 延迟设置宽度，确保 DOM 已渲染
+    // 使用多次尝试，确保设置成功
+    const setDialogWidth = () => {
+      const dialog = document.querySelector('.alert-detail-dialog')
+      if (dialog) {
+        dialog.style.setProperty('width', '1600px', 'important')
+        dialog.style.setProperty('max-width', '95vw', 'important')
+      }
+      const msgBox = document.querySelector('.alert-detail-dialog .el-message-box')
+      if (msgBox) {
+        msgBox.style.setProperty('width', '1600px', 'important')
+        msgBox.style.setProperty('max-width', '95vw', 'important')
+      }
+    }
+    
+    // 立即执行一次
+    setTimeout(setDialogWidth, 0)
+    // 再次执行确保生效
+    setTimeout(setDialogWidth, 100)
+    setTimeout(setDialogWidth, 200)
     
     // 如果是未读状态，标记为已读
     if (!alert.isRead) {
@@ -756,14 +762,30 @@ onMounted(() => {
 
 /* 详情对话框样式 - 多层强制覆盖 */
 :deep(.alert-detail-dialog) {
-  width: 1400px !important;  /* 强制设置宽度 */
+  width: 1600px !important;  /* 强制设置宽度 */
   max-width: 95vw !important;  /* 使用视口单位 */
 }
 
 :deep(.alert-detail-dialog .el-message-box) {
-  width: 1400px !important;
+  width: 1600px !important;
   max-width: 95vw !important;
   margin: 0 auto !important;
+}
+
+/* 全局覆盖 - 更高优先级 */
+:deep(.el-overlay .alert-detail-dialog) {
+  width: 1600px !important;
+  max-width: 95vw !important;
+}
+
+:deep(.el-overlay .alert-detail-dialog .el-message-box) {
+  width: 1600px !important;
+  max-width: 95vw !important;
+}
+
+/* 直接针对内部元素 */
+:deep(.alert-detail-dialog .el-message-box__wrapper) {
+  width: 100% !important;
 }
 
 :deep(.alert-detail-dialog .el-message-box__header) {
@@ -772,10 +794,14 @@ onMounted(() => {
 
 :deep(.alert-detail-dialog .el-message-box__content) {
   width: 100% !important;
+  padding: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
-:deep(.alert-detail-dialog .el-message-box__btns) {
-  padding: 15px 28px 28px !important;
+:deep(.alert-detail-dialog .el-message-box__message) {
+  padding: 0 !important;
+  width: 100% !important;
 }
 
 :deep(.alert-detail-dialog .el-message-box__content) {
