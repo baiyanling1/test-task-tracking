@@ -2180,13 +2180,15 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #e9ecef;
+  padding: 20px;
+  background: var(--theme-backgroundCard, #ffffff);
+  border-radius: 8px;
+  box-shadow: var(--theme-cardShadow, 0 2px 8px rgba(0,0,0,0.08));
 }
 
 .page-header h1 {
   margin: 0;
-  color: #2c3e50;
+  color: var(--theme-text, #2c3e50);
   font-size: 24px;
   font-weight: 600;
 }

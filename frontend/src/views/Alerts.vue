@@ -644,11 +644,17 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  padding: 20px;
+  background: var(--theme-backgroundCard, #ffffff);
+  border-radius: 8px;
+  box-shadow: var(--theme-cardShadow, 0 2px 8px rgba(0,0,0,0.08));
 }
 
 .page-header h1 {
   margin: 0;
-  color: #303133;
+  color: var(--theme-text, #303133);
+  font-size: 24px;
+  font-weight: 600;
 }
 
 .header-actions {
