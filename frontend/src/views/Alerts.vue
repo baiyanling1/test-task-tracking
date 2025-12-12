@@ -223,7 +223,7 @@ const searchForm = reactive({
 
 // 分页
 const pagination = reactive({
-  page: 0,
+  page: 1,  // 修改为从1开始
   size: 10
 })
 
@@ -254,25 +254,28 @@ const loadAlerts = async () => {
   try {
     loading.value = true
     
+    // 后端从0开始，前端从1开始，需要转换
+    const backendPage = pagination.page - 1
+    
     let response
     if (searchForm.keyword) {
       response = await searchAlerts(searchForm.keyword, {
-        page: pagination.page,
+        page: backendPage,
         size: pagination.size
       })
     } else if (searchForm.status) {
       response = await getAlertsByStatus(searchForm.status, {
-        page: pagination.page,
+        page: backendPage,
         size: pagination.size
       })
     } else if (searchForm.priority) {
       response = await getAlertsByPriority(searchForm.priority, {
-        page: pagination.page,
+        page: backendPage,
         size: pagination.size
       })
     } else {
       response = await getAlerts({
-        page: pagination.page,
+        page: backendPage,
         size: pagination.size
       })
     }
@@ -305,7 +308,7 @@ const loadUnreadCount = async () => {
 
 // 搜索
 const handleSearch = () => {
-  pagination.page = 0
+  pagination.page = 1  // 重置为第1页
   loadAlerts()
 }
 
@@ -314,19 +317,19 @@ const resetSearch = () => {
   searchForm.keyword = ''
   searchForm.status = ''
   searchForm.priority = ''
-  pagination.page = 0
+  pagination.page = 1  // 重置为第1页
   loadAlerts()
 }
 
 // 分页处理
 const handleSizeChange = (size) => {
   pagination.size = size
-  pagination.page = 0
+  pagination.page = 1  // 重置为第1页
   loadAlerts()
 }
 
 const handleCurrentChange = (page) => {
-  pagination.page = page - 1 // 后端从0开始
+  pagination.page = page  // 前端显示从1开始
   loadAlerts()
 }
 
@@ -735,8 +738,13 @@ onMounted(() => {
 
 /* 详情对话框样式 */
 :deep(.alert-detail-dialog) {
-  width: 1200px;  /* 增大到1200px，是原来的2倍 */
-  max-width: 95%;
+  width: 1200px !important;  /* 强制设置宽度 */
+  max-width: 95vw !important;  /* 使用视口单位 */
+}
+
+:deep(.alert-detail-dialog .el-message-box) {
+  width: 1200px !important;
+  max-width: 95vw !important;
 }
 
 :deep(.alert-detail-dialog .el-message-box__content) {
@@ -747,6 +755,7 @@ onMounted(() => {
 
 :deep(.alert-detail-dialog .el-message-box__message) {
   padding: 0;
+  width: 100%;
 }
 
 :deep(.alert-detail-dialog .el-message-box__title) {
