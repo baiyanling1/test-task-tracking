@@ -120,7 +120,6 @@
         style="width: 100%"
         row-key="id"
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-        default-expand-all
         :cell-style="{ verticalAlign: 'middle' }"
       >
         <el-table-column prop="taskName" label="任务名称" min-width="320" show-overflow-tooltip>
@@ -240,13 +239,13 @@
                  size="small" 
                  @click="editTask(row)"
                >编辑</el-button>
-               <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
-               <el-button 
-                 v-if="row.taskType !== 'VERSION'"
-                 size="small" 
-                 type="warning" 
-                 @click="viewProgress(row)"
-               >进度更新</el-button>
+              <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>
+              <el-button 
+                v-if="row.taskType !== 'VERSION' || (row.taskType === 'VERSION' && !row.childCount)"
+                size="small" 
+                type="warning" 
+                @click="viewProgress(row)"
+              >进度更新</el-button>
                <el-button 
                  v-if="canDeleteTask(row)" 
                  size="small" 
@@ -565,39 +564,39 @@
              <div v-if="selectedTask.delayReason" class="delay-reason">
                <h4>延期原因</h4>
                <p>{{ selectedTask.delayReason }}</p>
-             </div>
-             
-             <!-- 进度历史显示（非版本任务显示） -->
-             <div v-if="selectedTask?.taskType !== 'VERSION'" class="progress-section" style="margin-top: 30px;">
-               <h4>进度更新历史</h4>
-               
-               <div v-if="progressHistory.length === 0" class="no-progress">
-                 <el-empty description="暂无进度记录" />
-               </div>
-               
-               <div v-else class="progress-timeline">
-                 <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">
-                   <div class="progress-header">
-                     <div class="progress-info">
-                       <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
-                       <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
-                     </div>
-                     <div class="progress-user">
-                       更新人: {{ progress.updatedByUserName }}
-                     </div>
-                   </div>
-                   
-                   <div v-if="progress.progressNotes" class="progress-notes">
-                     <strong>进度描述:</strong>
-                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-             
-             <!-- 版本任务：显示子需求的进度历史 -->
-             <div v-if="selectedTask?.taskType === 'VERSION' && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">
-               <h4>子需求更新历史</h4>
+            </div>
+            
+            <!-- 进度历史显示（普通任务 或 没有子需求的版本任务） -->
+            <div v-if="selectedTask?.taskType !== 'VERSION' || (selectedTask?.taskType === 'VERSION' && !selectedTask?.childCount)" class="progress-section" style="margin-top: 30px;">
+              <h4>进度更新历史</h4>
+              
+              <div v-if="progressHistory.length === 0" class="no-progress">
+                <el-empty description="暂无进度记录" />
+              </div>
+              
+              <div v-else class="progress-timeline">
+                <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">
+                  <div class="progress-header">
+                    <div class="progress-info">
+                      <span class="progress-percentage">{{ progress.progressPercentage }}%</span>
+                      <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>
+                    </div>
+                    <div class="progress-user">
+                      更新人: {{ progress.updatedByUserName }}
+                    </div>
+                  </div>
+                  
+                  <div v-if="progress.progressNotes" class="progress-notes">
+                    <strong>进度描述:</strong>
+                    <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 版本任务有子需求时：显示子需求的进度历史 -->
+            <div v-if="selectedTask?.taskType === 'VERSION' && selectedTask?.childCount > 0 && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">
+              <h4>子需求更新历史</h4>
                <div class="progress-timeline">
                  <div v-for="progress in childrenProgressHistory" :key="`child-${progress.id}`" class="progress-item" style="border-left: 3px solid #67c23a; padding-left: 12px;">
                    <div class="progress-header">
@@ -1474,12 +1473,15 @@ const saveTask = async () => {
       // 编辑任务
       await updateTask(editingTask.value.id, taskForm)
       
-      // 如果有进度描述，创建进度历史记录
-      if (taskForm.progressNotes && taskForm.progressNotes.trim()) {
+      // 如果进度发生变化，创建进度历史记录
+      const progressChanged = taskForm.progressPercentage !== editingTask.value.progressPercentage
+      if (progressChanged) {
         try {
           const progressData = {
             progressPercentage: taskForm.progressPercentage || 0,
-            progressNotes: taskForm.progressNotes,
+            progressNotes: taskForm.progressNotes && taskForm.progressNotes.trim() 
+              ? taskForm.progressNotes 
+              : `进度更新至 ${taskForm.progressPercentage}%`,
             actualEndDate: taskForm.actualEndDate || '',
             updatedByUserId: authStore.user.id,
             actualManDays: taskForm.actualManDays || null
@@ -1499,12 +1501,14 @@ const saveTask = async () => {
       const response = await createTask(taskForm)
       ElMessage.success('任务创建成功')
       
-      // 如果新建任务时有进度描述，自动创建进度历史记录
-      if (taskForm.progressNotes && taskForm.progressNotes.trim()) {
+      // 如果新建任务时进度大于0，自动创建进度历史记录
+      if (taskForm.progressPercentage > 0) {
         try {
           const progressData = {
             progressPercentage: taskForm.progressPercentage || 0,
-            progressNotes: taskForm.progressNotes,
+            progressNotes: taskForm.progressNotes && taskForm.progressNotes.trim() 
+              ? taskForm.progressNotes 
+              : `初始进度 ${taskForm.progressPercentage}%`,
             actualEndDate: taskForm.actualEndDate || '',
             updatedByUserId: authStore.user.id,
             actualManDays: taskForm.actualManDays || null
@@ -1948,6 +1952,12 @@ const calculateManDaysManually = () => {
 
 // 计算实际工时（自动触发）
 const calculateActualManDays = () => {
+  // 如果没有实际结束时间，清空实际工时
+  if (!taskForm.actualEndDate) {
+    taskForm.actualManDays = null;
+    return;
+  }
+  
   // 如果是手动输入，不进行自动计算
   if (isActualManDaysManual.value) {
     return;
@@ -1958,7 +1968,7 @@ const calculateActualManDays = () => {
     return;
   }
   
-  if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
+  if (!taskForm.startDate || !taskForm.participantCount) {
     taskForm.actualManDays = null;
     return;
   }
