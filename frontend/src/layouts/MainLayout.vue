@@ -11,9 +11,6 @@
         :default-active="$route.path"
         class="sidebar-menu"
         router
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
         :collapse="isCollapsed"
       >
         <el-menu-item index="/">
@@ -87,6 +84,9 @@
         </div>
         
         <div class="header-right">
+          <!-- 主题切换器 -->
+          <ThemeSwitcher size="small" style="margin-right: 16px;" />
+          
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-avatar :size="32" :src="user?.avatar">
@@ -120,6 +120,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getUnreadAlertCount } from '@/api/alerts'
 import { ElMessageBox } from 'element-plus'
 import { DataBoard, List, User, Bell, ArrowDown, OfficeBuilding, Expand, Fold, Clock, UserFilled, Setting, Message } from '@element-plus/icons-vue'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -208,9 +209,16 @@ onMounted(() => {
   height: 100vh;
 }
 
+/* 侧边栏 */
 .sidebar {
-  background-color: #304156;
-  color: #bfcbd9;
+  background: var(--theme-sidebarBg, #304156) !important;
+  transition: all 0.3s ease;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 清新绿主题特殊处理 - 添加左侧绿色边框 */
+.theme-light.theme-green .sidebar {
+  border-right: 3px solid #52c41a;
 }
 
 .logo {
@@ -218,30 +226,70 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #1f2d3d;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .logo h2 {
-  color: #fff;
+  color: var(--theme-sidebarTextActive, #fff);
   margin: 0;
   font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+/* 菜单样式 */
 .sidebar-menu {
-  border: none;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 菜单项默认样式 */
+:deep(.sidebar-menu .el-menu-item) {
+  color: var(--theme-sidebarText, #bfcbd9) !important;
+  background: transparent !important;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+}
+
+/* 菜单项悬停 */
+:deep(.sidebar-menu .el-menu-item:hover) {
+  background: var(--theme-sidebarHoverBg, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--theme-sidebarTextActive, #ffffff) !important;
+}
+
+/* 菜单项激活状态 - 重点优化 */
+:deep(.sidebar-menu .el-menu-item.is-active) {
+  background: var(--theme-sidebarActiveBg, rgba(64, 158, 255, 0.2)) !important;
+  color: var(--theme-sidebarTextActive, #ffffff) !important;
+  border-left: 3px solid var(--theme-primary, #409eff) !important;
+  font-weight: 600;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 菜单图标 */
+:deep(.sidebar-menu .el-menu-item .el-icon) {
+  margin-right: 8px;
+  font-size: 16px;
 }
 
 .alert-badge {
   margin-left: 8px;
 }
 
+/* 顶部导航 */
 .header {
-  background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  background: var(--theme-headerBg, #fff) !important;
+  border-bottom: 1px solid var(--theme-border, #e6e6e6);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  box-shadow: var(--theme-cardShadow, 0 2px 4px rgba(0,0,0,0.1));
+  transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .header-left {
@@ -253,11 +301,19 @@ onMounted(() => {
 .collapse-btn {
   margin-right: 16px;
   font-size: 18px;
+  color: var(--theme-text, #333);
+  transition: all 0.3s ease;
+}
+
+.collapse-btn:hover {
+  color: var(--theme-primary, #409eff);
+  transform: scale(1.1);
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 
 .user-info {
@@ -265,21 +321,44 @@ onMounted(() => {
   align-items: center;
   cursor: pointer;
   padding: 8px 12px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  border-radius: 8px;
+  transition: all 0.3s ease;
 }
 
 .user-info:hover {
-  background-color: #f5f5f5;
+  background-color: var(--theme-backgroundSecondary, #f5f5f5);
 }
 
 .username {
   margin: 0 8px;
-  color: #333;
+  color: var(--theme-text, #333);
+  font-weight: 500;
 }
 
+/* 内容区 */
 .main-content {
-  background-color: #f0f2f5;
+  background: var(--theme-background, #f0f2f5) !important;
   padding: 20px;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+}
+
+/* 面包屑 */
+:deep(.el-breadcrumb) {
+  font-size: 14px;
+}
+
+:deep(.el-breadcrumb__item) {
+  color: var(--theme-textSecondary, #606266);
+}
+
+:deep(.el-breadcrumb__item.is-link) {
+  color: var(--theme-text, #2c3e50);
+  font-weight: 500;
+}
+
+/* 深色主题特殊处理 */
+.theme-dark .header-right .el-avatar {
+  border: 2px solid var(--theme-border, #303030);
 }
 </style> 

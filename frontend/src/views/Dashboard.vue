@@ -528,8 +528,18 @@ import VChart from 'vue-echarts'
 import { List, Loading, Check, Clock, WarningFilled, Calendar, User } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 import { ElMessage } from 'element-plus'
 // import { getUsersWorkStats } from '@/api/userStats' // 已屏蔽
+
+const authStore = useAuthStore()
+const themeStore = useThemeStore()
+
+// 获取当前主题的图表配色
+const getChartColors = computed(() => {
+  const theme = themeStore.getThemeConfig()
+  return theme.colors.chartColors || ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399']
+})
 
 use([
   CanvasRenderer,
@@ -573,9 +583,6 @@ const loadingWorkHours = ref(false)
 // 用户工作统计相关数据 - 已屏蔽
 // const usersWorkStats = ref([])
 // const loadingUserStats = ref(false)
-
-// Auth store
-const authStore = useAuthStore()
 
 // TAB页控制
 const activeTab = ref('overview')

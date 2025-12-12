@@ -47,7 +47,7 @@
     <!-- 用户列表 -->
     <div class="users-table">
       <el-table
-        :data="filteredUsers"
+        :data="users"
         v-loading="loading"
         stripe
         style="width: 100%"
@@ -254,41 +254,27 @@ const canEditUsers = computed(() => {
   return authStore.user?.role === 'ADMIN' || authStore.user?.role === 'MANAGER'
 })
 
-const filteredUsers = computed(() => {
-  let filtered = users.value
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(user => 
-      user.username.toLowerCase().includes(query) ||
-      user.realName.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query)
-    )
-  }
-
-  if (roleFilter.value) {
-    filtered = filtered.filter(user => user.role === roleFilter.value)
-  }
-
-  if (statusFilter.value) {
-    filtered = filtered.filter(user => {
-      if (statusFilter.value === 'ACTIVE') return user.isActive
-      if (statusFilter.value === 'INACTIVE') return !user.isActive
-      return true
-    })
-  }
-
-  return filtered
-})
-
 // 方法
 const loadUsers = async () => {
   loading.value = true
   try {
-    const response = await getUsers({
+    const params = {
       page: currentPage.value - 1,
       size: pageSize.value
-    })
+    }
+    
+    // 添加筛选条件
+    if (searchQuery.value) {
+      params.username = searchQuery.value  // 后端会模糊匹配username
+    }
+    if (roleFilter.value) {
+      params.role = roleFilter.value
+    }
+    if (statusFilter.value) {
+      params.isActive = statusFilter.value === 'ACTIVE'
+    }
+    
+    const response = await getUsers(params)
     users.value = response.content || []
     totalUsers.value = response.totalElements || 0
   } catch (error) {
@@ -310,15 +296,18 @@ const loadDepartments = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1
+  loadUsers()
 }
 
 const handleSizeChange = (size) => {
   pageSize.value = size
   currentPage.value = 1
+  loadUsers()
 }
 
 const handleCurrentChange = (page) => {
   currentPage.value = page
+  loadUsers()
 }
 
 const editUser = (user) => {

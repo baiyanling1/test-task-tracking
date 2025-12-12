@@ -1,0 +1,98 @@
+[1mdiff --git a/frontend/src/views/Tasks.vue b/frontend/src/views/Tasks.vue[m
+[1mindex 4402235..51afc33 100644[m
+[1m--- a/frontend/src/views/Tasks.vue[m
+[1m+++ b/frontend/src/views/Tasks.vue[m
+[36m@@ -240,13 +240,13 @@[m
+                  size="small" [m
+                  @click="editTask(row)"[m
+                >编辑</el-button>[m
+[31m-               <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>[m
+[31m-               <el-button [m
+[31m-                 v-if="row.taskType !== 'VERSION'"[m
+[31m-                 size="small" [m
+[31m-                 type="warning" [m
+[31m-                 @click="viewProgress(row)"[m
+[31m-               >进度更新</el-button>[m
+[32m+[m[32m              <el-button size="small" type="info" @click="viewDetails(row)">详情</el-button>[m
+[32m+[m[32m              <el-button[m[41m [m
+[32m+[m[32m                v-if="row.taskType !== 'VERSION' || (row.taskType === 'VERSION' && !row.childCount)"[m
+[32m+[m[32m                size="small"[m[41m [m
+[32m+[m[32m                type="warning"[m[41m [m
+[32m+[m[32m                @click="viewProgress(row)"[m
+[32m+[m[32m              >进度更新</el-button>[m
+                <el-button [m
+                  v-if="canDeleteTask(row)" [m
+                  size="small" [m
+[36m@@ -565,39 +565,39 @@[m
+              <div v-if="selectedTask.delayReason" class="delay-reason">[m
+                <h4>延期原因</h4>[m
+                <p>{{ selectedTask.delayReason }}</p>[m
+[31m-             </div>[m
+[31m-             [m
+[31m-             <!-- 进度历史显示（非版本任务显示） -->[m
+[31m-             <div v-if="selectedTask?.taskType !== 'VERSION'" class="progress-section" style="margin-top: 30px;">[m
+[31m-               <h4>进度更新历史</h4>[m
+[31m-               [m
+[31m-               <div v-if="progressHistory.length === 0" class="no-progress">[m
+[31m-                 <el-empty description="暂无进度记录" />[m
+[31m-               </div>[m
+[31m-               [m
+[31m-               <div v-else class="progress-timeline">[m
+[31m-                 <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">[m
+[31m-                   <div class="progress-header">[m
+[31m-                     <div class="progress-info">[m
+[31m-                       <span class="progress-percentage">{{ progress.progressPercentage }}%</span>[m
+[31m-                       <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>[m
+[31m-                     </div>[m
+[31m-                     <div class="progress-user">[m
+[31m-                       更新人: {{ progress.updatedByUserName }}[m
+[31m-                     </div>[m
+[31m-                   </div>[m
+[31m-                   [m
+[31m-                   <div v-if="progress.progressNotes" class="progress-notes">[m
+[31m-                     <strong>进度描述:</strong>[m
+[31m-                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>[m
+[31m-                   </div>[m
+[31m-                 </div>[m
+[31m-               </div>[m
+[31m-             </div>[m
+[31m-             [m
+[31m-             <!-- 版本任务：显示子需求的进度历史 -->[m
+[31m-             <div v-if="selectedTask?.taskType === 'VERSION' && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">[m
+[31m-               <h4>子需求更新历史</h4>[m
+[32m+[m[32m            </div>[m
+[32m+[m[41m            [m
+[32m+[m[32m            <!-- 进度历史显示（普通任务 或 没有子需求的版本任务） -->[m
+[32m+[m[32m            <div v-if="selectedTask?.taskType !== 'VERSION' || (selectedTask?.taskType === 'VERSION' && !selectedTask?.childCount)" class="progress-section" style="margin-top: 30px;">[m
+[32m+[m[32m              <h4>进度更新历史</h4>[m
+[32m+[m[41m              [m
+[32m+[m[32m              <div v-if="progressHistory.length === 0" class="no-progress">[m
+[32m+[m[32m                <el-empty description="暂无进度记录" />[m
+[32m+[m[32m              </div>[m
+[32m+[m[41m              [m
+[32m+[m[32m              <div v-else class="progress-timeline">[m
+[32m+[m[32m                <div v-for="progress in progressHistory" :key="progress.id" class="progress-item">[m
+[32m+[m[32m                  <div class="progress-header">[m
+[32m+[m[32m                    <div class="progress-info">[m
+[32m+[m[32m                      <span class="progress-percentage">{{ progress.progressPercentage }}%</span>[m
+[32m+[m[32m                      <span class="progress-time">{{ formatDateTime(progress.updateTime) }}</span>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                    <div class="progress-user">[m
+[32m+[m[32m                      更新人: {{ progress.updatedByUserName }}[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </div>[m
+[32m+[m[41m                  [m
+[32m+[m[32m                  <div v-if="progress.progressNotes" class="progress-notes">[m
+[32m+[m[32m                    <strong>进度描述:</strong>[m
+[32m+[m[32m                    <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[41m            [m
+[32m+[m[32m            <!-- 版本任务有子需求时：显示子需求的进度历史 -->[m
+[32m+[m[32m            <div v-if="selectedTask?.taskType === 'VERSION' && selectedTask?.childCount > 0 && childrenProgressHistory.length > 0" class="progress-section" style="margin-top: 30px;">[m
+[32m+[m[32m              <h4>子需求更新历史</h4>[m
+                <div class="progress-timeline">[m
+                  <div v-for="progress in childrenProgressHistory" :key="`child-${progress.id}`" class="progress-item" style="border-left: 3px solid #67c23a; padding-left: 12px;">[m
+                    <div class="progress-header">[m
