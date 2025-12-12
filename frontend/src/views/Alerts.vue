@@ -700,14 +700,14 @@ onMounted(() => {
 
 /* 详情对话框样式 */
 :deep(.alert-detail-dialog) {
-  width: 650px;
-  max-width: 90%;
+  width: 800px;  /* 增大宽度 */
+  max-width: 95%;
 }
 
 :deep(.alert-detail-dialog .el-message-box__content) {
   padding: 0;
-  max-height: 600px;
-  overflow-y: auto;
+  max-height: none;  /* 移除高度限制 */
+  overflow: visible;
 }
 
 :deep(.alert-detail-dialog .el-message-box__message) {
@@ -720,50 +720,50 @@ onMounted(() => {
 }
 
 .alert-header {
-  padding: 20px;
+  padding: 24px;  /* 增加内边距 */
   border-radius: 4px 4px 0 0;
-  margin-bottom: 20px;
+  margin-bottom: 24px;  /* 增加间距 */
 }
 
 .alert-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;  /* 增加间距 */
+  margin-bottom: 16px;  /* 增加间距 */
 }
 
 .alert-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;  /* 增大图标 */
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 18px;
+  font-size: 20px;  /* 增大字体 */
   font-weight: bold;
   flex-shrink: 0;
 }
 
 .alert-meta {
   display: flex;
-  gap: 8px;
+  gap: 10px;  /* 增加间距 */
   flex-wrap: wrap;
 }
 
 .meta-tag {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 6px 16px;  /* 增大标签 */
+  border-radius: 14px;
+  font-size: 13px;  /* 增大字体 */
   font-weight: 500;
 }
 
 .alert-body {
-  padding: 0 20px 20px;
+  padding: 0 24px 24px;  /* 增加内边距 */
 }
 
 .info-section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;  /* 增加间距 */
 }
 
 .info-section:last-child {
@@ -773,38 +773,40 @@ onMounted(() => {
 .info-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 8px;  /* 增加间距 */
+  font-size: 14px;  /* 增大字体 */
   font-weight: 600;
   color: #606266;
-  margin-bottom: 8px;
+  margin-bottom: 12px;  /* 增加间距 */
 }
 
 .info-label .icon {
   color: #909399;
+  width: 16px;  /* 增大图标 */
+  height: 16px;
 }
 
 .info-content {
   background: #f5f7fa;
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
-  padding: 16px;
+  border-radius: 8px;  /* 增大圆角 */
+  padding: 20px;  /* 增大内边距 */
   white-space: pre-wrap;
   word-wrap: break-word;
-  line-height: 1.8;
+  line-height: 2;  /* 增大行高 */
   color: #303133;
   font-size: 14px;
-  max-height: 300px;
+  max-height: 500px;  /* 增大最大高度 */
   overflow-y: auto;
 }
 
 .info-content::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;  /* 增大滚动条 */
 }
 
 .info-content::-webkit-scrollbar-thumb {
   background: #dcdfe6;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .info-content::-webkit-scrollbar-thumb:hover {
@@ -814,9 +816,10 @@ onMounted(() => {
 .info-value {
   background: #fafafa;
   border-left: 3px solid #409eff;
-  padding: 10px 12px;
-  border-radius: 4px;
+  padding: 14px 16px;  /* 增大内边距 */
+  border-radius: 6px;  /* 增大圆角 */
   color: #606266;
   font-size: 14px;
+  line-height: 1.8;  /* 增加行高 */
 }
 </style> 
