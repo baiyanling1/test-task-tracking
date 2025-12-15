@@ -48,6 +48,16 @@ public class TaskProgress extends BaseEntity {
     
     @Column(name = "actual_man_days")
     private Double actualManDays;
+    
+    // 新增：本周投入时间记录（可选）
+    @Column(name = "work_start_time")
+    private LocalDateTime workStartTime;
+    
+    @Column(name = "work_end_time")
+    private LocalDateTime workEndTime;
+    
+    @Column(name = "work_hours")
+    private Double workHours;
 
     @PrePersist
     protected void onCreate() {

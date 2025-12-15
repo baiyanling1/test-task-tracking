@@ -603,6 +603,19 @@
                     <strong>进度描述:</strong>
                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
                   </div>
+                  
+                  <!-- 显示本周投入时间 -->
+                  <div v-if="progress.workStartTime && progress.workEndTime" class="work-time-info" style="margin-top: 10px; padding: 8px 12px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #409eff; font-weight: 600; margin-bottom: 5px;">
+                      <el-icon><Clock /></el-icon>
+                      <span>本周投入时间</span>
+                    </div>
+                    <div style="font-size: 13px; color: #606266; line-height: 1.8;">
+                      <div>开始：{{ formatDateTime(progress.workStartTime) }}</div>
+                      <div>结束：{{ formatDateTime(progress.workEndTime) }}</div>
+                      <div style="font-weight: 600; color: #67c23a;">时长：{{ progress.workHours }} 小时</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -625,6 +638,19 @@
                    <div v-if="progress.progressNotes" class="progress-notes" style="margin-top: 8px; padding: 8px; background: #f5f7fa; border-radius: 4px;">
                      <strong>进度描述:</strong>
                      <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                   </div>
+                   
+                   <!-- 显示本周投入时间 -->
+                   <div v-if="progress.workStartTime && progress.workEndTime" class="work-time-info" style="margin-top: 10px; padding: 8px 12px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">
+                     <div style="display: flex; align-items: center; gap: 8px; color: #409eff; font-weight: 600; margin-bottom: 5px;">
+                       <el-icon><Clock /></el-icon>
+                       <span>本周投入时间</span>
+                     </div>
+                     <div style="font-size: 13px; color: #606266; line-height: 1.8;">
+                       <div>开始：{{ formatDateTime(progress.workStartTime) }}</div>
+                       <div>结束：{{ formatDateTime(progress.workEndTime) }}</div>
+                       <div style="font-weight: 600; color: #67c23a;">时长：{{ progress.workHours }} 小时</div>
+                     </div>
                    </div>
                  </div>
                </div>
@@ -659,6 +685,19 @@
                   <div v-if="progress.progressNotes" class="progress-notes">
                     <strong>进度描述:</strong>
                     <div style="white-space: pre-wrap; margin-top: 5px;">{{ progress.progressNotes }}</div>
+                  </div>
+                  
+                  <!-- 显示本周投入时间 -->
+                  <div v-if="progress.workStartTime && progress.workEndTime" class="work-time-info" style="margin-top: 10px; padding: 8px 12px; background: #f0f9ff; border-left: 3px solid #409eff; border-radius: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #409eff; font-weight: 600; margin-bottom: 5px;">
+                      <el-icon><Clock /></el-icon>
+                      <span>本周投入时间</span>
+                    </div>
+                    <div style="font-size: 13px; color: #606266; line-height: 1.8;">
+                      <div>开始：{{ formatDateTime(progress.workStartTime) }}</div>
+                      <div>结束：{{ formatDateTime(progress.workEndTime) }}</div>
+                      <div style="font-weight: 600; color: #67c23a;">时长：{{ progress.workHours }} 小时</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -700,6 +739,40 @@
              style="width: 100%"
            />
          </el-form-item>
+         
+         <!-- 新增：本周投入时间记录（可选） -->
+         <el-divider>本周投入时间（可选）</el-divider>
+         
+         <el-form-item label="投入开始时间">
+           <el-date-picker
+             v-model="progressForm.workStartTime"
+             type="datetime"
+             placeholder="选择投入开始时间"
+             value-format="YYYY-MM-DD HH:mm:ss"
+             style="width: 100%"
+             @change="calculateWorkHours"
+           />
+         </el-form-item>
+         
+         <el-form-item label="投入结束时间">
+           <el-date-picker
+             v-model="progressForm.workEndTime"
+             type="datetime"
+             placeholder="选择投入结束时间"
+             value-format="YYYY-MM-DD HH:mm:ss"
+             style="width: 100%"
+             @change="calculateWorkHours"
+           />
+         </el-form-item>
+         
+         <el-form-item label="投入时长" v-if="progressForm.workHours !== null && progressForm.workHours !== undefined">
+           <el-tag size="large" type="success">
+             <el-icon><Clock /></el-icon>
+             {{ progressForm.workHours }} 小时
+           </el-tag>
+         </el-form-item>
+         
+         <el-divider />
          
          <el-form-item label="实际结束时间" prop="actualEndDate" v-if="progressForm.progressPercentage === 100">
            <el-date-picker
@@ -958,7 +1031,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled } from '@element-plus/icons-vue'
+import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled, Clock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress } from '@/api/tasks'
 import { getUsers } from '@/api/users'
@@ -1019,7 +1092,10 @@ const progressForm = ref({
   progressPercentage: 0,
   progressNotes: '',
   actualEndDate: '',
-  actualManDays: null
+  actualManDays: null,
+  workStartTime: null,
+  workEndTime: null,
+  workHours: null
 })
 
 // 进度表单验证规则
@@ -1679,6 +1755,31 @@ const loadChildrenProgressHistory = async (children) => {
   }
 }
 
+// 计算本周投入时长
+const calculateWorkHours = () => {
+  if (progressForm.value.workStartTime && progressForm.value.workEndTime) {
+    const start = new Date(progressForm.value.workStartTime)
+    const end = new Date(progressForm.value.workEndTime)
+    
+    // 验证结束时间必须大于开始时间
+    if (end <= start) {
+      ElMessage.error('结束时间必须大于开始时间')
+      progressForm.value.workEndTime = null
+      progressForm.value.workHours = null
+      return
+    }
+    
+    // 计算时长（小时）
+    const diffMs = end - start
+    const hours = diffMs / (1000 * 60 * 60)
+    progressForm.value.workHours = Math.round(hours * 100) / 100 // 保留两位小数
+    
+    ElMessage.success(`已自动计算投入时长：${progressForm.value.workHours} 小时`)
+  } else {
+    progressForm.value.workHours = null
+  }
+}
+
 const addProgress = async () => {
   try {
     // 验证进度不能小于当前进度
@@ -1718,7 +1819,10 @@ const addProgress = async () => {
       progressPercentage: 0,
       progressNotes: '',
       actualEndDate: '',
-      actualManDays: null
+      actualManDays: null,
+      workStartTime: null,
+      workEndTime: null,
+      workHours: null
     }
   } catch (error) {
     ElMessage.error('进度更新失败')
@@ -1730,6 +1834,10 @@ const addProgress = async () => {
 const showProgressUpdateDialog = () => {
   // 设置当前任务进度作为默认值
   progressForm.value.progressPercentage = selectedTask.value.progressPercentage || 0
+  // 清空投入时间字段
+  progressForm.value.workStartTime = null
+  progressForm.value.workEndTime = null
+  progressForm.value.workHours = null
   showAddProgressDialog.value = true
 }
 
