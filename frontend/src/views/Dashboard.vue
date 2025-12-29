@@ -134,8 +134,8 @@
     </el-row>
       </el-tab-pane>
 
-      <!-- 管理员专用TAB页 -->
-      <el-tab-pane v-if="isAdmin()" label="管理员统计" name="admin">
+      <!-- 管理员和项目经理统计TAB页 -->
+      <el-tab-pane v-if="canViewInactiveUsers()" label="管理统计" name="admin">
         <!-- 未活跃用户统计区域 -->
         <el-row :gutter="20" class="inactive-users-row">
       <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
@@ -970,7 +970,7 @@ const loadDashboardStats = async () => {
 
 // 加载用户任务统计数据
 const loadUserTaskStats = async () => {
-  if (!isAdmin()) return
+  if (!canViewInactiveUsers()) return
   
   loadingTaskStats.value = true
   try {
@@ -1015,7 +1015,7 @@ const resetTaskStatsDateRange = () => {
 
 // 加载用户工时统计数据
 const loadUserWorkHoursStats = async () => {
-  if (!isAdmin()) return
+  if (!canViewInactiveUsers()) return
   
   loadingWorkHours.value = true
   try {
@@ -1120,8 +1120,8 @@ const getWorkloadCardClass = (status) => {
 onMounted(async () => {
   await loadDashboardStats()
   
-  // 只有管理员才加载管理员专用功能
-  if (isAdmin()) {
+  // 管理员和项目经理可以加载统计功能
+  if (canViewInactiveUsers()) {
     loadInactiveUsersStats()
     loadUserTaskStats() // 加载用户任务统计
     loadUserWorkHoursStats() // 加载用户工时统计

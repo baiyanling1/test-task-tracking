@@ -228,10 +228,10 @@ public class DashboardController {
     }
 
     /**
-     * 获取所有用户工作统计数据（仅管理员可访问）
+     * 获取所有用户工作统计数据（管理员和项目经理可访问）
      */
     @GetMapping("/users-work-stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> getUsersWorkStats() {
         try {
             List<UserWorkStatsDto> userStats = dashboardService.getAllUsersWorkStats();
@@ -243,10 +243,10 @@ public class DashboardController {
     }
 
     /**
-     * 获取用户任务统计数据（支持时间范围筛选）
+     * 获取用户任务统计数据（支持时间范围筛选，管理员和项目经理可访问）
      */
     @GetMapping("/user-task-stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> getUserTaskStats(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
