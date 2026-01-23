@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -94,6 +95,20 @@ public class TaskProgressService {
         progress.setActualEndDate(progressDto.getActualEndDate());
         progress.setActualManDays(progressDto.getActualManDays());
         progress.setUpdateTime(LocalDateTime.now());
+        
+        // 新增：处理本周投入时间（可选）
+        if (progressDto.getWorkStartTime() != null && progressDto.getWorkEndTime() != null) {
+            progress.setWorkStartTime(progressDto.getWorkStartTime());
+            progress.setWorkEndTime(progressDto.getWorkEndTime());
+            
+            // 自动计算工时（小时）
+            Duration duration = Duration.between(progressDto.getWorkStartTime(), progressDto.getWorkEndTime());
+            double hours = duration.toMinutes() / 60.0;
+            progress.setWorkHours(Math.round(hours * 100.0) / 100.0); // 保留两位小数
+            
+            log.info("本周投入时间 - 开始: {}, 结束: {}, 投入: {}小时", 
+                    progressDto.getWorkStartTime(), progressDto.getWorkEndTime(), progress.getWorkHours());
+        }
 
         TaskProgress savedProgress = taskProgressRepository.save(progress);
         log.info("进度历史保存成功 - progressId: {}", savedProgress.getId());

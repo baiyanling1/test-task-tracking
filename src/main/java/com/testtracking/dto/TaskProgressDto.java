@@ -41,6 +41,15 @@ public class TaskProgressDto {
     
     // 实际工时（可选）
     private Double actualManDays;
+    
+    // 新增：本周投入时间记录（可选）
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
+    private LocalDateTime workStartTime;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
+    private LocalDateTime workEndTime;
+    
+    private Double workHours;
 
     // 从实体转换为DTO
     public static TaskProgressDto fromEntity(TaskProgress progress) {
@@ -57,6 +66,9 @@ public class TaskProgressDto {
         dto.setCreatedTime(progress.getCreatedTime());
         dto.setActualEndDate(progress.getActualEndDate());
         dto.setActualManDays(progress.getActualManDays());
+        dto.setWorkStartTime(progress.getWorkStartTime());
+        dto.setWorkEndTime(progress.getWorkEndTime());
+        dto.setWorkHours(progress.getWorkHours());
         return dto;
     }
 } 
