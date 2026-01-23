@@ -1,6 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-box">
+      <!-- 现有登录表单代码 -->
       <div class="login-header">
         <h1>测试任务跟踪系统</h1>
         <p>请登录您的账户</p>
@@ -48,13 +49,35 @@
       </el-form>
     </div>
 
-    <!-- 登录成功提示组件 -->
+    <!-- ========== 登录成功提示组件 - 请选择其中一个 ========== -->
+    
+    <!-- 方案一：经典烟花 -->
     <ClassicFireworks 
       v-if="showSuccess"
       :visible="showSuccess"
       :username="loginForm.username || '用户'"
       @close="handleSuccessClose"
     />
+    
+    <!-- 方案二：粒子爆炸（注释掉方案一后取消注释） -->
+    <!--
+    <ParticleExplosion 
+      v-if="showSuccess"
+      :visible="showSuccess"
+      :username="loginForm.username || '用户'"
+      @close="handleSuccessClose"
+    />
+    -->
+    
+    <!-- 方案三：星星闪烁（注释掉方案一后取消注释） -->
+    <!--
+    <StarSparkle 
+      v-if="showSuccess"
+      :visible="showSuccess"
+      :username="loginForm.username || '用户'"
+      @close="handleSuccessClose"
+    />
+    -->
   </div>
 </template>
 
@@ -63,14 +86,18 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
+
+// ========== 导入登录成功提示组件 - 请选择其中一个 ==========
 import ClassicFireworks from '@/components/LoginSuccess/ClassicFireworks.vue'
+// import ParticleExplosion from '@/components/LoginSuccess/ParticleExplosion.vue'
+// import StarSparkle from '@/components/LoginSuccess/StarSparkle.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const loginFormRef = ref()
 const loading = ref(false)
-const showSuccess = ref(false)
+const showSuccess = ref(false) // 控制成功提示显示
 
 const loginForm = reactive({
   username: '',
@@ -96,11 +123,10 @@ const handleLogin = async () => {
     
     await authStore.login(loginForm)
     
-    // 显示登录成功提示动画
-    console.log('[Login] Login successful, showing fireworks...')
+    // 显示成功提示（移除原来的 ElMessage.success）
     showSuccess.value = true
-    console.log('[Login] showSuccess set to:', showSuccess.value)
     // 注意：不要立即跳转，等动画结束后再跳转
+    
   } catch (error) {
     console.error('登录失败:', error)
     if (error.response?.status === 400) {
@@ -115,16 +141,15 @@ const handleLogin = async () => {
   }
 }
 
-// 成功提示关闭后跳转到首页
+// 成功提示关闭后跳转
 const handleSuccessClose = () => {
-  console.log('[Login] handleSuccessClose called')
   showSuccess.value = false
-  console.log('[Login] Navigating to home...')
   router.push('/')
 }
 </script>
 
 <style scoped>
+/* 保持原有的登录页面样式 */
 .login-container {
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -167,4 +192,4 @@ const handleSuccessClose = () => {
   height: 44px;
   font-size: 16px;
 }
-</style> 
+</style>
