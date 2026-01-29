@@ -1,5 +1,13 @@
 <template>
   <div class="dashboard">
+    <!-- 登录成功动画 -->
+    <ClassicFireworks 
+      v-if="showFireworks"
+      :visible="showFireworks"
+      :username="fireworksUsername"
+      @close="handleFireworksClose"
+    />
+    
     <!-- TAB页导航 -->
     <el-tabs v-model="activeTab" class="dashboard-tabs">
       <!-- 主仪表板TAB -->
@@ -530,10 +538,18 @@ import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import ClassicFireworks from '@/components/LoginSuccess/ClassicFireworks.vue'
 // import { getUsersWorkStats } from '@/api/userStats' // 已屏蔽
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const route = useRoute()
+const router = useRouter()
+
+// 登录成功动画相关
+const showFireworks = ref(false)
+const fireworksUsername = ref('用户')
 
 // 获取当前主题的图表配色
 const getChartColors = computed(() => {
@@ -1116,8 +1132,21 @@ const getWorkloadCardClass = (status) => {
 }
 */
 
+// 处理动画关闭
+const handleFireworksClose = () => {
+  showFireworks.value = false
+  // 清除路由参数
+  router.replace({ path: route.path, query: {} })
+}
+
 // 页面挂载时加载数据
 onMounted(async () => {
+  // 检查是否需要显示登录成功动画
+  if (route.query.showFireworks === 'true') {
+    fireworksUsername.value = route.query.username || authStore.user?.realName || authStore.user?.username || '用户'
+    showFireworks.value = true
+  }
+  
   await loadDashboardStats()
   
   // 管理员和项目经理可以加载统计功能

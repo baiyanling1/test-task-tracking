@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -482,6 +481,9 @@ public class TestTaskService {
                 case PLANNED:
                     userStat.put("planned", count);
                     break;
+                case CANCELLED:
+                    userStat.put("cancelled", count);
+                    break;
             }
         }
         
@@ -608,28 +610,31 @@ public class TestTaskService {
                     updatedCount++;
                 }
                 
-                // 收集所有超时且状态为"计划中"或"进行中"的任务（每天都通知）
+                // 收集所有超时且状态为"计划中"或"进行中"的任务（超时7天及以上才通知）
                 // 排除：已完成、暂停、取消的任务
-                if (task.getIsOverdue() && 
+                // 由于任务每周五更新，超时7天（超过一个完整更新周期）才需要通知
+                if (task.getIsOverdue() != null && task.getIsOverdue() &&
+                    task.getOverdueDays() != null && task.getOverdueDays() >= 7 &&
                     (task.getStatus() == TestTask.TaskStatus.PLANNED || 
                      task.getStatus() == TestTask.TaskStatus.IN_PROGRESS)) {
                     allOverdueTasks.add(task);
                 }
             }
             
-            // 发送合并通知（每天通知所有超时未完成的任务）
+            // 发送合并通知（只通知超时7天及以上的未完成任务）
+            // 由于任务每周五更新，超时7天（超过一个完整更新周期）才需要通知
             if (!allOverdueTasks.isEmpty()) {
                 try {
                     notificationService.sendBatchOverdueNotification(allOverdueTasks);
-                    log.info("已发送合并超时通知，包含 {} 个未完成的超时任务", allOverdueTasks.size());
+                    log.info("已发送合并超时通知，包含 {} 个超时7天及以上的未完成任务", allOverdueTasks.size());
                 } catch (Exception e) {
                     log.error("发送合并超时通知失败: {}", e.getMessage());
                 }
             } else {
-                log.info("没有超时未完成的任务需要通知");
+                log.info("没有超时7天及以上的未完成任务需要通知");
             }
             
-            log.info("超时任务检查完成，更新了 {} 个任务，当前超时未完成 {} 个", updatedCount, allOverdueTasks.size());
+            log.info("超时任务检查完成，更新了 {} 个任务，当前超时7天及以上未完成 {} 个", updatedCount, allOverdueTasks.size());
             
             // 更新定时任务执行记录
             updateScheduledTaskExecution("checkOverdueTasks", executeTime, "SUCCESS", null);

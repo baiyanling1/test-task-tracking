@@ -1,12 +1,16 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 
 // 创建axios实例
 const request = axios.create({
   baseURL: '/api',
   timeout: 10000
 })
+
+// 防止重复显示401错误提示
+let isRedirectingToLogin = false
 
 // 请求拦截器
 request.interceptors.request.use(
@@ -33,10 +37,24 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
-          ElMessage.error('登录已过期，请重新登录')
-          const authStore = useAuthStore()
-          authStore.logout()
-          window.location.href = '/login'
+          // 检查是否已经在登录页面，如果是则不显示错误提示
+          const currentPath = router.currentRoute.value?.path || window.location.pathname
+          if (currentPath !== '/login' && !isRedirectingToLogin) {
+            isRedirectingToLogin = true
+            ElMessage.error('登录已过期，请重新登录')
+            const authStore = useAuthStore()
+            authStore.logout()
+            router.push('/login').finally(() => {
+              // 延迟重置标志，避免快速跳转时的问题
+              setTimeout(() => {
+                isRedirectingToLogin = false
+              }, 1000)
+            })
+          } else if (currentPath === '/login') {
+            // 如果已经在登录页，只清除token，不显示错误提示
+            const authStore = useAuthStore()
+            authStore.logout()
+          }
           break
         case 403:
           // 检查是否在登录页面，如果是则不显示错误消息

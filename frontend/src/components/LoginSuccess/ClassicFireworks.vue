@@ -223,19 +223,8 @@ const animate = () => {
   const canvas = canvasRef.value
   const ctx = canvas.getContext('2d')
   
-  // 清除画布（保留拖尾效果，但更淡以便看到更多烟花）
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  
-  // 在中心文字区域绘制半透明遮罩，让文字更清晰
-  const centerX = canvas.width / 2
-  const centerY = canvas.height / 2
-  const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 250)
-  gradient.addColorStop(0, 'rgba(0, 0, 0, 0.4)')
-  gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.2)')
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = gradient
-  ctx.fillRect(centerX - 300, centerY - 200, 600, 400)
+  // 完全清除画布，保持透明背景
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
   
   // 更新和绘制烟花
   for (let i = fireworks.length - 1; i >= 0; i--) {
@@ -477,7 +466,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -549,11 +538,9 @@ onUnmounted(() => {
   text-align: center;
   animation: slideUp 0.8s ease-out;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.3);
+  background: transparent;
   padding: 40px 60px;
   border-radius: 20px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes slideUp {
@@ -571,21 +558,21 @@ onUnmounted(() => {
   font-size: 72px;
   font-weight: 900;
   margin: 0 0 30px 0;
-  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 25%, #FFD93D 50%, #6BCB77 75%, #4ECDC4 100%);
+  background: linear-gradient(135deg, #FFD700 0%, #FF6B9D 50%, #9D50BB 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: titleGlow 2s ease-in-out infinite, titleScale 0.8s ease-out 0.3s both;
   letter-spacing: 4px;
-  filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.8));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
 }
 
 @keyframes titleGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 40px rgba(255, 142, 83, 0.6));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
   }
   50% {
-    filter: drop-shadow(0 0 30px rgba(255, 107, 107, 1)) drop-shadow(0 0 60px rgba(255, 142, 83, 0.8));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.8));
   }
 }
 
@@ -608,11 +595,7 @@ onUnmounted(() => {
   font-weight: 700;
   margin: 0 0 20px 0;
   color: #FFD700;
-  text-shadow: 
-    0 0 10px rgba(255, 215, 0, 0.8),
-    0 0 20px rgba(255, 215, 0, 0.6),
-    0 0 30px rgba(255, 215, 0, 0.4),
-    2px 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 215, 0, 0.6);
   animation: encouragementPulse 1.5s ease-in-out infinite, fadeInUp 0.8s ease-out 0.5s both;
   letter-spacing: 2px;
 }
@@ -642,17 +625,16 @@ onUnmounted(() => {
 .welcome-text {
   font-size: 24px;
   margin: 0 0 15px 0;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 
-    0 0 10px rgba(255, 255, 255, 0.5),
-    1px 1px 2px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 255, 255, 0.5);
   animation: fadeInUp 0.8s ease-out 0.7s both;
 }
 
 .hint-text {
   font-size: 16px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   animation: fadeInUp 0.8s ease-out 0.9s both;
 }
 
