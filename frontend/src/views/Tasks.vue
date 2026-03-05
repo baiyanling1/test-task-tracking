@@ -392,7 +392,7 @@
           />
         </el-form-item>
         <el-form-item label="预计工时(人/天)" prop="manDays">
-          <div class="man-days-input-group">
+          <div class="man-days-input-group" data-field="manDays">
             <el-input-number
               v-model="taskForm.manDays"
               :min="0.1"
@@ -400,19 +400,26 @@
               placeholder="请输入或点击计算"
               style="width: calc(100% - 80px)"
               :disabled="editingTask && !isAdmin()"
+              :class="{ 'calculated-value': isManDaysCalculated }"
+              @change="isManDaysCalculated = false"
             />
             <el-button
               type="primary"
               size="small"
               :disabled="!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount || (editingTask && !isAdmin())"
-              @click="calculateManDaysManually"
+              @click="showManDaysCalculationDialog"
               style="margin-left: 8px; width: 72px;"
             >
               计算
             </el-button>
           </div>
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-            * 点击"计算"按钮根据时间区间和参与人数自动计算，也可手动输入
+            <el-icon><InfoFilled /></el-icon>
+            点击"计算"按钮根据时间区间和参与人数自动计算，<span style="color: #e6a23c; font-weight: bold;">请仔细核对后再使用</span>
+          </div>
+          <div v-if="isManDaysCalculated" style="font-size: 12px; color: #67c23a; margin-top: 5px;">
+            <el-icon><CircleCheck /></el-icon>
+            已使用自动计算值，如不准确请手动调整
           </div>
         </el-form-item>
         
@@ -449,7 +456,7 @@
           />
         </el-form-item>
         <el-form-item label="实际工时(人/天)" prop="actualManDays" v-if="taskForm.status === 'COMPLETED' || taskForm.actualEndDate">
-          <div class="man-days-input-group">
+          <div class="man-days-input-group" data-field="actualManDays">
             <el-input-number
               v-model="taskForm.actualManDays"
               :min="0.1"
@@ -458,19 +465,30 @@
               placeholder="请输入或点击计算"
               style="width: calc(100% - 80px)"
               @change="onActualManDaysChange"
+              :class="{ 'calculated-value': isActualManDaysCalculated }"
             />
             <el-button
               type="primary"
               size="small"
               :disabled="!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount"
-              @click="calculateActualManDaysManually"
+              @click="showActualManDaysCalculationDialog"
               style="margin-left: 8px; width: 72px;"
             >
               计算
             </el-button>
           </div>
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-            * 点击"计算"按钮根据开始时间和实际结束时间自动计算，也可手动输入
+            <el-icon><InfoFilled /></el-icon>
+            点击"计算"按钮根据开始时间和实际结束时间自动计算，<span style="color: #e6a23c; font-weight: bold;">请仔细核对后再使用</span>
+          </div>
+          <div v-if="isActualManDaysCalculated" style="font-size: 12px; color: #67c23a; margin-top: 5px;">
+            <el-icon><CircleCheck /></el-icon>
+            已使用自动计算值，如不准确请手动调整
+          </div>
+          <div v-if="taskForm.manDays && taskForm.actualManDays && Math.abs(taskForm.actualManDays - taskForm.manDays) > taskForm.manDays * 0.3" 
+               style="font-size: 12px; color: #f56c6c; margin-top: 5px;">
+            <el-icon><WarningFilled /></el-icon>
+            实际工时与预计工时偏差超过30%（{{ ((Math.abs(taskForm.actualManDays - taskForm.manDays) / taskForm.manDays * 100).toFixed(0)) }}%），请检查是否正确
           </div>
         </el-form-item>
                  <el-form-item label="状态" prop="status">
@@ -786,7 +804,7 @@
          </el-form-item>
          
          <el-form-item label="实际工时(人天)" prop="actualManDays" v-if="progressForm.progressPercentage === 100">
-           <div class="man-days-input-group">
+           <div class="man-days-input-group" data-field="progressActualManDays">
              <el-input-number
                v-model="progressForm.actualManDays"
                :min="0"
@@ -794,18 +812,30 @@
                :step="0.5"
                placeholder="请输入实际工时（必填）"
                style="flex: 1;"
+               :class="{ 'calculated-value': isProgressManDaysCalculated }"
+               @change="isProgressManDaysCalculated = false"
              />
              <el-button 
                type="primary" 
                size="small"
-               @click="calculateProgressActualManDaysManually"
+               @click="showProgressActualManDaysDialog"
                style="margin-left: 8px;"
              >
                计算
              </el-button>
            </div>
            <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-             * 点击"计算"按钮根据开始时间和实际结束时间自动计算，也可手动输入
+             <el-icon><InfoFilled /></el-icon>
+             点击"计算"按钮根据开始时间和实际结束时间自动计算，<span style="color: #e6a23c; font-weight: bold;">请仔细核对后再使用</span>
+           </div>
+           <div v-if="isProgressManDaysCalculated" style="font-size: 12px; color: #67c23a; margin-top: 5px;">
+             <el-icon><CircleCheck /></el-icon>
+             已使用自动计算值，如不准确请手动调整
+           </div>
+           <div v-if="selectedTask?.manDays && progressForm.actualManDays && Math.abs(progressForm.actualManDays - selectedTask.manDays) > selectedTask.manDays * 0.3" 
+                style="font-size: 12px; color: #f56c6c; margin-top: 5px;">
+             <el-icon><WarningFilled /></el-icon>
+             实际工时与预计工时偏差超过30%（{{ ((Math.abs(progressForm.actualManDays - selectedTask.manDays) / selectedTask.manDays * 100).toFixed(0)) }}%），请检查是否正确
            </div>
          </el-form-item>
       </el-form>
@@ -1025,13 +1055,365 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 预计工时计算确认对话框 -->
+    <el-dialog
+      v-model="showManDaysConfirmDialog"
+      title="预计工时自动计算"
+      width="550px"
+      :close-on-click-modal="false"
+    >
+      <div class="calculation-dialog">
+        <el-alert
+          title="请仔细检查计算结果"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 20px;"
+        >
+          <template #default>
+            <div><strong>自动计算仅供参考，请根据实际情况调整</strong></div>
+            <div style="margin-top: 8px; font-size: 13px; line-height: 1.6;">
+              计算公式：<code style="background: #f5f7fa; padding: 2px 6px; border-radius: 3px;">工作日数 × 参与人数 = 工时</code><br/>
+              <span style="color: #e6a23c;">⚠️ 未考虑：任务复杂度、人员投入比例、会议培训等因素</span>
+            </div>
+          </template>
+        </el-alert>
+        
+        <el-descriptions :column="1" border size="default">
+          <el-descriptions-item label="开始时间" label-class-name="desc-label">
+            <strong>{{ formatDate(taskForm.startDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="预计结束时间" label-class-name="desc-label">
+            <strong>{{ formatDate(taskForm.expectedEndDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="时间跨度" label-class-name="desc-label">
+            {{ calculationDetails.totalDays }} 天
+            <el-tag size="small" type="info" style="margin-left: 8px;">已排除 {{ calculationDetails.weekends }} 个周末</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="工作日数" label-class-name="desc-label">
+            <el-tag type="primary" size="large" style="font-size: 15px;">{{ calculationDetails.workDays }} 天</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="参与人数" label-class-name="desc-label">
+            <strong>{{ taskForm.participantCount }}</strong> 人
+          </el-descriptions-item>
+          <el-descriptions-item label="计算结果" label-class-name="desc-label">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <el-tag type="success" size="large" class="result-tag">
+                <span style="font-size: 18px; font-weight: bold;">{{ calculationDetails.calculatedManDays }} 人天</span>
+              </el-tag>
+              <span style="color: #909399; font-size: 13px;">
+                ({{ calculationDetails.workDays }} × {{ taskForm.participantCount }})
+              </span>
+            </div>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <!-- 智能警告提示 -->
+        <div v-if="calculationDetails.warnings.length > 0" style="margin-top: 15px;">
+          <el-alert
+            v-for="(warning, index) in calculationDetails.warnings"
+            :key="index"
+            :title="warning.title"
+            :type="warning.type"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 10px;"
+          >
+            <template #default>
+              <div style="font-size: 13px;">{{ warning.message }}</div>
+            </template>
+          </el-alert>
+        </div>
+        
+        <!-- 手动调整区域 -->
+        <div style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%); border-radius: 8px; border: 1px solid #dcdfe6;">
+          <div style="margin-bottom: 12px; color: #606266; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <el-icon style="color: #409eff;"><Edit /></el-icon>
+            如计算结果不准确，可手动调整：
+          </div>
+          <el-input-number
+            v-model="adjustedManDays"
+            :min="0.1"
+            :precision="1"
+            :step="0.5"
+            controls-position="right"
+            style="width: 100%;"
+          />
+          <div style="margin-top: 10px; font-size: 12px; color: #909399; line-height: 1.5;">
+            💡 <strong>建议考虑因素：</strong><br/>
+            • 任务实际复杂度（简单/中等/复杂）<br/>
+            • 人员投入比例（是否全职投入）<br/>
+            • 会议、培训、突发事项等
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showManDaysConfirmDialog = false" size="default">
+            <el-icon><Close /></el-icon>
+            取消
+          </el-button>
+          <el-button type="primary" @click="confirmManDaysCalculation" size="default">
+            <el-icon><Check /></el-icon>
+            确认使用
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 实际工时计算确认对话框 -->
+    <el-dialog
+      v-model="showActualManDaysConfirmDialog"
+      title="实际工时自动计算"
+      width="550px"
+      :close-on-click-modal="false"
+    >
+      <div class="calculation-dialog">
+        <el-alert
+          title="请仔细检查计算结果"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 20px;"
+        >
+          <template #default>
+            <div><strong>自动计算仅供参考，请根据实际工作时长调整</strong></div>
+            <div style="margin-top: 8px; font-size: 13px; line-height: 1.6;">
+              计算公式：<code style="background: #f5f7fa; padding: 2px 6px; border-radius: 3px;">实际工作日数 × 参与人数 = 实际工时</code><br/>
+              <span style="color: #e6a23c;">⚠️ 未考虑：加班时间、请假天数、实际投入比例等因素</span>
+            </div>
+          </template>
+        </el-alert>
+        
+        <el-descriptions :column="1" border size="default">
+          <el-descriptions-item label="开始时间" label-class-name="desc-label">
+            <strong>{{ formatDate(taskForm.startDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="实际结束时间" label-class-name="desc-label">
+            <strong>{{ formatDate(taskForm.actualEndDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="时间跨度" label-class-name="desc-label">
+            {{ actualCalculationDetails.totalDays }} 天
+            <el-tag size="small" type="info" style="margin-left: 8px;">已排除 {{ actualCalculationDetails.weekends }} 个周末</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="实际工作日数" label-class-name="desc-label">
+            <el-tag type="primary" size="large" style="font-size: 15px;">{{ actualCalculationDetails.workDays }} 天</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="参与人数" label-class-name="desc-label">
+            <strong>{{ taskForm.participantCount }}</strong> 人
+          </el-descriptions-item>
+          <el-descriptions-item label="预计工时" label-class-name="desc-label">
+            {{ taskForm.manDays ? taskForm.manDays + ' 人天' : '未设置' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="计算结果" label-class-name="desc-label">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <el-tag type="success" size="large" class="result-tag">
+                <span style="font-size: 18px; font-weight: bold;">{{ actualCalculationDetails.calculatedManDays }} 人天</span>
+              </el-tag>
+              <span style="color: #909399; font-size: 13px;">
+                ({{ actualCalculationDetails.workDays }} × {{ taskForm.participantCount }})
+              </span>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="与预计对比" label-class-name="desc-label" v-if="taskForm.manDays">
+            <el-tag 
+              :type="Math.abs(actualCalculationDetails.calculatedManDays - taskForm.manDays) <= taskForm.manDays * 0.1 ? 'success' : 
+                     Math.abs(actualCalculationDetails.calculatedManDays - taskForm.manDays) <= taskForm.manDays * 0.3 ? 'warning' : 'danger'"
+              size="large"
+            >
+              {{ actualCalculationDetails.calculatedManDays > taskForm.manDays ? '超出' : '节省' }}
+              {{ Math.abs(actualCalculationDetails.calculatedManDays - taskForm.manDays).toFixed(1) }} 人天
+              ({{ ((Math.abs(actualCalculationDetails.calculatedManDays - taskForm.manDays) / taskForm.manDays * 100).toFixed(0)) }}%)
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <!-- 智能警告提示 -->
+        <div v-if="actualCalculationDetails.warnings.length > 0" style="margin-top: 15px;">
+          <el-alert
+            v-for="(warning, index) in actualCalculationDetails.warnings"
+            :key="index"
+            :title="warning.title"
+            :type="warning.type"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 10px;"
+          >
+            <template #default>
+              <div style="font-size: 13px;">{{ warning.message }}</div>
+            </template>
+          </el-alert>
+        </div>
+        
+        <!-- 手动调整区域 -->
+        <div style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%); border-radius: 8px; border: 1px solid #dcdfe6;">
+          <div style="margin-bottom: 12px; color: #606266; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <el-icon style="color: #409eff;"><Edit /></el-icon>
+            如计算结果不准确，可手动调整：
+          </div>
+          <el-input-number
+            v-model="adjustedActualManDays"
+            :min="0.1"
+            :precision="1"
+            :step="0.5"
+            controls-position="right"
+            style="width: 100%;"
+          />
+          <div style="margin-top: 10px; font-size: 12px; color: #909399; line-height: 1.5;">
+            💡 <strong>建议考虑因素：</strong><br/>
+            • 实际加班情况<br/>
+            • 请假、培训等占用时间<br/>
+            • 实际投入比例和工作效率
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showActualManDaysConfirmDialog = false" size="default">
+            <el-icon><Close /></el-icon>
+            取消
+          </el-button>
+          <el-button type="primary" @click="confirmActualManDaysCalculation" size="default">
+            <el-icon><Check /></el-icon>
+            确认使用
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 进度更新-实际工时计算确认对话框 -->
+    <el-dialog
+      v-model="showProgressManDaysConfirmDialog"
+      title="实际工时自动计算（进度更新）"
+      width="550px"
+      :close-on-click-modal="false"
+    >
+      <div class="calculation-dialog">
+        <el-alert
+          title="请仔细检查计算结果"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 20px;"
+        >
+          <template #default>
+            <div><strong>自动计算仅供参考，请根据实际工作时长调整</strong></div>
+            <div style="margin-top: 8px; font-size: 13px; line-height: 1.6;">
+              计算公式：<code style="background: #f5f7fa; padding: 2px 6px; border-radius: 3px;">实际工作日数 × 参与人数 = 实际工时</code><br/>
+              <span style="color: #e6a23c;">⚠️ 未考虑：加班时间、请假天数、实际投入比例等因素</span>
+            </div>
+          </template>
+        </el-alert>
+        
+        <el-descriptions :column="1" border size="default">
+          <el-descriptions-item label="任务名称" label-class-name="desc-label">
+            <strong>{{ selectedTask?.taskName }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="开始时间" label-class-name="desc-label">
+            <strong>{{ formatDate(selectedTask?.startDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="实际结束时间" label-class-name="desc-label">
+            <strong>{{ formatDate(progressForm.actualEndDate) }}</strong>
+          </el-descriptions-item>
+          <el-descriptions-item label="时间跨度" label-class-name="desc-label">
+            {{ progressCalculationDetails.totalDays }} 天
+            <el-tag size="small" type="info" style="margin-left: 8px;">已排除 {{ progressCalculationDetails.weekends }} 个周末</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="实际工作日数" label-class-name="desc-label">
+            <el-tag type="primary" size="large" style="font-size: 15px;">{{ progressCalculationDetails.workDays }} 天</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="参与人数" label-class-name="desc-label">
+            <strong>{{ selectedTask?.participantCount || 1 }}</strong> 人
+          </el-descriptions-item>
+          <el-descriptions-item label="预计工时" label-class-name="desc-label">
+            {{ selectedTask?.manDays ? selectedTask.manDays + ' 人天' : '未设置' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="计算结果" label-class-name="desc-label">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <el-tag type="success" size="large" class="result-tag">
+                <span style="font-size: 18px; font-weight: bold;">{{ progressCalculationDetails.calculatedManDays }} 人天</span>
+              </el-tag>
+              <span style="color: #909399; font-size: 13px;">
+                ({{ progressCalculationDetails.workDays }} × {{ selectedTask?.participantCount || 1 }})
+              </span>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="与预计对比" label-class-name="desc-label" v-if="selectedTask?.manDays">
+            <el-tag 
+              :type="Math.abs(progressCalculationDetails.calculatedManDays - selectedTask.manDays) <= selectedTask.manDays * 0.1 ? 'success' : 
+                     Math.abs(progressCalculationDetails.calculatedManDays - selectedTask.manDays) <= selectedTask.manDays * 0.3 ? 'warning' : 'danger'"
+              size="large"
+            >
+              {{ progressCalculationDetails.calculatedManDays > selectedTask.manDays ? '超出' : '节省' }}
+              {{ Math.abs(progressCalculationDetails.calculatedManDays - selectedTask.manDays).toFixed(1) }} 人天
+              ({{ ((Math.abs(progressCalculationDetails.calculatedManDays - selectedTask.manDays) / selectedTask.manDays * 100).toFixed(0)) }}%)
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <!-- 智能警告提示 -->
+        <div v-if="progressCalculationDetails.warnings.length > 0" style="margin-top: 15px;">
+          <el-alert
+            v-for="(warning, index) in progressCalculationDetails.warnings"
+            :key="index"
+            :title="warning.title"
+            :type="warning.type"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 10px;"
+          >
+            <template #default>
+              <div style="font-size: 13px;">{{ warning.message }}</div>
+            </template>
+          </el-alert>
+        </div>
+        
+        <!-- 手动调整区域 -->
+        <div style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%); border-radius: 8px; border: 1px solid #dcdfe6;">
+          <div style="margin-bottom: 12px; color: #606266; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+            <el-icon style="color: #409eff;"><Edit /></el-icon>
+            如计算结果不准确，可手动调整：
+          </div>
+          <el-input-number
+            v-model="adjustedProgressManDays"
+            :min="0.1"
+            :precision="1"
+            :step="0.5"
+            controls-position="right"
+            style="width: 100%;"
+          />
+          <div style="margin-top: 10px; font-size: 12px; color: #909399; line-height: 1.5;">
+            💡 <strong>建议考虑因素：</strong><br/>
+            • 实际加班情况<br/>
+            • 请假、培训等占用时间<br/>
+            • 实际投入比例和工作效率
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showProgressManDaysConfirmDialog = false" size="default">
+            <el-icon><Close /></el-icon>
+            取消
+          </el-button>
+          <el-button type="primary" @click="confirmProgressManDaysCalculation" size="default">
+            <el-icon><Check /></el-icon>
+            确认使用
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled, Clock } from '@element-plus/icons-vue'
+import { Plus, Search, QuestionFilled, InfoFilled, WarningFilled, Clock, CircleCheck, Edit, Check, Close } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getTasks, createTask, updateTask, deleteTask as deleteTaskApi, getTaskProgress, addTaskProgress } from '@/api/tasks'
 import { getUsers } from '@/api/users'
@@ -1086,6 +1468,38 @@ const activeTab = ref('basic')
 const progressHistory = ref([])
 const childrenProgressHistory = ref([]) // 子需求的进度历史
 const activeHelpItems = ref(['dates']) // 默认展开第一个帮助项
+
+// 工时计算改进 - 新增状态
+const showManDaysConfirmDialog = ref(false)
+const showActualManDaysConfirmDialog = ref(false)
+const showProgressManDaysConfirmDialog = ref(false) // 进度更新的工时计算对话框
+const isManDaysCalculated = ref(false)
+const isActualManDaysCalculated = ref(false)
+const isProgressManDaysCalculated = ref(false) // 进度更新的工时是否已计算
+const adjustedManDays = ref(0)
+const adjustedActualManDays = ref(0)
+const adjustedProgressManDays = ref(0) // 进度更新的调整工时
+const calculationDetails = ref({
+  totalDays: 0,
+  weekends: 0,
+  workDays: 0,
+  calculatedManDays: 0,
+  warnings: []
+})
+const actualCalculationDetails = ref({
+  totalDays: 0,
+  weekends: 0,
+  workDays: 0,
+  calculatedManDays: 0,
+  warnings: []
+})
+const progressCalculationDetails = ref({ // 进度更新的计算详情
+  totalDays: 0,
+  weekends: 0,
+  workDays: 0,
+  calculatedManDays: 0,
+  warnings: []
+})
 
 // 进度表单
 const progressForm = ref({
@@ -1520,6 +1934,9 @@ const handleDialogClose = () => {
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
+  // 重置工时计算标记
+  isManDaysCalculated.value = false
+  isActualManDaysCalculated.value = false
 }
 
 const editTask = (task) => {
@@ -1855,48 +2272,129 @@ const calculateProgressActualManDays = () => {
   }
 }
 
-// 手动计算进度表单的实际工时
-const calculateProgressActualManDaysManually = () => {
-  if (!selectedTask.value) {
-    ElMessage.warning('请先选择任务');
-    return;
+// 显示进度更新的实际工时计算对话框
+const showProgressActualManDaysDialog = () => {
+  if (!selectedTask.value || !selectedTask.value.startDate || !progressForm.value.actualEndDate) {
+    ElMessage.warning('请先选择实际结束时间')
+    return
   }
+
+  const start = new Date(selectedTask.value.startDate)
+  const end = new Date(progressForm.value.actualEndDate)
   
-  if (progressForm.value.progressPercentage !== 100) {
-    ElMessage.warning('只有进度为100%时才需要计算实际工时');
-    return;
-  }
-  
-  const startDate = selectedTask.value.startDate
-  const actualEndDate = progressForm.value.actualEndDate
-  
-  if (!startDate || !actualEndDate) {
-    ElMessage.warning('请先选择实际结束时间');
-    return;
-  }
-  
-  const start = new Date(startDate);
-  const end = new Date(actualEndDate);
-  
-  // 验证日期的合理性
   if (start > end) {
-    ElMessage.error('开始时间不能晚于实际结束时间');
-    return;
+    ElMessage.error('开始时间不能晚于实际结束时间')
+    return
   }
-  
-  // 计算工作日数，如果开始时间等于结束时间，按1天计算
-  let workDays;
+
+  // 计算详细信息
+  let workDays
   if (start.getTime() === end.getTime()) {
-    workDays = 1; // 同一天按1个工作日计算
+    workDays = 1
   } else {
-    workDays = calculateWorkDays(start, end);
+    workDays = calculateWorkDays(start, end)
   }
   
-  const participantCount = selectedTask.value.participantCount || 1;
-  const calculatedActualManDays = parseFloat((workDays * participantCount).toFixed(1));
-  progressForm.value.actualManDays = calculatedActualManDays;
+  const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+  const weekends = totalDays - workDays
+  const participantCount = selectedTask.value.participantCount || 1
+  const calculatedManDays = parseFloat((workDays * participantCount).toFixed(1))
   
-  ElMessage.success(`已计算实际工时：${calculatedActualManDays} 人天（${workDays} 工作日 × ${participantCount} 人）`);
+  // 智能检测异常值并生成警告
+  const warnings = []
+  
+  // 1. 与预计工时对比
+  if (selectedTask.value.manDays) {
+    const deviation = Math.abs(calculatedManDays - selectedTask.value.manDays)
+    const deviationPercent = (deviation / selectedTask.value.manDays * 100).toFixed(0)
+    
+    if (deviation > selectedTask.value.manDays * 0.5) {
+      warnings.push({
+        title: '偏差过大',
+        type: 'error',
+        message: `实际工时与预计工时偏差 ${deviationPercent}%（${calculatedManDays > selectedTask.value.manDays ? '超出' : '节省'} ${deviation.toFixed(1)} 人天），请仔细检查是否正确。`
+      })
+    } else if (deviation > selectedTask.value.manDays * 0.3) {
+      warnings.push({
+        title: '偏差较大',
+        type: 'warning',
+        message: `实际工时与预计工时偏差 ${deviationPercent}%，建议确认数据是否准确。`
+      })
+    } else if (deviation <= selectedTask.value.manDays * 0.1) {
+      warnings.push({
+        title: '估算准确',
+        type: 'success',
+        message: `实际工时与预计工时偏差仅 ${deviationPercent}%，估算非常准确！`
+      })
+    }
+  }
+  
+  // 2. 检查是否过大
+  if (calculatedManDays > 50) {
+    warnings.push({
+      title: '实际工时过大',
+      type: 'warning',
+      message: `实际工时为 ${calculatedManDays} 人天，请确认时间范围和参与人数是否正确。`
+    })
+  }
+  // 3. 检查是否过小
+  else if (calculatedManDays < 0.5) {
+    warnings.push({
+      title: '实际工时较小',
+      type: 'info',
+      message: `实际工时为 ${calculatedManDays} 人天，建议最少设置 0.5 人天。`
+    })
+  }
+  
+  // 4. 检查是否为整数
+  if (calculatedManDays % 1 === 0 && calculatedManDays > 3) {
+    warnings.push({
+      title: '建议精确填写',
+      type: 'info',
+      message: `实际工时为整数 ${calculatedManDays} 人天，建议根据实际投入情况填写更精确的值（如 ${calculatedManDays - 0.5} 或 ${calculatedManDays + 0.5}）。`
+    })
+  }
+  
+  progressCalculationDetails.value = {
+    totalDays,
+    weekends,
+    workDays,
+    calculatedManDays,
+    warnings
+  }
+  
+  // 初始化调整值为计算值
+  adjustedProgressManDays.value = calculatedManDays
+  
+  showProgressManDaysConfirmDialog.value = true
+}
+
+// 确认使用进度更新的实际工时计算结果
+const confirmProgressManDaysCalculation = () => {
+  progressForm.value.actualManDays = adjustedProgressManDays.value
+  isProgressManDaysCalculated.value = true
+  showProgressManDaysConfirmDialog.value = false
+  
+  // 添加高亮动画效果
+  highlightField('progressActualManDays')
+  
+  // 偏差提示
+  if (selectedTask.value?.manDays && Math.abs(adjustedProgressManDays.value - selectedTask.value.manDays) > selectedTask.value.manDays * 0.3) {
+    ElMessage.warning({
+      message: `实际工时与预计工时偏差较大（${((Math.abs(adjustedProgressManDays.value - selectedTask.value.manDays) / selectedTask.value.manDays * 100).toFixed(0))}%），已确认使用`,
+      duration: 5000
+    })
+  } else {
+    ElMessage.success({
+      message: `已设置实际工时：${adjustedProgressManDays.value} 人天`,
+      duration: 3000
+    })
+  }
+}
+
+// 手动计算进度表单的实际工时（保留原有功能，改为调用新对话框）
+const calculateProgressActualManDaysManually = () => {
+  showProgressActualManDaysDialog()
 };
 
 // 自定义tooltip功能
@@ -1994,6 +2492,9 @@ const resetForm = () => {
   })
   // 重置手动输入标记
   isActualManDaysManual.value = false
+  // 重置工时计算标记
+  isManDaysCalculated.value = false
+  isActualManDaysCalculated.value = false
   if (taskFormRef.value) {
     taskFormRef.value.resetFields()
   }
@@ -2055,35 +2556,250 @@ const calculateManDays = () => {
   return;
 };
 
-// 手动计算工时的函数
-const calculateManDaysManually = () => {
+// 显示预计工时计算对话框（融合版本：强制确认 + 智能检测）
+const showManDaysCalculationDialog = () => {
   if (!taskForm.startDate || !taskForm.expectedEndDate || !taskForm.participantCount) {
-    ElMessage.warning('请先选择开始时间、预计结束时间和投入人数');
-    return;
+    ElMessage.warning('请先选择开始时间、预计结束时间和投入人数')
+    return
   }
 
-  const start = new Date(taskForm.startDate);
-  const end = new Date(taskForm.expectedEndDate);
+  const start = new Date(taskForm.startDate)
+  const end = new Date(taskForm.expectedEndDate)
   
-  // 验证日期的合理性
   if (start > end) {
-    ElMessage.error('开始时间不能晚于预计结束时间');
-    return;
+    ElMessage.error('开始时间不能晚于预计结束时间')
+    return
   }
 
-  // 计算工作日数，如果开始时间等于结束时间，按1天计算
-  let workDays;
+  // 计算详细信息
+  let workDays
   if (start.getTime() === end.getTime()) {
-    workDays = 1; // 同一天按1个工作日计算
+    workDays = 1
   } else {
-    workDays = calculateWorkDays(start, end);
+    workDays = calculateWorkDays(start, end)
   }
   
-  // 工时 = 工作日 × 参与人数
-  const calculatedManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
-  taskForm.manDays = calculatedManDays;
+  const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+  const weekends = totalDays - workDays
+  const calculatedManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1))
   
-  ElMessage.success(`已计算工时：${calculatedManDays} 人天（${workDays} 工作日 × ${taskForm.participantCount} 人）`);
+  // 智能检测异常值并生成警告
+  const warnings = []
+  
+  // 1. 检查是否过大（超过30天）
+  if (calculatedManDays > 30) {
+    warnings.push({
+      title: '工时较大',
+      type: 'warning',
+      message: `计算结果为 ${calculatedManDays} 人天，建议检查时间范围和参与人数是否正确，或考虑将任务拆分。`
+    })
+  }
+  // 2. 检查是否过小（小于0.5天）
+  else if (calculatedManDays < 0.5) {
+    warnings.push({
+      title: '工时较小',
+      type: 'info',
+      message: `计算结果为 ${calculatedManDays} 人天，建议最少设置 0.5 人天。`
+    })
+  }
+  
+  // 3. 检查是否为整数倍（可能没考虑实际情况）
+  if (calculatedManDays % 1 === 0 && calculatedManDays > 5) {
+    warnings.push({
+      title: '建议调整',
+      type: 'info',
+      message: `计算结果为整数 ${calculatedManDays} 人天，实际工时通常会有小数，建议根据任务复杂度进行微调。`
+    })
+  }
+  
+  // 4. 检查人数是否合理
+  if (taskForm.participantCount > 5) {
+    warnings.push({
+      title: '参与人数较多',
+      type: 'warning',
+      message: `参与人数为 ${taskForm.participantCount} 人，请确认是否所有人都全职投入此任务。`
+    })
+  }
+  
+  // 5. 检查时间跨度
+  if (workDays > 20) {
+    warnings.push({
+      title: '时间跨度较长',
+      type: 'info',
+      message: `任务时间跨度 ${workDays} 个工作日，建议考虑将任务拆分为多个阶段，便于跟踪进度。`
+    })
+  }
+  
+  calculationDetails.value = {
+    totalDays,
+    weekends,
+    workDays,
+    calculatedManDays,
+    warnings
+  }
+  
+  // 初始化调整值为计算值
+  adjustedManDays.value = calculatedManDays
+  
+  showManDaysConfirmDialog.value = true
+}
+
+// 确认使用预计工时计算结果
+const confirmManDaysCalculation = () => {
+  taskForm.manDays = adjustedManDays.value
+  isManDaysCalculated.value = true
+  showManDaysConfirmDialog.value = false
+  
+  // 添加高亮动画效果
+  highlightField('manDays')
+  
+  ElMessage.success({
+    message: `已设置预计工时：${adjustedManDays.value} 人天`,
+    duration: 3000
+  })
+}
+
+// 显示实际工时计算对话框（融合版本：强制确认 + 智能检测）
+const showActualManDaysCalculationDialog = () => {
+  if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
+    ElMessage.warning('请先选择开始时间、实际结束时间和投入人数')
+    return
+  }
+
+  const start = new Date(taskForm.startDate)
+  const end = new Date(taskForm.actualEndDate)
+  
+  if (start > end) {
+    ElMessage.error('开始时间不能晚于实际结束时间')
+    return
+  }
+
+  // 计算详细信息
+  let workDays
+  if (start.getTime() === end.getTime()) {
+    workDays = 1
+  } else {
+    workDays = calculateWorkDays(start, end)
+  }
+  
+  const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+  const weekends = totalDays - workDays
+  const calculatedManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1))
+  
+  // 智能检测异常值并生成警告
+  const warnings = []
+  
+  // 1. 与预计工时对比
+  if (taskForm.manDays) {
+    const deviation = Math.abs(calculatedManDays - taskForm.manDays)
+    const deviationPercent = (deviation / taskForm.manDays * 100).toFixed(0)
+    
+    if (deviation > taskForm.manDays * 0.5) {
+      warnings.push({
+        title: '偏差过大',
+        type: 'error',
+        message: `实际工时与预计工时偏差 ${deviationPercent}%（${calculatedManDays > taskForm.manDays ? '超出' : '节省'} ${deviation.toFixed(1)} 人天），请仔细检查是否正确。`
+      })
+    } else if (deviation > taskForm.manDays * 0.3) {
+      warnings.push({
+        title: '偏差较大',
+        type: 'warning',
+        message: `实际工时与预计工时偏差 ${deviationPercent}%，建议确认数据是否准确。`
+      })
+    } else if (deviation <= taskForm.manDays * 0.1) {
+      warnings.push({
+        title: '估算准确',
+        type: 'success',
+        message: `实际工时与预计工时偏差仅 ${deviationPercent}%，估算非常准确！`
+      })
+    }
+  }
+  
+  // 2. 检查是否过大
+  if (calculatedManDays > 50) {
+    warnings.push({
+      title: '实际工时过大',
+      type: 'warning',
+      message: `实际工时为 ${calculatedManDays} 人天，请确认时间范围和参与人数是否正确。`
+    })
+  }
+  // 3. 检查是否过小
+  else if (calculatedManDays < 0.5) {
+    warnings.push({
+      title: '实际工时较小',
+      type: 'info',
+      message: `实际工时为 ${calculatedManDays} 人天，建议最少设置 0.5 人天。`
+    })
+  }
+  
+  // 4. 检查是否为整数
+  if (calculatedManDays % 1 === 0 && calculatedManDays > 3) {
+    warnings.push({
+      title: '建议精确填写',
+      type: 'info',
+      message: `实际工时为整数 ${calculatedManDays} 人天，建议根据实际投入情况填写更精确的值（如 ${calculatedManDays - 0.5} 或 ${calculatedManDays + 0.5}）。`
+    })
+  }
+  
+  actualCalculationDetails.value = {
+    totalDays,
+    weekends,
+    workDays,
+    calculatedManDays,
+    warnings
+  }
+  
+  // 初始化调整值为计算值
+  adjustedActualManDays.value = calculatedManDays
+  
+  showActualManDaysConfirmDialog.value = true
+}
+
+// 确认使用实际工时计算结果
+const confirmActualManDaysCalculation = () => {
+  taskForm.actualManDays = adjustedActualManDays.value
+  isActualManDaysCalculated.value = true
+  isActualManDaysManual.value = true
+  showActualManDaysConfirmDialog.value = false
+  
+  // 添加高亮动画效果
+  highlightField('actualManDays')
+  
+  // 偏差提示
+  if (taskForm.manDays && Math.abs(adjustedActualManDays.value - taskForm.manDays) > taskForm.manDays * 0.3) {
+    ElMessage.warning({
+      message: `实际工时与预计工时偏差较大（${((Math.abs(adjustedActualManDays.value - taskForm.manDays) / taskForm.manDays * 100).toFixed(0))}%），已确认使用`,
+      duration: 5000
+    })
+  } else {
+    ElMessage.success({
+      message: `已设置实际工时：${adjustedActualManDays.value} 人天`,
+      duration: 3000
+    })
+  }
+}
+
+// 高亮字段动画
+const highlightField = (fieldName) => {
+  nextTick(() => {
+    const element = document.querySelector(`[data-field="${fieldName}"]`)
+    if (element) {
+      element.classList.add('field-highlight-animation')
+      setTimeout(() => {
+        element.classList.remove('field-highlight-animation')
+      }, 2400) // 3次动画 × 0.8秒
+    }
+  })
+}
+
+// 手动计算工时的函数（保留原有功能，但改为调用新的对话框）
+const calculateManDaysManually = () => {
+  showManDaysCalculationDialog()
+};
+
+// 手动计算实际工时的函数（保留原有功能，但改为调用新的对话框）
+const calculateActualManDaysManually = () => {
+  showActualManDaysCalculationDialog()
 };
 
 // 计算实际工时（自动触发）
@@ -2119,41 +2835,11 @@ const calculateActualManDays = () => {
   taskForm.actualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
 };
 
-// 手动计算实际工时的函数
-const calculateActualManDaysManually = () => {
-  if (!taskForm.startDate || !taskForm.actualEndDate || !taskForm.participantCount) {
-    ElMessage.warning('请先选择开始时间、实际结束时间和投入人数');
-    return;
-  }
-
-  const start = new Date(taskForm.startDate);
-  const end = new Date(taskForm.actualEndDate);
-
-  // 验证日期的合理性
-  if (start > end) {
-    ElMessage.error('开始时间不能晚于实际结束时间');
-    return;
-  }
-
-  // 计算工作日数，如果开始时间等于结束时间，按1天计算
-  let workDays;
-  if (start.getTime() === end.getTime()) {
-    workDays = 1; // 同一天按1个工作日计算
-  } else {
-    workDays = calculateWorkDays(start, end);
-  }
-  
-  // 工时 = 工作日 × 参与人数
-  const calculatedActualManDays = parseFloat((workDays * taskForm.participantCount).toFixed(1));
-  taskForm.actualManDays = calculatedActualManDays;
-  
-  ElMessage.success(`已计算实际工时：${calculatedActualManDays} 人天（${workDays} 工作日 × ${taskForm.participantCount} 人）`);
-};
-
 // 处理实际工时手动输入
 const onActualManDaysChange = (value) => {
   // 标记为手动输入
   isActualManDaysManual.value = true;
+  isActualManDaysCalculated.value = false; // 清除计算标记
   taskForm.actualManDays = value;
 };
 
@@ -2648,5 +3334,88 @@ onMounted(() => {
 .tooltip-content {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ========== 工时计算改进样式 ========== */
+
+/* 计算后的值高亮显示 */
+.calculated-value :deep(.el-input-number__decrease),
+.calculated-value :deep(.el-input-number__increase) {
+  background-color: #e1f3d8 !important;
+}
+
+.calculated-value :deep(.el-input__inner) {
+  background-color: #f0f9ff !important;
+  border-color: #67c23a !important;
+  font-weight: 600;
+}
+
+/* 字段高亮动画 */
+@keyframes field-highlight {
+  0%, 100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+  50% {
+    background-color: #e1f3d8;
+    transform: scale(1.02);
+  }
+}
+
+.field-highlight-animation {
+  animation: field-highlight 0.8s ease-in-out 3;
+  border-radius: 4px;
+}
+
+.field-highlight-animation :deep(.el-input-number__decrease),
+.field-highlight-animation :deep(.el-input-number__increase) {
+  animation: field-highlight 0.8s ease-in-out 3;
+}
+
+.field-highlight-animation :deep(.el-input__inner) {
+  animation: field-highlight 0.8s ease-in-out 3;
+  font-weight: 600;
+  border-width: 2px;
+}
+
+/* 计算对话框样式 */
+.calculation-dialog {
+  font-size: 14px;
+}
+
+.calculation-dialog .el-descriptions :deep(.el-descriptions__label) {
+  width: 130px;
+  font-weight: 600;
+  background-color: #fafafa;
+}
+
+.calculation-dialog .el-descriptions :deep(.el-descriptions__content) {
+  font-weight: 500;
+}
+
+.calculation-dialog .el-input-number {
+  width: 100%;
+}
+
+.calculation-dialog .result-tag {
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.calculation-dialog code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* 对话框footer按钮样式 */
+.calculation-dialog + .el-dialog__footer .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.calculation-dialog + .el-dialog__footer .dialog-footer .el-button {
+  min-width: 100px;
+  font-weight: 500;
 }
 </style> 

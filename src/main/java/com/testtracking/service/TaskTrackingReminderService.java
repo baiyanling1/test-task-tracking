@@ -87,11 +87,17 @@ public class TaskTrackingReminderService {
     private List<User> findInactiveUsers(LocalDate checkDate) {
         log.info("检查日期: {}", checkDate);
         
-        // 获取所有活跃用户
+        // 获取所有活跃用户（isActive=true）
         List<User> activeUsers = userRepository.findByIsActiveTrue();
         List<User> inactiveUsers = new ArrayList<>();
         
         for (User user : activeUsers) {
+            // 双重检查：确保用户状态为激活（防止数据不一致）
+            if (user.getIsActive() == null || !user.getIsActive()) {
+                log.debug("用户 {} 已被禁用，跳过检查", user.getRealName());
+                continue;
+            }
+            
             // 检查用户是否在白名单中
             if (taskTrackingConfigService.isUserInWhitelist(user.getUsername())) {
                 log.info("用户 {} 在白名单中，跳过检查", user.getRealName());
@@ -106,6 +112,7 @@ public class TaskTrackingReminderService {
             }
         }
         
+        log.info("共检查 {} 名活跃用户，发现 {} 名用户未填写任务", activeUsers.size(), inactiveUsers.size());
         return inactiveUsers;
     }
 

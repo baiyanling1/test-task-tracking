@@ -92,6 +92,7 @@ public class FeiShuNotificationService {
             log.info("成功发送通知到飞书: {}", notification.getTitle());
         } catch (Exception e) {
             log.error("发送通知到飞书失败: {}", e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -435,15 +436,36 @@ public class FeiShuNotificationService {
             log.info("开始发送HTTP POST请求到飞书webhook...");
             
             var response = restTemplate.postForEntity(webhookUrl, request, String.class);
+            String responseBody = response.getBody();
             log.info("飞书webhook响应: HTTP状态码={}, 响应体长度={}", 
-                response.getStatusCode(), response.getBody() != null ? response.getBody().length() : 0);
-            log.debug("飞书响应体详细内容: {}", response.getBody());
+                response.getStatusCode(), responseBody != null ? responseBody.length() : 0);
+            log.debug("飞书响应体详细内容: {}", responseBody);
             
-            // 检查飞书返回的错误信息
-            if (response.getBody() != null && response.getBody().contains("\"code\":0")) {
-                log.info("飞书消息发送成功，code=0");
-            } else {
-                log.warn("飞书可能返回了错误信息，请检查响应体: {}", response.getBody());
+            // 解析飞书响应，检查 code 字段（0 表示成功，非 0 表示失败）
+            if (responseBody != null && !responseBody.isBlank()) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> json = objectMapper.readValue(responseBody, Map.class);
+                    Object codeObj = json.get("code");
+                    int code = codeObj instanceof Number ? ((Number) codeObj).intValue() : -1;
+                    String msg = json.containsKey("msg") ? String.valueOf(json.get("msg")) : "";
+                    if (code != 0) {
+                        String errorDesc = (code == 11232)
+                            ? "飞书接口频率限制(frequency limited)，请减少通知发送频率或稍后重试"
+                            : "code=" + code + (msg.isEmpty() ? "" : ", msg=" + msg);
+                        log.error("飞书webhook返回错误: {}", errorDesc);
+                        throw new RuntimeException("飞书发送失败: " + errorDesc);
+                    }
+                    log.info("飞书消息发送成功，code=0");
+                } catch (RuntimeException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.warn("解析飞书响应体失败，按原逻辑判断: {}", e.getMessage());
+                    if (!responseBody.contains("\"code\":0")) {
+                        log.error("飞书可能返回了错误信息: {}", responseBody);
+                        throw new RuntimeException("飞书发送失败，响应: " + responseBody);
+                    }
+                }
             }
             
         } catch (Exception e) {

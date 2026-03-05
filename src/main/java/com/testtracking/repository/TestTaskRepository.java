@@ -48,6 +48,12 @@ public interface TestTaskRepository extends JpaRepository<TestTask, Long> {
 
     // 超时任务查询
     List<TestTask> findByIsOverdueTrue();
+
+    /**
+     * 查询所有任务并预加载负责人（用于超时检查与通知，避免懒加载问题）
+     */
+    @Query("SELECT DISTINCT t FROM TestTask t LEFT JOIN FETCH t.assignedTo")
+    List<TestTask> findAllWithAssignedTo();
     
     List<TestTask> findByIsOverdueTrueAndStatusNot(TestTask.TaskStatus status);
     

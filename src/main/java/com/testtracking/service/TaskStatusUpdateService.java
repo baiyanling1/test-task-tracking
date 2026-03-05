@@ -1,6 +1,7 @@
 package com.testtracking.service;
 
 import com.testtracking.entity.TestTask;
+import com.testtracking.entity.User;
 import com.testtracking.repository.TestTaskRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,9 @@ public class TaskStatusUpdateService {
 
     @Autowired
     private TestTaskRepository testTaskRepository;
+    
+    @Autowired
+    private TaskTrackingConfigService taskTrackingConfigService;
 
     /**
      * 每天凌晨2点自动检查和更新任务状态（已由动态调度器管理，此注解已禁用）
@@ -33,7 +37,16 @@ public class TaskStatusUpdateService {
             );
             
             int updatedCount = 0;
+            int skippedCount = 0;
+            
             for (TestTask task : activeTasks) {
+                // 检查任务负责人是否应该被跟踪
+                if (!shouldTrackUser(task.getAssignedTo())) {
+                    skippedCount++;
+                    log.debug("任务 {} 的负责人已禁用或在白名单中，跳过状态更新", task.getTaskName());
+                    continue;
+                }
+                
                 TestTask.TaskStatus oldStatus = task.getStatus();
                 task.checkTaskStatusAndOverdue();
                 
@@ -49,7 +62,8 @@ public class TaskStatusUpdateService {
                 testTaskRepository.saveAll(activeTasks);
             }
             
-            log.info("任务状态更新完成，共更新 {} 个任务", updatedCount);
+            log.info("任务状态更新完成，共检查 {} 个任务，更新 {} 个，跳过 {} 个（用户已禁用或在白名单）", 
+                     activeTasks.size(), updatedCount, skippedCount);
             
         } catch (Exception e) {
             log.error("自动更新任务状态时发生错误", e);
@@ -73,7 +87,16 @@ public class TaskStatusUpdateService {
             );
             
             int updatedCount = 0;
+            int skippedCount = 0;
+            
             for (TestTask task : tasksReachingExpectedDate) {
+                // 检查任务负责人是否应该被跟踪
+                if (!shouldTrackUser(task.getAssignedTo())) {
+                    skippedCount++;
+                    log.debug("任务 {} 的负责人已禁用或在白名单中，跳过检查", task.getTaskName());
+                    continue;
+                }
+                
                 task.checkTaskStatusAndOverdue();
                 log.info("任务 {} 已达到预期完成时间", task.getTaskName());
                 updatedCount++;
@@ -84,10 +107,34 @@ public class TaskStatusUpdateService {
                 testTaskRepository.saveAll(tasksReachingExpectedDate);
             }
             
-            log.info("预期完成时间检查完成，共更新 {} 个任务", updatedCount);
+            log.info("预期完成时间检查完成，共检查 {} 个任务，更新 {} 个，跳过 {} 个（用户已禁用或在白名单）", 
+                     tasksReachingExpectedDate.size(), updatedCount, skippedCount);
             
         } catch (Exception e) {
             log.error("检查预期完成时间到达的任务时发生错误", e);
         }
+    }
+    
+    /**
+     * 检查用户是否应该被跟踪（排除已禁用用户和白名单用户）
+     */
+    private boolean shouldTrackUser(User user) {
+        if (user == null) {
+            return false;
+        }
+        
+        // 检查用户是否被禁用
+        if (user.getIsActive() == null || !user.getIsActive()) {
+            log.debug("用户 {} 已被禁用", user.getRealName());
+            return false;
+        }
+        
+        // 检查用户是否在白名单中
+        if (taskTrackingConfigService.isUserInWhitelist(user.getUsername())) {
+            log.debug("用户 {} 在白名单中", user.getRealName());
+            return false;
+        }
+        
+        return true;
     }
 }
